@@ -49,7 +49,7 @@ kable(data, format = "pipe", caption = "Well being regression results from Lee e
 
 ## Power calculation
 
-The number of villages surveyed (number of clusters) are set at 50.
+The number of villages surveyed (number of clusters) are set at 68 for treatment and control
 
 
 This is the code used to calculate the number of households needed to be surveyed in order to see certain percent increase in reported life satisfaction(on a scale of 1-10)
@@ -68,7 +68,7 @@ signma_sqr <- signma^2
 mdf1 <- 0.10  
 mdf1_sqr <- mdf1^2
 
-m <- 50  #number using villages in newest EPC scope
+m <- 68  #number using villages in newest EPC scope
 
 n1 <- ((4 * z * signma_sqr) / mdf1_sqr) * (1 + rho * (m - 1))
 ```
@@ -77,13 +77,14 @@ n1 <- ((4 * z * signma_sqr) / mdf1_sqr) * (1 + rho * (m - 1))
 
 
 ```{r, warning = FALSE, echo = FALSE}
-# 16%
+# 15%
 
-mdf2 <- 0.16
+mdf2 <- 0.15
 mdf2_sqr <- mdf2^2
 
 n2 <- ((4 * z * signma_sqr) / mdf2_sqr) * (1 + rho * (m - 1))
 
+n2/2*4
 #19% 
 
 
@@ -92,6 +93,30 @@ mdf3_sqr <- mdf3^2
 
 n3 <- ((4 * z * signma_sqr) / mdf3_sqr) * (1 + rho * (m - 1))
 
+
+```
+
+
+
+### Calculating mdf from set n of 1117
+
+```{r}
+m = 68
+
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma <- 1 #paper assumed normal distribution because the wellbeing question was not asked baseline
+signma_sqr <- signma^2
+
+n_two <- 2235
+
+P <- 0.75
+
+mdf_wellbeing <-  z * signma * sqrt( (1 + rho * (m- 1))/(n_two * P * (1-P)))
+
+
+mdf_wellbeing
 ```
 
 
@@ -191,6 +216,28 @@ n3_spending <- ((4 * z * signma_spending1_sqr) / mdf_spending3_sqr) * (1 + rho *
 
 
 
+### Calculating mdf from set n of 1117
+
+```{r}
+m <- 68
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_spending1 <- 21.83 #from the lee et al. paper
+
+
+n_two <- 2235
+
+P <- 0.75
+
+mdf_spending <-  z * signma_spending1 * sqrt( (1 + rho * (m- 1))/(n_two * P * (1-P)))
+
+mdf_spending/10.83
+
+```
+
+
+
 ### Results
 
 
@@ -270,9 +317,9 @@ n1_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene1_sqr) * (1 + rho *
 mdf_kerosene2 <- 2.64*0.35 #pulled control*5% decrease
 mdf_kerosene2_sqr <-mdf_kerosene2^2
 
-m <- 50 #number using villages in newest EPC scope
+m <- 32 #number using villages in newest EPC scope
 
-n2_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene2_sqr) * (1 + rho * (m - 1))
+n2_kerosene <- ((4 * z^2 * signma_kerosene1_sqr) / mdf_kerosene2_sqr) * (1 + rho * (m - 1))
 
 
 #40% 
@@ -287,6 +334,26 @@ n3_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene3_sqr) * (1 + rho *
 ```
 
 
+
+### Calculating mdf from set n of 1117
+
+```{r}
+m <- 68
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_kerosene1 <- 2.75
+
+
+n_two <- 2235
+
+P <- 0.75
+
+mdf_kerosene<-  z * signma_kerosene1 * sqrt( (1 + rho * (m- 1))/(n_two * P * (1-P)))
+
+mdf_kerosene/2.64
+
+```
 
 ### Results
 
@@ -397,7 +464,24 @@ n3_consumption <- ((4 * z * signma_consumption1_sqr) / mdf_consumption3_sqr) * (
 ```
 
 
+### Calculating mdf from set n of 1117
 
+```{r}
+m <- 68
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_consumption1 <- s2
+
+n_two <- 2235
+
+P <- 0.75
+
+mdf_consumption<-  z * signma_consumption1 * sqrt( (1 + rho * (m- 1))/(n_two * P * (1-P)))
+
+mdf_consumption/7.9
+
+```
 ### Results
 
 
