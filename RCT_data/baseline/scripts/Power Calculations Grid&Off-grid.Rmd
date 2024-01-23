@@ -1,0 +1,413 @@
+---
+title: "Power Calculation for Off-grid and Grid"
+author: "Xiaoming Zhang"
+date: "2023-10-04"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+#library
+library(tidyverse)
+library(here)
+library(readxl)
+
+getwd()
+```
+
+# Formula used for power calculation
+
+![Clustered sampling power calculation of sample size]("C:\Users\wb614406\OneDrive - WBG\Desktop\MTF Data\data\power_calculation.jpg")
+
+
+# Wellbeing
+
+## Explanation
+
+Standard deviation and minimum detectable effect come from the Lee et al. paper. Specifically the wellbeing measurement is in panel D: primary non-economic outputs- **D2 normalized life satisfaction**.
+
+- Standard deviation: Because the **D2 normalized life satisfaction** question was not gathered in baseline, standard deviation of the population was estimated as 1 in the paper. 
+- Minimum detectable effect: The mdf was obtained using regression results for treatment effects on key outcomes (D2 in this case). As it is shown as the table below, therefore we're trying numbers ranging from 10% to 20% for this exercise. 
+
+```{r, warning = FALSE, echo = FALSE}
+
+library(knitr)
+
+data <- data.frame(
+  Category = c("round1", "round2", "pooled"),
+  ITT = c(0.11, 0.22, 0.16),
+  TOT = c(0.12, 0.29, 0.19)
+)
+
+kable(data, format = "pipe", caption = "Well being regression results from Lee et. al")
+
+```
+
+
+
+## Power calculation
+
+The number of villages surveyed (number of clusters) are set at 50.
+
+
+This is the code used to calculate the number of households needed to be surveyed in order to see certain percent increase in reported life satisfaction(on a scale of 1-10)
+
+
+```{r, warning=FALSE}
+
+###10% 
+
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma <- 1 #paper assumed normal distribution because the wellbeing question was not asked baseline
+signma_sqr <- signma^2
+
+mdf1 <- 0.10  
+mdf1_sqr <- mdf1^2
+
+m <- 50  #number using villages in newest EPC scope
+
+n1 <- ((4 * z * signma_sqr) / mdf1_sqr) * (1 + rho * (m - 1))
+```
+
+
+
+
+```{r, warning = FALSE, echo = FALSE}
+# 16%
+
+mdf2 <- 0.16
+mdf2_sqr <- mdf2^2
+
+n2 <- ((4 * z * signma_sqr) / mdf2_sqr) * (1 + rho * (m - 1))
+
+#19% 
+
+
+mdf3 <- 0.19
+mdf3_sqr <- mdf3^2
+
+n3 <- ((4 * z * signma_sqr) / mdf3_sqr) * (1 + rho * (m - 1))
+
+```
+
+
+
+## Results
+
+
+```{r, echo = FALSE, warning = FALSE}
+table1 <- data.frame(
+  MDF = c("10%", "16%", "19%"),
+  Households = c(round(n1,0), round(n2,0), round(n3,0))
+)
+
+kable(table1, format = "pipe", caption = "Well being power calculations")
+```
+
+
+
+# Energy Spending
+
+## Explanation
+
+Standard deviation and minimum detectable effect come from the Lee et al. paper. Specifically the energy spending  measurement is in panel B: additional energy outcomes- **B8. Monthly total energy spending(USD)** & **B7. Monthly kerosene spending(USD)**. 
+
+## B8. Monthly total energy spending(USD)
+
+
+- Minimum detectable effect:  Due to the fact that the coefficient for **B8. Monthly total energy spending(USD)** is not statistically significant, and the spending increase is around 3%-5%,  the mdf used in the power calculation is calculated at 5%, 10%, 20% level of decrease from the control group.
+
+
+```{r, warning = FALSE}
+
+library(knitr)
+
+data1 <- data.frame(
+  Category = c("round1", "round2", "pooled"),
+  Control = c(11.66, 9.98, 10.83),
+  ITT = c(-0.35, -0.48, -0.36),
+  TOT = c(-0.40, -0.01, -0.19)
+)
+
+kable(data1, format = "pipe", caption = "Monthly total energy spending(USD) regression results from Lee et. al")
+
+```
+
+
+
+### Power calculation
+
+The number of villages surveyed (number of clusters)are set at 50.
+
+
+This is the code used to calculate the number of households needed to be surveyed in order to see certain USD decrease in monthly total energy spending
+
+
+```{r, warning=FALSE}
+
+###5% 
+
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_spending1 <- 21.83 # Got directly from the Lee et al. paper
+signma_spending1_sqr <- signma_spending1^2
+
+mdf_spending1 <- 10.83*0.05 #pulled control*5% decrease
+mdf_spending1_sqr <-mdf_spending1^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n1_spending <- ((4 * z * signma_spending1_sqr) / mdf_spending1_sqr) * (1 + rho * (m - 1))
+```
+
+
+
+
+```{r, warning=FALSE, echo = FALSE}
+# 10%
+
+mdf_spending2 <- 10.83*0.1 #pulled control*20% decrease
+mdf_spending2_sqr <-mdf_spending2^2
+
+
+n2_spending <- ((4 * z * signma_spending1_sqr) / mdf_spending2_sqr) * (1 + rho * (m - 1))
+
+
+#20% 
+
+mdf_spending3 <- 10.83*0.2 #pulled control*10% decrease
+mdf_spending3_sqr <- mdf_spending3^2
+
+
+n3_spending <- ((4 * z * signma_spending1_sqr) / mdf_spending3_sqr) * (1 + rho * (m - 1))
+
+
+```
+
+
+
+### Results
+
+
+```{r, echo = FALSE, warning = FALSE}
+table2 <- data.frame(
+  MDF = c("-5%", "-10%", "-20%"),
+  Households = c(round(n1_spending,0), round(n2_spending,0), round(n3_spending,0))
+)
+
+kable(table2, format = "pipe", caption = "Montly total energy spending(USD) power calculations")
+```
+
+
+
+
+
+
+## B7. Monthly kerosene spending(USD)
+
+
+Because the decrease of spending on total energy is not statistically significant, hereby runs the power calculation for monthly kerosene spending, which is statistically significant at 99%
+
+- mdf: From the regression, it seems that the decrease in kerosene spending range from 30% TO 40%, therefore for the mdf in this analysis, I'm using 30%, 35%, and 40% decrease in kerosene spending
+
+
+
+
+```{r, warning = FALSE, echo = FALSE}
+
+library(knitr)
+
+data2 <- data.frame(
+  Category = c("round1", "round2", "pooled"),
+  Control = c(2.81, 2.47, 2.64),
+  ITT = c(-1.15, -0.63, -0.90),
+  TOT = c(-1.20, -0.74, -1.00)
+)
+
+kable(data2, format = "pipe", caption = "Monthly total kerosene spending(USD) regression results from Lee et. al")
+
+```
+
+
+
+### Power calculation
+
+The number of villages surveyed (number of clusters)are set at 50.
+
+
+This is the code used to calculate the number of households needed to be surveyed in order to see certain USD decrease in monthly kerosene spending
+
+
+```{r, warning=FALSE}
+
+###30% 
+
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_kerosene1 <- 2.75 # Got directly from the Lee et al. paper
+signma_kerosene1_sqr <- signma_kerosene1^2
+
+mdf_kerosene1 <- 2.64*0.3 #pulled control*5% decrease
+mdf_kerosene1_sqr <-mdf_kerosene1^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n1_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene1_sqr) * (1 + rho * (m - 1))
+```
+
+
+
+
+```{r, warning=FALSE, echo = FALSE}
+# 35%
+
+mdf_kerosene2 <- 2.64*0.35 #pulled control*5% decrease
+mdf_kerosene2_sqr <-mdf_kerosene2^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n2_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene2_sqr) * (1 + rho * (m - 1))
+
+
+#40% 
+
+mdf_kerosene3 <- 2.64*0.40 #pulled control*10% decrease
+mdf_kerosene3_sqr <- mdf_kerosene3^2
+
+
+n3_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene3_sqr) * (1 + rho * (m - 1))
+
+
+```
+
+
+
+### Results
+
+
+```{r, echo = FALSE, warning = FALSE}
+table3 <- data.frame(
+  MDF = c("-30%", "-35%", "-40%"),
+  Households = c(round(n1_kerosene,0), round(n2_kerosene,0), round(n3_kerosene,0))
+)
+
+kable(table3, format = "pipe", caption = "Montly total kerosene spending(USD) power calculations")
+```
+
+
+
+
+# Electricity Consumption, very primary thought.
+
+## Explanation
+
+Standard deviation and minimum detectable effect come from the Lee et al. paper. Specifically the electricity consumption measurement is in **Table B7: Benchmarking average monthly electricity consumption in kWh and USD - Panel A: Newly connected households in sample**.
+
+- Standard deviation: we are given Q1 and Q3, the standard deviation is calculated using the formula below. Sepcifically the standard deviation is taking the IQR of households that are newly connected in the sample and their consumption in 2016 (Round 1 survey)
+
+![IQR estimation of sd]("C:\Users\wb614406\OneDrive - WBG\Desktop\MTF Data\data\IQR_SD.png")
+
+```{r, warning = FALSE, echo = FALSE}
+# After calculating the sd of both control and treatment group using their statistics from 2016, and from there calculating the pooled standard deviation for the population.
+
+s2 <- (22-0)/1.349
+s1 <- (76.4-30.9)/1.349
+n2 <- 506
+n1 <- 208
+
+pooled_sd <- sqrt(((n1-1)*s1^2 + (n2-1)*s2^2) / (n1+n1-2))
+
+# - Minimum detectable effect: because we only have the percentile of the data set for treatment(newly connected households in sample), and control(baseline connected households in sample), the effect of the subsidy and connection is imitated through comparing the difference in consumption increase rate for the two groups between 2016-2017 (which is time of the round1 and round2 survey)
+# - The formula and result is: (T2017 - T2016)/T2016 - (C2017 - C2016)/C2016 = 0.39
+# - Therefore I'm using the increase of 30%, 35%, and 40% for calculating sample size
+# - The data could be found on page 101 of the Lee etal. pdf(A-57 in terms of page number)
+
+```
+
+- Minimum detectable effect is estimated at 30%, 35%, 40% from the calculated increase rate in electricity consumption from 2016 to 2017 in newly connected households.
+- The data used could be found on ***page 101*** of the Lee etal. pdf (A-57 in terms of page number)
+
+```{r, echo=FALSE }
+r1 <- (10.8-7.9)/7.9
+r2 <- (72.3-74.1)/74.1
+r_consumption <- r1-r2
+```
+
+
+
+
+
+
+
+### Power calculation
+
+The number of villages surveyed (number of clusters)are set at 50.
+
+
+This is the code used to calculate the number of households needed to be surveyed in order to see certain increase in electricity consumption
+
+
+
+```{r, warning=FALSE}
+
+###30% 
+
+rho <- 0.05
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma_consumption1 <- s2 #s2 is the calculated standard deviation
+signma_consumption1_sqr <- signma_consumption1^2
+
+mdf_consumption1 <- 7.9*0.3 #treatment*increase??? Not sure here
+mdf_consumption1_sqr <-mdf_consumption1^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n1_consumption <- ((4 * z * signma_consumption1_sqr) / mdf_consumption1_sqr) * (1 + rho * (m - 1))
+```
+
+
+
+
+```{r, warning=FALSE, echo = FALSE}
+# 35%
+
+mdf_consumption2 <- 7.9*0.35 #treatment*increase??? Not sure here
+mdf_consumption2_sqr <-mdf_consumption2^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n2_consumption <- ((4 * z * signma_consumption1_sqr) / mdf_consumption2_sqr) * (1 + rho * (m - 1))
+
+#40% 
+
+mdf_consumption3 <- 7.9*0.4 #treatment*increase??? Not sure here
+mdf_consumption3_sqr <-mdf_consumption3^2
+
+m <- 50 #number using villages in newest EPC scope
+
+n3_consumption <- ((4 * z * signma_consumption1_sqr) / mdf_consumption3_sqr) * (1 + rho * (m - 1))
+
+```
+
+
+
+### Results
+
+
+```{r, echo = FALSE, warning = FALSE}
+table4 <- data.frame(
+  MDF = c("30%", "35%", "40%"),
+  Households = c(round(n1_consumption,0), round(n2_consumption,0), round(n3_consumption,0))
+)
+
+kable(table4, format = "pipe", caption = "Average montly electricity consumption in kWh")
+```
+
+
