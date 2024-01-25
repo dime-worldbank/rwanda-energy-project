@@ -339,7 +339,7 @@ n3_kerosene <- ((4 * z * signma_kerosene1_sqr) / mdf_kerosene3_sqr) * (1 + rho *
 
 ```{r}
 m <- 68
-rho <- 0.05
+rho <- 0.1
 z <- 2.80 #alpha =  0.05, beta = 0.8
 
 signma_kerosene1 <- 2.75
@@ -464,11 +464,11 @@ n3_consumption <- ((4 * z * signma_consumption1_sqr) / mdf_consumption3_sqr) * (
 ```
 
 
-### Calculating mdf from set n of 1117
+### Calculating mdf from set n of 2235
 
 ```{r}
 m <- 68
-rho <- 0.05
+rho <- 0.1
 z <- 2.80 #alpha =  0.05, beta = 0.8
 
 signma_consumption1 <- s2
