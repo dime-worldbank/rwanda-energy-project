@@ -3,7 +3,7 @@
     "path": "C:/Users/wb614406/github/rwanda-energy-project/RCT_data/baseline/scripts/scope_0119.R",
     "project_path": "scripts/scope_0119.R",
     "type": "r_source",
-    "hash": "1015790443",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1706111629716.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "92,0",
-        "scrollLine": "83"
+        "cursorPosition": "185,0",
+        "scrollLine": "175"
     },
     "folds": "",
-    "lastKnownWriteTime": 1706202630,
+    "lastKnownWriteTime": 1706217151,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1706202630470,
+    "last_content_update": 1706217151362,
     "read_only": false,
     "read_only_alternatives": []
 }

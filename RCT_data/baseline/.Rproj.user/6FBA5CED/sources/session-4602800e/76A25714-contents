@@ -20,11 +20,13 @@ if (Sys.getenv("USERNAME") == "wb614406"){
 path <- file.path(
   DROPBOX,
   "Rwanda Energy/datawork/RCT_data",
-  "baseline/data/data/four_district_2401.xlsx"
+  "baseline/data/data/Karongi Surveyed 0116/Surveyed_Customers.shp"
 )
 
 #read file----
 four_district_2401 <- read_xlsx(path)
+
+surveyed_customer <- st_read(dsn = path) 
 
 #Scope specify---
 four_district_2401 <- four_district_2401 %>% 
@@ -89,45 +91,98 @@ table(three_scope_2401$status)
 three_scope_newly <- three_scope_2401 %>% 
   filter(status == "newly")
 
-#Make graph
+#Make graph----
+
+meter <- three_scope_2401 %>% 
+  mutate(meter_percent = round(meter_eucl/total_hh,2)) 
+  
+
+#meter distribution----
+
+meter_graph <- meter %>% 
+  filter(meter_percent < 0.3) %>% 
+  select(meter_percent)
+
+meter_graph <- meter_graph %>% 
+  group_by(meter_percent) %>% 
+  summarise(n_village = n())
 
 
 
-#ubudehe_1 distribution----
-
-ubudehe_1 <- scope.4 %>% 
-  filter(status == "newly" & district %in% c("Karongi", "Rulindo", "Rutsiro")) %>% 
-  select(ubudehe_1) %>% 
-  arrange(ubudehe_1)
-
-# write_xlsx(ubudehe_1, here("outputs", "Ubudehe1 HH in Three District Main Scope.xlsx"))
-
-ggplot(ubudehe_1, aes(x = ubudehe_1)) +
-  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
-  geom_density(aes(y = ..count..), color = "red") +  # Add a smooth line
+p1 <- ggplot(meter_graph, aes(x =meter_percent)) +
+  geom_bar(fill = "lightblue", color = "black") +
+  geom_vline(xintercept = c(0.15, 0.2, 0.25), linetype = "dashed", color = "red") +
   labs(
-    title = "Ubudehe1 HH in Three District Main Scope",
-    x = "Number of Households",
+    title = "Meter Percentage Distribution in Three District Main Scope",
+    x = "Meter Percentage",
     y = "Frequency"
   )
 
-summary(ubudehe_1$ubudehe_1)
+
+
+#To graph again----
+four_district_2401.1 <- four_district_2401 %>% 
+  mutate(
+    any_grid = case_when(
+      grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")   ~ "newly",
+      .default = "partial"
+    )
+  )
+
+four_district_2401.1 <- four_district_2401.1 %>% 
+  mutate(
+    status = case_when(
+      any_grid == "newly" & any_offgrid == "newly" ~ "newly",
+      .default = "partial"
+    )
+  )
+
+
+four_district_2401.1 <- four_district_2401.1 %>% 
+  mutate(
+    status = ifelse(ubudehe_1 < 30, "partial", status)
+  )
+
+#three district----
+
+three_scope_2401.1 <- four_district_2401.1 %>% 
+  filter(district %in% c("Karongi", "Rutsiro", "Rulindo") & scope_2401==1)
+
+table(three_scope_2401.1$status)
+
+three_scope_newly.1 <- three_scope_2401.1 %>% 
+  filter(status == "newly")
 
 
 
+#Make graph----
+
+meter <- three_scope_newly.1 %>% 
+  mutate(meter_percent = round(meter_eucl/total_hh,2)) 
+
+
+#meter distribution----
+
+meter_graph <- meter %>% 
+  filter(meter_percent < 0.20) %>% 
+  select(meter_percent)
 
 
 
+p1 <- ggplot(meter_graph, aes(x =meter_percent)) +
+  geom_bar(fill = "lightblue", color = "black") +
+  geom_vline(xintercept = c(0.15, 0.2, 0.25), linetype = "dashed", color = "red") +
+  labs(
+    title = "Meter Percentage Distribution in Three District Main Scope",
+    x = "Meter Percentage",
+    y = "Frequency"
+  )
 
 
+p1
 
 
-
-
-
-
-
-
+98 but 20 villages 
 
 
 
@@ -603,3 +658,6 @@ one_surveyed_plot <- base_one +
 one_surveyed_plot
 
 write_xlsx(no_meter_grid1, path = here("outputs", "partial_1village.xlsx"))
+
+
+
