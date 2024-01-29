@@ -629,7 +629,7 @@ three_scope_ubudehe20 <- three_scope_2401 %>%
 
 
 
-#0129Triple check----
+#Triple check----
 
 
 four_district_2401.1 <- four_district_2401 %>% 
@@ -663,33 +663,9 @@ three_scope_2401.1 <- three_scope_2401.1 %>%
 
 table(three_scope_2401.1$status)
 
-three_scope_2401.1 <- three_scope_2401.1 %>% 
- mutate(meter_percent = round(meter_eucl/total_hh,2)) 
-
-#30% meter percentage----
-
-newly <- three_scope_2401.1 %>% 
- filter(status == "newly")
-
-newly.1 <- newly %>% 
-  filter(meter_percent < 0.3)
-
-newly.1 <- newly.1 %>% 
-  filter(ubudehe_1 >= 30)
-
-newly_2530 <- newly %>% 
-  filter(meter_percent < 0.3 & meter_percent >=0.25)
 
 
-newly_2530_path <- file.path(
-  DROPBOX,
-  "Rwanda Energy/datawork/RCT_data",
-  "baseline/outputs/newly_25-30percent.xlsx"
-)
 
-write_xlsx(
-  newly_2530, path = newly_2530_path, 
-)
 
 
 
