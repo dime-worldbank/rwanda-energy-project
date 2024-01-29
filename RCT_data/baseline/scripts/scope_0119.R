@@ -20,13 +20,13 @@ if (Sys.getenv("USERNAME") == "wb614406"){
 path <- file.path(
   DROPBOX,
   "Rwanda Energy/datawork/RCT_data",
-  "baseline/data/data/Karongi Surveyed 0116/Surveyed_Customers.shp"
+  "baseline/data/data/four_district_2401.xlsx"
 )
 
 #read file----
 four_district_2401 <- read_xlsx(path)
 
-surveyed_customer <- st_read(dsn = path) 
+#surveyed_customer <- st_read(dsn = path) 
 
 #Scope specify---
 four_district_2401 <- four_district_2401 %>% 
@@ -128,6 +128,11 @@ four_district_2401.1 <- four_district_2401 %>%
       .default = "partial"
     )
   )
+four_district_2401.1 <- four_district_2401.1 %>% 
+  mutate(any_offgrid = case_when(
+    et_sum !=0 | priority_0 == 0 ~ "partial",
+    .default = "newly"
+  ))
 
 four_district_2401.1 <- four_district_2401.1 %>% 
   mutate(
@@ -140,7 +145,7 @@ four_district_2401.1 <- four_district_2401.1 %>%
 
 four_district_2401.1 <- four_district_2401.1 %>% 
   mutate(
-    status = ifelse(ubudehe_1 < 30, "partial", status)
+    status = ifelse(ubudehe_1 < 20, "partial", status)
   )
 
 #three district----
@@ -148,23 +153,43 @@ four_district_2401.1 <- four_district_2401.1 %>%
 three_scope_2401.1 <- four_district_2401.1 %>% 
   filter(district %in% c("Karongi", "Rutsiro", "Rulindo") & scope_2401==1)
 
+three_scope_2401.1 <- three_scope_2401.1 %>% 
+  mutate(meter_percent = round(meter_eucl/total_hh, 2))
+
+three_scope_2401.1 <- three_scope_2401.1 %>% 
+  mutate(meter_percent = ifelse(meter_percent >1, round(meters_xy/total_hh,2), meter_percent))
+
 table(three_scope_2401.1$status)
 
-three_scope_newly.1 <- three_scope_2401.1 %>% 
-  filter(status == "newly")
+three_scope_group <- three_scope_2401.1 %>% 
+  group_by(status) %>% 
+  summarise(
+    min = min(meter_percent),
+    Q1 = quantile(meter_percent, 0.25),
+    median = median(meter_percent),
+    mean = mean(meter_percent),
+    Q3 = quantile(meter_percent, 0.75),
+    max = max(meter_percent),
+    
+  )
 
-
+three_scope_2401.1 %>% 
+  group_by(status) %>% 
+  summary(
+   meter_percent
+  )
 
 #Make graph----
 
-meter <- three_scope_newly.1 %>% 
+meter <- three_scope_2401.1 %>% 
+  filter(status == "newly") %>% 
   mutate(meter_percent = round(meter_eucl/total_hh,2)) 
 
 
 #meter distribution----
 
 meter_graph <- meter %>% 
-  filter(meter_percent < 0.20) %>% 
+  filter(meter_percent < 0.30 & ubudehe_1 >=20) 
   select(meter_percent)
 
 
@@ -173,22 +198,51 @@ p1 <- ggplot(meter_graph, aes(x =meter_percent)) +
   geom_bar(fill = "lightblue", color = "black") +
   geom_vline(xintercept = c(0.15, 0.2, 0.25), linetype = "dashed", color = "red") +
   labs(
-    title = "Meter Percentage Distribution in Three District Main Scope",
-    x = "Meter Percentage",
+    title = "Meter Percentage Distribution for Newly villages",
+    x = "Meter Percentage(<30%)",
     y = "Frequency"
   )
 
 
-p1
+table(three_scope_2401.1$status)
+
+#Including more partial village----
+
+partial <- three_scope_2401.1 %>% 
+  filter(
+    status == "partial" & grid_status == "newly" & any_offgrid == "newly" & ubudehe_1 >=20)
 
 
-98 but 20 villages 
+partial10 <- partial %>% 
+  filter(meter_percent <=0.1 )
+
+partial20 <- partial %>% 
+  filter(meter_percent <=0.2 & meter_percent > 0.1)
+
+###play with offgrid---
+
+partial_offgrid <- three_scope_2401.1 %>% 
+  filter(
+    status == "partial" & nep_revision %in% c("GE", "Fill In") & ubudehe_1 >=20)
+
+
+partial10_ <- partial %>% 
+  filter(meter_percent <=0.1 )
+
+partial20 <- partial %>% 
+  filter(meter_percent <=0.2 & meter_percent > 0.1)
 
 
 
 
 
-#status-----
+
+
+
+
+
+
+#NOT USED status-----
 
 three_scope_2401 <- three_scope_2401 %>%
   mutate(
@@ -196,7 +250,7 @@ three_scope_2401 <- three_scope_2401 %>%
     )
 
 
-three_scope_2401 <- three_scope_2401 %>% 
+three_scope_2401 <- three_scope_2401.1 %>% 
   mutate(
     any_grid = case_when(
       grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In") & meter %in% c("no meter")  ~ "newly",
