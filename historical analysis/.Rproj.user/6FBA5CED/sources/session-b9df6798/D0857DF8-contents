@@ -1,0 +1,42 @@
+library(raster)
+library(exactextractr)
+library(dplyr)
+library(rgdal)
+
+# Extract mean -----------------------------------------------------------------
+r <- raster("~/Desktop/rw_viirs_corrected_monthly_start_201401_avg_rad.tif", 1)
+
+rwa_sp <- readOGR(dsn = "~/Desktop/Sector.shp")
+rwa_sp <- spTransform(rwa_sp, CRS("+init=epsg:4326"))
+
+exact_extract(r, rwa_sp, "mean")
+
+# Plot -------------------------------------------------------------------------
+#### Prep data
+r <- r %>% mask(rwa_sp) 
+
+r_df <- rasterToPoints(r, spatial = TRUE) %>% as.data.frame()
+names(r_df) <- c("value", "x", "y")
+
+## Remove very low values of NTL; can be considered noise 
+r_df$value[r_df$value <= 2] <- 0
+
+## Distribution is skewed, so log
+r_df$value_adj <- log(r_df$value+1)
+
+##### Map 
+p <- ggplot() +
+  geom_raster(data = r_df, 
+              aes(x = x, y = y, 
+                  fill = value_adj)) +
+  scale_fill_gradient2(low = "black",
+                       mid = "yellow",
+                       high = "red",
+                       midpoint = 4.5) +
+  labs(title = "NTL, October 2021") +
+  coord_quickmap() + 
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none")
+
+p
