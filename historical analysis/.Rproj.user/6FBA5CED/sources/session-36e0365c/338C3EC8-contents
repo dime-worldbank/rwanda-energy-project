@@ -151,3 +151,80 @@ ggplot(rwa_long_did22, aes(x = Year, y = treated * Year, color = connection_time
        y = "treated*Year",
        color = "Group") +
   theme_minimal()
+
+
+
+#Filter out the connected 2022 but not 2011
+
+#Let's try the MV again
+
+existing22_mv <- st_read(dsn = file.path(data_path, "Existing Electrical Network_2022/Existing_MVLine.shp"))
+
+existing22_mv <- st_transform(existing22_mv, crs = st_crs(rwa_sp))
+
+existing22_mv <- st_intersection(existing22_mv, rwa_sp)
+
+
+
+existing22_mv <- existing22_mv %>% 
+  distinct(Village_ID) %>% 
+  mutate(connect22_mv.2 = 1) %>% 
+  select(Village_ID, connect22_mv.2)
+
+
+rwa_long.2 <- left_join(rwa_long, existing22_mv, by = c("Village_ID"))
+
+rwa_long.2 <- rwa_long.2 %>% 
+  mutate(connect22_mv.2 = ifelse(is.na(connect22_mv.2), 0, connect22_mv.2))
+
+#Check if the new one is the same with the old one
+all(rwa_long.2$connect22_mv == rwa_long.2$connect22_mv.2)
+
+
+
+#Redo graph----
+rwa_long.1 <- rwa_long %>% 
+  mutate(connection_time = case_when(
+    connect11_mv == 0 & connect22_mv == 1 ~ "connected 2011-2022",
+    connect11_mv == 0 & connect22_mv == 0 ~ "not connected"
+  ))
+  
+  
+cohort_means <- rwa_long.1 %>% 
+  filter(!(District %in% c("Gasabo", "Kicukiro", "Nyarugenge")) & !is.na(connection_time)) %>%
+  group_by(connection_time, Year, road) %>% 
+  summarize(cohort_mean = mean(Value[Value !=0], na.rm = TRUE))
+
+cohort_means <- cohort_means %>% 
+  ungroup()
+
+cohort_means <- cohort_means %>% 
+  mutate(connect_road = case_when(
+    connection_time %in% c("connected 2011-2022") & road == 1 ~ "connected-NR1",
+    connection_time %in% c("connected 2011-2022") & road == 0 ~ "connected-NR0",
+    connection_time %in% c("not connected")& road == 1 ~ "not connected-NR1",
+    connection_time %in% c("not connected")& road == 0 ~ "not connected-NR0"
+  ))
+
+
+
+
+ggplot(data = cohort_means, aes(x = Year, y = cohort_mean,group = as.factor(connect_road))) + 
+  geom_point(aes(color = connect_road)) + 
+  geom_line(aes(linetype = connect_road, color = connect_road)) +  
+  scale_linetype_manual(values = c("solid", "dashed", "solid", "dashed" )) +  # Adjust size for specific groups
+  scale_color_manual(values = c("blue", "blue", "black", "black")) +
+  # Set a default size for all lines
+  theme_classic() + 
+  geom_vline(xintercept = c(17,24), alpha = 0.3, linetype = "solid", size = 0.5, color = "red") +
+  labs(title = "Event Study Villages outside Kigali that connected between 2011 and 2022") + 
+  labs(x = "Year", y = "Avg Nightlight Value", color = "connect_road") 
+
+
+
+
+
+
+
+
+
