@@ -20,24 +20,25 @@ if (Sys.getenv("USERNAME") == "wb614406"){
 path <- file.path(
   DROPBOX,
   "Rwanda Energy/datawork/RCT_data",
-  "baseline/data/data/four_district_2401.xlsx"
+  "baseline/data/data/four_district_2402.xlsx"
 )
 
 #read file----
-four_district_2401 <- read_xlsx(path)
+four_district_2402 <- read_xlsx(path)
+
 
 
 #Status update----
 
 #"newly" is in the randomization scope, "partial" is not
 
- four_district_2401.1 <- four_district_2401 %>% 
+ four_district_2402.1 <- four_district_2402 %>% 
   mutate(any_offgrid = case_when(
-    et_sum !=0 | priority_0 == 0 ~ "partial",
+    et_sum != 0 | priority_0 == 0 ~ "partial",
     .default = "newly"
   ))
 
-four_district_2401.1 <- four_district_2401.1 %>% 
+four_district_2402.1 <- four_district_2402.1 %>% 
   mutate(
     any_grid = case_when(
       grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")  ~ "newly",
@@ -45,52 +46,63 @@ four_district_2401.1 <- four_district_2401.1 %>%
     )
   )
 
-four_district_2401.1 <- four_district_2401.1  %>% 
+four_district_2402.1 <- four_district_2402.1  %>% 
   mutate(status = case_when(
     any_grid == "newly" & any_offgrid == "newly" ~ "newly",
     .default = "partial"
   ))
 
+table(four_district_2402.1$scope_2401)
 
-four_district_2401.1  <- four_district_2401.1 %>% 
+four_district_2402.1  <- four_district_2402.1 %>% 
   mutate(
     status = ifelse(ubudehe_1 <20, "partial", status)
   )
 
-four_district_2401.1 <- four_district_2401.1%>% 
-  mutate(scope_2401 = ifelse(district %in% c("Rutsiro", "Rusizi"), scope_1024, scope_2401))
 
-four_district_2401.1 <- four_district_2401.1 %>% 
+four_district_2402.1 <- four_district_2402.1 %>% 
   mutate(meter_percent = round(meter_eucl/total_hh, 2))
 
 
-write_xlsx(four_district_2401.1, here("data", "four_district.xlsx"))
+#write_xlsx(four_district_2402.1, here("data", "four_district.xlsx"))
 
 
 #Karongi+Rutsiro+Rulindo----
 
-three_scope_2401.1 <- four_district_2401.1 %>% 
-  filter(district %in% c("Karongi", "Rulindo", "Rutsiro") & scope_2401 == 1)
+three_scope_2402.1 <- four_district_2402.1 %>% 
+  filter(district %in% c("Karongi", "Rulindo", "Rutsiro") & scope_2402 == 1)
 
 
-table(three_scope_2401.1$status)
+table(three_scope_2402.1$status)
 
 #30% percent of meter and 20 ubudehe
 
-three_scope_2401.2 <- three_scope_2401.1 %>% 
+three_scope_2402.2 <- three_scope_2402.1 %>% 
   filter(meter_percent < 0.3 & ubudehe_1 >= 20)
 
-table(three_scope_2401.2$status)  
-  
+table(three_scope_2402.2$status)  
 
-three_scope_2401.2 %>% 
+three_scope_2402.2 %>% 
   filter(status == "newly") %>% 
   group_by(district) %>% 
   summarise(
     village_n = n(),
     ubudehe_1 = village_n * 20
   )
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   
   
   
