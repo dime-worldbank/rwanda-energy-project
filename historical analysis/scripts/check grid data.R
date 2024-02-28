@@ -27,29 +27,28 @@ rwa_wide <- read_xlsx(path = file.path(data_path, "ntl_wide_92_21(connect11&22+r
 #Select for 2011
 rwa_2011 <- rwa_wide %>% 
   select(Village_ID, connect11_mv, `2011` , road) %>% 
-  mutate(connect11_mv = as.factor(connect11_mv)) 
-  # mutate(`2011` = ifelse(`2011` > quantile(`2011`, 0.99), quantile(`2011`, 0.99), `2011`)) %>% 
-  # filter(!(District %in% c("Gasabo", "Kicukiro", "Nyarugenge"))) %>%
-  #        
+  mutate(connect11_mv = as.factor(connect11_mv)) %>% 
+  rename(`2011_ntl_value` = `2011`)
+       
 
-summary(rwa_2011$`2011`)
+# summary(rwa_2011$`2011`)
+# 
+# ggplot(rwa_2011, aes(x = `2011`)) +
+#   geom_histogram(fill = "lightblue", color = "black", bins = 30, alpha = 0.7) +
+#   labs(title = "Distribution of 2011", x = "2011 Values", y = "Frequency")
+# 
+# quantile(rwa_2011$`2011`, 0.75)
 
-ggplot(rwa_2011, aes(x = `2011`)) +
-  geom_histogram(fill = "lightblue", color = "black", bins = 30, alpha = 0.7) +
-  labs(title = "Distribution of 2011", x = "2011 Values", y = "Frequency")
 
-quantile(rwa_2011$`2011`, 0.75)
-
-
-mv_11_check <- lm(`2011` ~ connect11_mv + road, data = rwa_2011)
-
-summary(mv_11_check)
-
-stargazer(
-  mv_11_check,
-  type = "html",
-  title = "Table 1: 2011 MV line and nightlights ",
-  out = "mv11_check.html")
+mv_11_check <- lm(`2011_ntl_value` ~ connect11_mv + road, data = rwa_2011)
+# 
+# summary(mv_11_check)
+# 
+# stargazer(
+#   mv_11_check,
+#   type = "html",
+#   title = "Table 1: 2011 MV line and 2011 nightlights",
+#   out = "mv11_check.html")
 
 
 #select for 2022-----
@@ -72,32 +71,90 @@ summary(rwa_2022$`2022`)
 
 #Checking 2022 on 2021----
 
-mv_21_check <- lm(`2021` ~ connect22_mv + road, data = rwa_wide)
+rwa_2022 <- rwa_wide %>% 
+  rename(`2021_ntl_value` = `2021`)
 
-summary(mv_21_check)
+mv_21_check <- lm(`2021_ntl_value` ~ connect22_mv + road, data = rwa_2022)
 
-stargazer(
-  mv_21_check,
-  type = "html",
-  title = "Table 4: 2022 MV line and 2021 harmonized nightlights  ",
-  out = "mv21_check.html")
+# summary(mv_21_check)
+# 
+# stargazer(
+#   mv_21_check,
+#   type = "html",
+#   title = "Table 2: 2022 MV line and 2021 nightlights  ",
+#   out = "mv21_mvcheck.html")
+
+
+lv_21_check <- lm(`2021_ntl_value` ~ connect22_lv + road, data = rwa_2022)
+
+# summary(lv_21_check)
+
+# stargazer(
+#   mv_21_check,
+#   type = "html",
+#   title = "Table 3: 2022 LV line and 2021 nightlights  ",
+#   out = "mv21_lvcheck.html")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 #Dropping 2011 connected----
 
 rwa_wide.1 <- rwa_wide %>% 
-  filter(connect11_mv == 0)
+  filter(connect11_mv == 0) %>% 
+  rename(`2021_ntl_value` = `2021`)
 
-mv_21_check_fil <- lm(`2021` ~ connect22_mv + road, data = rwa_wide.1)
+mv_21_check_fil <- lm(`2021_ntl_value` ~ connect22_mv + road, data = rwa_wide.1)
 
-summary(mv_21_check_fil)
+# summary(mv_21_check_fil)
+# 
+# stargazer(
+#   mv_21_check_fil,
+#   type = "html",
+#   title = "Table 5: 2022 MV line and 2021 nightlights dropping 2011 connections ",
+#   out = "mv21_check_fil.html")
+
 
 stargazer(
+  mv_11_check,
+  mv_21_check,
   mv_21_check_fil,
+  lv_21_check,
+  column.labels = c("2011 MV line", "2022 MV line",  "2022 MV filtering 2011 connections", "2022 LV line"),
   type = "html",
-  title = "Table 5: 2022 MV line and 2021 nightlights no 2011 connections ",
-  out = "mv21_check_fil.html")
+  title = "Table 1: MV line and nightlights",
+  out = "grid_check.html"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #Distribution----

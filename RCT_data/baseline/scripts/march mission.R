@@ -23,4 +23,28 @@ data_path <- file.path(
 )
 
 
-#
+#read files
+rwa_villages <- st_read(dsn = file.path(data_path, "rwa_villages", "Village_area.shp"))
+
+karongi_LV_surveyed <- st_read(dsn = here("data", "Karongi Surveyed 0116", "Surveyed_LV_Lines.shp"))
+rulindo_LV_surveyed <- st_read(dsn = here("data", "Rulindo Surveyed 0116", "Surveyed_LV_Lines.shp"))
+rutsiro_LV_surveyed <- st_read(dsn = here("data", "Rulindo Surveyed 0116", "Surveyed_LV_Lines.shp"))
+
+existing_LV <- st_read(dsn = here("data","Existing Electrical Network_2022", "Existing_LVLine.shp"))
+existing_MV <- st_read(dsn = here("data","Existing Electrical Network_2022", "Existing_MVLine.shp"))
+existing_HV <- st_read(dsn = here("data","Existing Electrical Network_2022", "Existing_HVLine.shp"))
+karongi_meter <- st_read(dsn = here("data", "eucl meter", "karongi_meter.shp"))
+rulindo_meter <- st_read(dsn = here("data", "eucl meter", "rulindo_meter.shp"))
+rutsiro_meter <- st_read(dsn = here("data", "eucl meter", "rutsiro_meter.shp"))
+
+existing_LV <- st_transform(existing_LV, crs = st_crs(rwa_villages))
+existing_MV <- st_transform(existing_MV, crs = st_crs(rwa_villages))
+existing_HV <- st_transform(existing_HV, crs = st_crs(rwa_villages))
+
+rulindo_LV_surveyed <- st_transform(rulindo_LV_surveyed, crs =  st_crs(rwa_villages))
+karongi_LV_surveyed <- st_transform(karongi_LV_surveyed, crs =  st_crs(rwa_villages))
+
+karongi_meter <- st_transform(karongi_meter, crs = st_crs(rwa_villages))
+rulindo_meter <- st_transform(rulindo_meter, crs = st_crs(rwa_villages))
+rutsiro_meter <- st_transform(rutsiro_meter, crs = st_crs(rwa_villages))
+

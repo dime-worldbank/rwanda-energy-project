@@ -80,25 +80,28 @@ stargazer(
 
 
 long_2022 <- rwa_long %>% 
-  filter(connect11_mv == 0 & Year >= 2011) %>%
+  # filter(Year >= 2011) %>%
   mutate(year_2021 = ifelse(Year == 2021, 1, 0))
 
 ##mv----
-mv_2022 <- lm(Value ~ connect22_mv + year_2021 + year_2021*connect22_mv, data = long_2022)
+mv_2022 <- lm(Value ~ connect22_mv + year_2021 + connect11_mv + year_2021*connect22_mv, data = long_2022)
 
 summary(mv_2022)
 
 ##lv----
-lv_2022 <- lm(Value ~ connect22_lv + year_2021 + year_2021*connect22_lv, data = long_2022)
+lv_2022 <- lm(Value ~ connect22_lv + year_2021 + connect11_mv + year_2021*connect22_lv, data = long_2022)
 
 summary(lv_2022)
 
 stargazer(
-  mv_2022, lv_2022,
-  column.labels = c("mv line", "lv line"),
+  mv_2022,
   type = "html",
-  title = "Table: Difference in differences",
-  out = "DiD2022.html")
+  title = "Table: Difference in differences (2022 MV line)",
+  out = "DiD22MV_notfilter2011.html")
 
 
-
+stargazer(
+  lv_2022,
+  type = "html",
+  title = "Table: Difference in differences (2022 LV line)",
+  out = "DiD22LV_notfilter2011.html")
