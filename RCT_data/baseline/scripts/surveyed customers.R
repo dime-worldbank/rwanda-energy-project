@@ -22,7 +22,11 @@ data_path <- file.path(
   "baseline/data/data"
 )
 
-
+output_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/outputs"
+)
 
 
 #read files
@@ -38,6 +42,13 @@ rutsiro_customer <- st_read(dsn = here(data_path, "Rutsiro Surveyed 0116", "Surv
 rulindo_customer <- st_transform(rulindo_customer, crs =  st_crs(rwa_villages))
 karongi_customer <- st_transform(karongi_customer, crs =  st_crs(rwa_villages))
 rutsiro_customer <- st_transform(rutsiro_customer, crs =  st_crs(rwa_villages))
+
+write_xlsx(rulindo_customer, path = file.path(output_path, "rulindo_customer.xlsx"))
+write_xlsx(karongi_customer, path = file.path(output_path, "karongi_customer.xlsx"))
+write_xlsx(rutsiro_customer, path = file.path(output_path, "rutsiro_customer.xlsx"))
+
+
+
 
 
 #scope----
@@ -131,8 +142,31 @@ four_scope_2402 <- four_district_2402.1 %>%
 
 table(four_scope_2402$status)
 
+
+
+
+
+fs_customer <- four_scope_2402 %>% 
+  filter(customer >= 20 )
+
+fs_customer %>% 
+  filter(status == "newly") %>% 
+  group_by(district) %>% 
+  summarise(
+    n = n()
+  )
+
+
+fs_customer %>%
+  filter(status == "newly") %>% 
+  summarise(n = sum(ubudehe_1))
+
+
 three_scope_newly <- four_scope_2402 %>% 
   filter(district %in% c("Karongi", "Rutsiro", "Rulindo") & status == "newly")
+three_scope_newly %>% 
+  group_by(district) %>% 
+  summarise(n = n())
 
 ts_cus0 <- three_scope_newly %>% 
   filter(customer !=0)
@@ -147,6 +181,7 @@ ts_cus5 <- three_scope_newly %>%
 ts_cus10 <- three_scope_newly %>% 
   filter(customer > 10)
 
-
+ts_cus20 <- three_scope_newly %>% 
+  filter(customer >= 20)
 
 
