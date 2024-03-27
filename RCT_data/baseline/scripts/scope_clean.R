@@ -78,7 +78,9 @@ four_scope_2402.1 <- four_district_2402.1 %>%
   filter( scope_2402 == 1)
 
 
-
+four_scope_2402.1 %>% 
+  summarise(n = sum(customer)) %>% 
+  
 
 
 table(four_scope_2402.1$status)

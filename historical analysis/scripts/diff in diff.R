@@ -30,12 +30,16 @@ rwa_wide <- read_xlsx(path = file.path(data_path, "ntl_wide_92_21(connect11&22+r
 
 
 #2011----
+
+rwa_wide <- read_xlsx(path = file.path(data_path, "ntl_wide_92_21(connect11&22+rd).xlsx"))
+
 rwa_long <- rwa_wide %>% 
   pivot_longer(
     cols = matches("^(19|20)"),  
     names_to = "Year",
     values_to = "Value"
   )
+
 
 rwa_long_did <- rwa_long %>% 
   filter(Year >= 2011) %>% 
@@ -50,6 +54,35 @@ stargazer(
   type = "html",
   title = "Table: Difference in differences",
   out = "DiD2011.html")
+
+
+#Mission_graph----
+
+
+rwa_long_did11 <- rwa_long %>% 
+  filter(Year %in% c("2011", "2021")) %>% 
+  mutate(year_2021 = ifelse(Year == 2021, 1, 0))
+
+after_2011_mission <- lm(Value ~ connect11_mv + year_2021*connect11_mv, data = rwa_long_did11)
+
+summary(after_2011_mission)
+
+stargazer(
+  after_2011_mission,
+  type = "html",
+  title = "Table: Difference in differences",
+  out = "DiD2011_mission.html")
+
+
+
+
+
+
+
+
+
+
+
 
 
 #pre trend----
