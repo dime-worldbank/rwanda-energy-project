@@ -343,6 +343,11 @@ four_district_2402.1 <- four_district_2402.1 %>%
     status = ifelse(meter_percent >= 0.3 , "partial", status)
   )
 
+four_district_2402.1 <- four_district_2402.1 %>% 
+  mutate(
+    status = ifelse(customer <20 & district != "Rusizi", "partial", status)
+  )
+
 #Get the scope----
 
 
@@ -366,14 +371,18 @@ karongi_villages <- left_join(karongi_villages, status_2402, by = c("Village_ID"
 status_karongi <- ggplot() +
   geom_sf(data = karongi_villages, fill = NA) + 
   geom_sf(data = subset(karongi_villages, scope_2402 == 1), aes(fill = "Scope Villages"), size = 0) +
-  geom_sf(data = subset(karongi_villages, status == "newly"), aes(fill = "Randomization"), size = 0) +
+  geom_sf(data = subset(karongi_villages, status == "newly"), aes(fill = "Scope villages selected for randomization"), size = 0) +
   
   scale_fill_manual(
-    values = c("Scope Villages" = "lightblue", "Randomization" = "pink"),
+    values = c("Scope Villages" = "lightblue", "Scope villages selected for randomization" = "pink"),
     name = ""
   )
 
 status_karongi
+
+
+
+
 
 
 
@@ -394,6 +403,29 @@ karongi_surveyed <- status_karongi +
   labs(title = "Karongi scope and surveyed LV lines")
 
 karongi_surveyed
+
+
+all_karongi <- status_karongi + 
+  geom_sf(data = karongi_meter, aes(color = "Meters"), size = 0.1) +
+  geom_sf(data = karongi_hv_existing, aes(color = "HV"), size = 0.5)+
+  geom_sf(data = karongi_mv_existing, aes(color = "MV"), size = 0.5)+
+  geom_sf(data = karongi_lv_existing, aes(color = "LV"), size = 1)+
+  scale_color_manual(
+    values = c(`HV` =`hv_color`, `MV`= `mv_color`, `LV` = `lv_color`, `Meters` = `meter_color`),
+    guide = guide_legend(title.position = "top"),
+    name = ""
+  ) +
+  theme_void() + 
+  theme(
+    plot.background = element_rect(fill = 'white', color = 'white'),
+    legend.margin = margin(r=10),
+    plot.title = element_text(hjust = 0.5), 
+    plot.margin = margin(t = 20)  
+  ) +
+  labs(title = "Karongi Meter and Grid Network 2022")
+
+all_karongi
+
 
 
 ##Rulindo----
@@ -474,3 +506,48 @@ rutsiro_surveyed <- status_rutsiro +
   labs(title = "Rutsiro scope and surveyed LV lines")
 
 rutsiro_surveyed
+
+
+#Graph grid lines----
+
+
+rwa_district <- st_read(dsn = file.path(data_path, "rwa_district", "District.shp"))
+district_base <- ggplot() +
+  geom_sf(data = rwa_district)
+
+district_base
+
+rwa_villages <- rwa_villages %>% st_make_valid()
+
+village_base <- ggplot()+
+  geom_sf(data = rwa_villages)
+
+village_base
+hv_color <- "#F8766D"
+# blue 
+mv_color <- "#619CFF"
+lv_color <- "#00BA38"
+
+rwa_plot <- ggplot()+ 
+  geom_sf(data = rwa_villages, linewidth = 0.2, col = "grey", fill = NA) +
+  geom_sf(data = rwa_district, linewidth = 0.4, col = "black", fill = NA) +
+  # scale_fill_manual(values = c(
+  #   "scope" = scope_districts,
+  #    "not scope" = non_scope
+  # )) +   
+  geom_sf(data = existing_HV, linewidth = 0.5,  aes(color = "HV")) +
+  geom_sf(data = existing_MV, linewidth = 0.5, aes(color = "MV")) +
+  geom_sf(data = existing_LV, linewidth = 0.1, aes(color = "LV")) +
+  
+  # geom_sf(data = existing_substation, size = 0.5, aes(color = "Substation"))+
+  # geom_sf(data = existing_transformer, size = 0.3, aes(color = "Transformers"))+
+  scale_color_manual(
+    values = c(`HV` = hv_color, `MV` = mv_color, `LV` = lv_color),
+    guide = guide_legend(title.position = "top")
+  ) +
+  # theme_void() + 
+  # theme(plot.background = element_rect(colour = "white"))+
+  labs(title = "Rwanda 2022 Grid Networks")
+
+
+rwa_plot
