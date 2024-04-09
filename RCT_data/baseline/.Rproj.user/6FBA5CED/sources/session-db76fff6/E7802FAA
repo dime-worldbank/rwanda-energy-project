@@ -1,0 +1,26 @@
+{
+    "id": "E7802FAA",
+    "path": "C:/Users/wb614406/github/rwanda-energy-project/RCT_data/baseline/scripts/scope_clean.R",
+    "project_path": "scripts/scope_clean.R",
+    "type": "r_source",
+    "hash": "3813029660",
+    "contents": "",
+    "dirty": false,
+    "created": 1712598460230.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "112,0",
+        "scrollLine": "103"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1712598854,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1712598854313,
+    "read_only": false,
+    "read_only_alternatives": []
+}

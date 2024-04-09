@@ -3,7 +3,7 @@
     "path": "C:/Users/wb614406/github/rwanda-energy-project/RCT_data/baseline/scripts/cleancooking.R",
     "project_path": "scripts/cleancooking.R",
     "type": "r_source",
-    "hash": "4199567208",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1711979756737.0,
@@ -13,8 +13,8 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "3,30",
-        "scrollLine": "0"
+        "cursorPosition": "34,36",
+        "scrollLine": "16"
     },
     "folds": "",
     "lastKnownWriteTime": 1711984887,
