@@ -11,7 +11,7 @@
 
 ## AUTHOR      Xiaoming Zhang (adapted from Adrien Ciret & Marc-Andrea Fiorina & Juliana Guerrero)
 
-## LAST UPDATE  October 5, 2023
+## LAST UPDATE  April 4th , 2023
 
 ########################################################################################################
 
@@ -31,6 +31,13 @@ dropbox <- 'C:/Users/wb614406/Dropbox'
 hfc_constr <- read.csv(file.path(dropbox,
                                  'Rwanda Energy/datawork/RCT_data/baseline/data/HFC/hfc_constr.csv'),
                        )
+
+sample_data <- read_xlsx(
+  file.path(
+    dropbox,
+    'Rwanda Energy/datawork/RCT_data/baseline/data/HFC/sample_data.xlsx'
+  )
+                         )
 
 ########################################################################################################
 
@@ -85,20 +92,24 @@ hfc_admin <- hfc_constr %>% select(starttime, endtime, submissiondate, enumerato
 
 ## 1. Village----
 
+#Number of submitted forms
 village_final <- hfc_admin %>%
   group_by(across(c(village,district,sector,cell))) %>% 
   summarize(total = n()) %>%
   ungroup() 
 
 # submitted forms
-village_final <-  village_fin %>% 
+village_final <-  village_final %>% 
   select(-c(village,cell,district,sector)) %>% 
+
+
+
   mutate(ID_05_enter=paste0("'",ID_05_enter)) %>% 
-  left_join(sample_data %>% select(headid,village,cell,sector,district),
-            by=c('ID_05_enter'='headid')) %>% 
+  left_join(sample_data %>% select(headid,village,cell,sector,district), #What is this sample_data? Sampled villages?
+            by=c('ID_05_enter'='headid')) %>% #This means we will need the head of household data
   group_by(village,cell,district,sector) %>% 
   mutate(n_subs=n(),
-         complete     = sum(survey_complete, na.rm = TRUE)) %>% 
+         complete = sum(survey_complete, na.rm = TRUE)) %>% 
   mutate(attrition = sum(consent==0,na.rm=T)) %>% 
   select(village,cell,district,sector,n_subs,complete,attrition)
 
