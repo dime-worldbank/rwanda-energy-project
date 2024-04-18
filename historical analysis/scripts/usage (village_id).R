@@ -1,6 +1,6 @@
 ##########################
 #Author: Xiaoming Zhang
-#Date: 04022024
+#Last Edit Date: 04122024
 #purpose: Construct Village ID for the usage data
 ############################
 
@@ -294,7 +294,7 @@ write_xlsx(usage_id_0402, path = file.path(data_path, "usage_villageid.xlsx"))
 sum(is.na(karongi_meter$Plot_Numbe))  
 
 karongi_parcel <- karongi_meter %>% 
-  filter(!is.na(Plot_Numbe)) %>% 
+  filter(!is.na(plot_numbe)) %>% 
   clean_names()
 
 nrow(karongi_parcel)
@@ -319,7 +319,7 @@ nrow(karongi_unsucces)
 sum(is.na(rutsiro_meter$Plot_Numbe))  
 
 rutsiro_parcel <- rutsiro_meter %>% 
-  filter(!is.na(Plot_Numbe)) %>% 
+  filter(!is.na(plot_numbe)) %>% 
   clean_names()
 
 nrow(rutsiro_parcel)
@@ -343,7 +343,7 @@ nrow(rutsiro_unsucces)
 sum(is.na(rulindo_meter$Plot_Numbe))  
 
 rulindo_parcel <- rulindo_meter %>% 
-  filter(!is.na(Plot_Numbe)) %>% 
+  filter(!is.na(plot_numbe)) %>% 
   clean_names()
 
 nrow(rulindo_parcel)
@@ -368,7 +368,7 @@ nrow(rulindo_unsucces)
 sum(is.na(rusizi_meter$Plot_Numbe))  
 
 rusizi_parcel <- rusizi_meter %>% 
-  filter(!is.na(Plot_Numbe)) %>% 
+  filter(!is.na(plot_numbe)) %>% 
   clean_names()
 
 nrow(rusizi_parcel)
@@ -389,7 +389,36 @@ rusizi_unsucces <- rusizi_parcel %>%
 nrow(rusizi_unsucces)
 
 
-#all
+#all----
+karongi_success.1 <- karongi_success %>% 
+  st_drop_geometry() %>% 
+  select(meter_numb, plot_numbe, village_id, parcel_id, district)
+
+rutsiro_success.1 <- rutsiro_success %>% 
+  st_drop_geometry() %>% 
+  select(meter_numb, plot_numbe, village_id, parcel_id, district)
+
+
+rulindo_success.1 <- rulindo_success %>% 
+  st_drop_geometry() %>% 
+  select(meter_numb, plot_numbe, village_id, parcel_id, district)
+
+
+rusizi_success.1 <- rusizi_success %>% 
+  st_drop_geometry() %>% 
+  select(meter_numb, plot_numbe, village_id, parcel_id, district)
+
+
+parcel_success <- rbind(karongi_success.1, rutsiro_success.1, rusizi_success.1, rulindo_success.1)
+
+parcel_success <- parcel_success %>% 
+  distinct(meter_numb, .keep_all = TRUE)
+
+n_distinct(parcel_success$meter_numb) == nrow(parcel_success)
+
+write_xlsx(parcel_success, path = file.path(data_path, "parcel_success.xlsx"))
+
+
 
 cell_id <- village_list %>% 
   select(Village_ID, Cell_ID)
@@ -958,16 +987,131 @@ villagenoid.2 <- villagenoid.1 %>%
 
 write_xlsx(villagenoid.2, path = file.path(data_path, "village noid construct.xlsx"))
 
-#Try some others 0411-----
+#0412-----
 
-usage_id_0409 <- read_xlsx(path = file.path())
+usage_id_0409 <- read_xlsx(path = file.path(data_path, "usage_id_0409.xlsx"))
+usage_novillage_0409 <- read_xlsx(path = file.path(data_path, "usage_novillage_0409.xlsx"))
+usage_noid_0409 <- read_xlsx(path = file.path(data_path, "usage_noid_0409.xlsx"))
+
+nrow(usage_id_0409) + nrow(usage_noid_0409) == 1342346
+
+usage_villagenoid_0409 <- usage_noid_0409 %>% 
+  filter(!is.na(village) & !is.na(cell) & !is.na(sector) & !is.na(district))
+
+nrow(usage_villagenoid_0409) + nrow(usage_novillage_0409 ) == nrow(usage_noid_0409)
+
+village_list_join <- village_list_join %>% 
+  clean_names() %>% 
+  rename(village = name)
+
+village_list_join.1 <- village_list_join %>% 
+  mutate(
+    village = str_to_lower(village)
+  )
 
 
+##Fuzzy match----
+
+install.packages("fuzzyjoin")
+library(fuzzyjoin)
 
 
+n_distinct(usage_villagenoid_0409$meter_id) == nrow(usage_villagenoid_0409)
+
+usage_villagenoid_join <- usage_villagenoid_0409 %>%
+  select(
+    meter_id, district, sector, cell, village
+  ) %>% 
+  mutate(village = str_to_lower(village))
+
+total_rows <- nrow(usage_villagenoid_0409)
+
+half_rows <- total_rows/2
+
+usage_villagenoid_join.1 <- usage_villagenoid_join %>% 
+  slice(1:half_rows) 
+
+usage_villagenoid_join.2 <- usage_villagenoid_join %>% 
+  slice(half_rows+1 : total_rows)
+
+fuzzy_join_result.1 <- stringdist_left_join(usage_villagenoid_join.1, village_list_join.1, by = c("district", "sector", "cell", "village"), max_dist = 2)
+fuzzy_join_result.2 <- stringdist_left_join(usage_villagenoid_join.2, village_list_join.1, by = c("district", "sector", "cell", "village"), max_dist = 2)
 
 
+fuzzy_join <- rbind(fuzzy_join_result.1, fuzzy_join_result.2)
+
+fuzzy_join <- fuzzy_join %>% 
+  filter(!is.na(village_id)) %>% 
+  distinct(meter_id, .keep_all = TRUE)
+
+fuzzy_join <- fuzzy_join %>% 
+  group_by(district.x, sector.x, cell.x, village.x) %>% 
+  mutate(village_id_fake = cur_group_id()) 
 
 
+fuzzy_join_save <- fuzzy_join %>% 
+  group_by(village_id_fake) %>% 
+  summarise(
+    sector.x = sector.x,
+    sector.y = sector.y,
+    cell.x = cell.x,
+    cell.y = cell.y,
+    village.x = village.x,
+    village.y = village.y,
+    n = n()
+  ) %>% 
+  distinct(village_id_fake, .keep_all = TRUE)
 
+
+write_xlsx(fuzzy_join_save, path = file.path(data_path, "fuzzy_join_save.xlsx"))
+#work on excel to make sure
+
+fuzzy_join_edit<- read_xlsx(path = file.path(data_path, "fuzzy_join_edit.xlsx"))
+
+fuzzy_join_edit.1 <- fuzzy_join_edit %>% 
+  select(village.y, village_id_fake) %>% 
+  rename(village = village.y)
+
+
+fuzzy_join.1 <- left_join(fuzzy_join, fuzzy_join_edit.1, by = c("village_id_fake"))
+
+fuzzy_join.2<- fuzzy_join.1 %>% 
+  select(district.y, sector.y, cell.y, village, meter_id)
+ 
+fuzzy_join.2 <- left_join(fuzzy_join.2, village_list_join.1, by = c("district.y" = "district",
+                                                                    "sector.y" = "sector",
+                                                                    "cell.y" = "cell",
+                                                                    "village" = "village"))
+sum(!is.na(fuzzy_join.2$village_id))
+fuzzy_join.2 <- fuzzy_join.2 %>% 
+  as.data.frame() %>% 
+  ungroup()
   
+fuzzy_join.3 <- fuzzy_join.2 %>% 
+  select(meter_id, village_id) %>% 
+  rename(village_id.x = village_id) %>% 
+  filter(!is.na(village_id.x))
+
+
+usage_id_fuzzy_0412 <- usage_villagenoid_0409 %>%
+  filter(meter_id %in% fuzzy_join.3$meter_id)
+
+n_distinct(usage_id_fuzzy_0412$meter_id) == n_distinct(fuzzy_join.3$meter_id)
+
+usage_id_fuzzy_0412 <- left_join(usage_id_fuzzy_0412, fuzzy_join.3, by = c("meter_id"))
+
+sum(is.na(usage_id_fuzzy_0412$village_id.x))
+
+usage_id_fuzzy_0412 <- usage_id_fuzzy_0412 %>% 
+  mutate(village_id = village_id.x) %>% 
+  select(-village_id.x)
+
+usage_id_0412 <- rbind(usage_id_0409, usage_id_fuzzy_0412)
+
+usage_noid_0412 <- usage_noid_0409 %>% 
+  anti_join(usage_id_0412, by = c("meter_id"))
+
+nrow(usage_id_0412) + nrow(usage_noid_0412) == 1342346
+nrow(usage_noid_0412)
+write_xlsx(usage_id_0412, path = file.path(data_path, "usage_id_0412.xlsx"))
+write_xlsx(usage_noid_0412, path = file.path(data_path, "usage_noid_0412.xlsx"))
