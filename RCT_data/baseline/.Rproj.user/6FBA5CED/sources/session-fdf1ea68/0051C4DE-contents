@@ -1,0 +1,111 @@
+##############
+#Author: Xiaoming Zhang
+#Date: 4.4.2024
+#Purpose: Randomization primary construction
+#############
+
+
+pacman::p_load(tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr)
+
+getwd()
+
+#Dropbox----
+
+
+if (Sys.getenv("USERNAME") == "wb614406"){
+  DROPBOX <- file.path("C:/Users/wb614406/Dropbox")
+}
+
+#Method One----
+path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data/four_district_2402.xlsx"
+)
+
+
+data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+
+output_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/outputs"
+)
+
+four_district_scope <- read_xlsx(path = file.path(data_path, "four_scope_2403.xlsx"))
+#randomization----
+
+four_scope_rand <- four_district_scope%>% 
+  mutate(strata_randomization = paste(lot, "-", status))
+
+table(four_scope_rand$strata_randomization)
+
+
+###Newly----
+fourscope_newly <- four_scope_rand%>% 
+  filter(status == "newly")
+
+table(fourscope_newly$strata_randomization)
+
+
+
+
+set.seed(283472)
+
+newly_treatment <- block_ra(
+  blocks = fourscope_newly$district,
+  num_arms = 4,
+  prob_each = c(0.25, 0.25, 0.25, 0.25)
+)
+
+fourscope_newly$treatment <- newly_treatment
+
+#Descriptive table of statistics
+newly_count <- fourscope_newly %>% 
+  group_by(district) %>% 
+  summarise(
+    village_number = n(),
+    control_villages = sum(ifelse(treatment == "T1", 1, 0)),
+    readyboard_villages = sum(ifelse(treatment == "T2", 1, 0)),
+    ubudehe_1 = sum(ifelse(treatment == "T2", ubudehe_1, 0)),
+    offgrid_villages = sum(ifelse(treatment == "T3", 1, 0)),
+    tbt_villages = sum(ifelse(treatment == "T4", 1, 0))
+  )
+
+
+View(newly_count)
+
+
+######partial randomization----
+fourscope_partial <- four_scope_rand %>% 
+  filter(status == "partial")
+
+set.seed(8567)
+
+partial_treatment <- block_ra(
+  blocks = fourscope_partial$district,
+  num_arms = 2,
+  prob_each = c(0.5, 0.5)
+)
+
+
+fourscope_partial$treatment <- partial_treatment
+
+partial_count <- fourscope_partial %>% 
+  group_by(district) %>% 
+  summarise(
+    village_number = n(),
+    ubudehe_1 = sum(ifelse(treatment == "T2", ubudehe_1, 0)),
+    control_villages = sum(ifelse(treatment == "T1", 1, 0)),
+    readyboard_villages = sum(ifelse(treatment == "T2", 1, 0)),
+  )
+  
+  
+
+View(partial_count)
+  
+  
