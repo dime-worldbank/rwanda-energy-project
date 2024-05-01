@@ -1010,7 +1010,8 @@ village_list_join.1 <- village_list_join %>%
   )
 
 
-##Fuzzy match----
+##Fuzzy match---- 
+@geoffreyyip
 
 install.packages("fuzzyjoin")
 library(fuzzyjoin)
