@@ -1,7 +1,7 @@
 ---
 title: "Power Calculation for Off-grid and Grid"
 author: "Xiaoming Zhang"
-date: "2023-10-04"
+date: "2024-6-25"
 output: pdf_document
 ---
 
@@ -22,6 +22,8 @@ getwd()
 # Formula used for power calculation
 
 ![Clustered sampling power calculation of sample size]("C:\Users\wb614406\OneDrive - WBG\Desktop\MTF Data\data\power_calculation.jpg")
+
+#Calculating ICC from past data relation with 
 
 
 # Wellbeing

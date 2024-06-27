@@ -22,6 +22,8 @@ data_path <- file.path(
 )
 
 nisr_2011 <- read_sav(file.path(data_path, "2011", "rec-2011-data-v2.sav"))
+nisr_2014 <- read_sav(file.path(data_path, "2014", "rec-2014-data-v2.sav"))
+
 nisr_2014 <- read_xlsx(file.path(data_path, "Sector2014.xlsx"))
 nisr_2017 <- read_xlsx(file.path(data_path, "Sector2017.xlsx"))
 nisr_2020 <- read_xlsx(file.path(data_path, "Sector2020.xlsx"))

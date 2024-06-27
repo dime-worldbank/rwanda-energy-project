@@ -286,6 +286,677 @@ ggplot(coefs_plot, aes(x = as.numeric(year), y = estimate_1, group = group, colo
 
 
 
+district_fe <- feols(num_establishment ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(num_establishment ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+district_fe <- feols(num_establishment ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(num_establishment ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+#Employee number----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+
+
+
+
+#Capital group 1----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(employed_capital_1 ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(employed_capital_1 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(employed_capital_1 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(employed_capital_1 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(employed_capital_1 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(employed_capital_1 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(employed_capital_1 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(employed_capital_1 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(employed_capital_1 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Capital group 2----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(employed_capital_2 ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(employed_capital_2 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(employed_capital_2 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(employed_capital_2 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(employed_capital_2 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(employed_capital_2 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(employed_capital_2 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(employed_capital_2 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(employed_capital_2 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+#Capital group 3----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(employed_capital_3 ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(employed_capital_3 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(employed_capital_3 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(employed_capital_3 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(employed_capital_3 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(employed_capital_3 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(employed_capital_3 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(employed_capital_3 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(employed_capital_3 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+
+
+
+
+
+#Capital group 3----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(employed_capital_4 ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(employed_capital_4 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(employed_capital_4 ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(employed_capital_4 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(employed_capital_4 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(employed_capital_4 ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(employed_capital_4 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(employed_capital_4 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(employed_capital_4 ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#NTL value----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(value ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(value ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(value ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+model12_14 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model12_14,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2012-2014 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(value ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(value ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(value ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+model15_17 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model15_17,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2015-2017 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(value ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(value ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(value ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+model18_20 <- list(
+  `village_fe` = village_fe,
+  `district_fe` = district_fe,
+  `sector_fe` = sector_fe
+)
+
+modelsummary(
+  model18_20,
+  output = "huxtable",
+  type = "html",
+  title = "Villages electrified between 2018-2020 & never electrified ",
+  stars = TRUE,
+  note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
 
 
 

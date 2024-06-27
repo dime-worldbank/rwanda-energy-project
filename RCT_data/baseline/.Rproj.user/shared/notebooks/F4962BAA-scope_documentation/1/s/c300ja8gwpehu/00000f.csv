@@ -1,0 +1,7 @@
+"0",""
+"0","four_district_2406.1 <- four_district_2406 %>% "
+"0","  mutate(any_offgrid = case_when("
+"0","    et_sum != 0 | priority_0 == 0 ~ ""partial"","
+"0","    .default = ""newly"""
+"0","  ))"
+"0",""

@@ -1,0 +1,267 @@
+
+##############
+#Author: Xiaoming Zhang
+#Date: 11.7.2023
+#Purpose: Randomization and some cleaning
+#############
+
+#Files needed: four district_11082023, meter.shp (karongi&rutsiro)
+
+pacman::p_load(tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr)
+
+#Read files----
+rutsiro_meters <- st_read(dsn = here("data", "Meters Karongi Rutsiro", "EPC_RUTSIRO_Located_Meters.shp"))
+karongi_meters <- st_read(dsn = here("data", "Meters Karongi Rutsiro", "EPC_KARONGI_Located_Meters.shp"))
+
+rwa_villages <- st_read(dsn = here("data", "rwa_villages", "Village.shp"))
+rwa_villages <- st_make_valid(rwa_villages)
+
+karongi_meters <- st_transform(karongi_meters, crs = st_crs(rwa_villages))
+rutsiro_meters <- st_transform(rutsiro_meters, crs = st_crs(rwa_villages))
+
+four_district_1108 <- read_xlsx(here("data", "four district_11082023.xlsx"))
+
+
+#Karongi and Rutsiro villages
+
+karongi_villages <- rwa_villages %>% 
+  filter(District %in% c("Karongi"))
+
+rutsiro_villages <- rwa_villages %>% 
+  filter(District %in% c("Rutsiro"))
+
+#Meter locations----
+
+#Karongi Meters
+karongi_test <- karongi_meters %>% 
+  st_drop_geometry()
+
+karongi_xy <- st_as_sf(karongi_test, coords = c("X", "Y"), crs = st_crs(rwa_villages))
+
+karongi_xy <- karongi_xy %>% 
+  select(Name, BeginTime, EndTime, geometry)
+
+karongi_xy <- st_intersection(karongi_xy, karongi_villages)
+
+
+
+
+
+#rutsiro Meters
+rutsiro_test <- rutsiro_meters %>% 
+  st_drop_geometry()
+
+rutsiro_xy <- st_as_sf(rutsiro_test, coords = c("x", "y"), crs = st_crs(rwa_villages))
+
+rutsiro_xy <- rutsiro_xy %>% 
+  select(Name, BeginTime, EndTime, geometry)
+
+rutsiro_xy <- st_intersection(rutsiro_xy, rutsiro_villages)
+
+
+join_xy <- bind_rows(karongi_xy, rutsiro_xy)
+
+join_xy <- join_xy %>% 
+  mutate(meters_xy = 1) %>% 
+  group_by(Village_ID) %>% 
+  summarise(meters_xy = sum(meters_xy, NA.rm = TRUE))
+
+join_xy <- join_xy %>% 
+  st_drop_geometry()
+
+
+
+
+four_district_1108 <- left_join(four_district_1108, join_xy, by = c( "village_id" = "Village_ID"))
+
+four_district_1108 <- four_district_1108 %>% 
+  mutate(
+    meters_xy = ifelse(is.na(meters_xy), 0, meters_xy)
+  )
+
+
+#Statistics for all two district scope----
+two_scope_1108 <- four_district_1108 %>% 
+  filter(district %in% c("Karongi", "Rutsiro") & scope_1024 == 1)
+
+two_scope_1108 <- two_scope_1108 %>% 
+  mutate(meter_number = case_when(
+    meters_xy == 0 ~ "No Meter",
+    meters_xy != 0 ~ "Have Meters"
+  ))
+
+two_scope_1108 <- two_scope_1108 %>% 
+  mutate(existing_lv = ifelse(length_lv == 0, 0 ,1))
+
+
+
+###meter and LV----
+meter_lv_count <-two_scope_1108 %>% 
+  group_by(existing_lv) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+###meter and buffered lines----
+
+count_meter_buffered <- two_scope_1108 %>% 
+  group_by(grid_status) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+
+###Nep revision and meters----
+count_1108_nep <- two_scope_1108 %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+
+###Nep revision and LV lines----
+nep_lv <- two_scope_1108 %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    no_lv = sum(existing_lv == 0),
+    yes_lv = sum(existing_lv == 1)
+  )
+
+###Nep revision and buffered lines----
+nep_buffered <- two_scope_1108 %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    newly = sum(grid_status == "newly"),
+    partial = sum(grid_status == "partial")
+  )
+
+
+###write_xlsx(BLANK)----
+
+excel_file_all <- here("outputs", "all_comparison.xlsx")
+
+# Write the data frames to separate sheets in the Excel file----
+write_xlsx(list(`Meter and LV` = meter_lv_count, 
+                `Meter and buffered line`= count_meter_buffered,
+                `NEP and meters` = count_1108_nep,
+                `NEP and LV` = nep_lv,
+                `NEP and buffered line` = nep_buffered), excel_file_all)
+
+
+
+
+#Filtering out offgrid----
+
+two_scope_offgrid <- two_scope_1108 %>% 
+  filter(any_offgrid == 0)
+
+###meter and LV----
+meter_lv_count_off <-two_scope_offgrid %>% 
+  group_by(existing_lv) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+###Meter and buffered lines----
+
+count_meter_buffered_off <- two_scope_offgrid %>% 
+  group_by(grid_status) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+
+###Nep revision and meters----
+count_offgrid_nep_off <- two_scope_offgrid %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    no_meter = sum(meter_number == "No Meter"),
+    yes_meter = sum(meter_number != "No Meter")
+  )
+
+
+###Nep revision and LV lines-----
+nep_lv_off <- two_scope_offgrid %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    no_lv = sum(existing_lv == 0),
+    yes_lv = sum(existing_lv == 1)
+  )
+
+
+###Nep revision and buffered lines----
+nep_buffered_off <- two_scope_offgrid %>% 
+  group_by(nep_revision) %>% 
+  summarise(
+    newly = sum(grid_status == "newly"),
+    partial = sum(grid_status == "partial")
+  )
+
+###write_xlsx----
+
+excel_file <- here("outputs", "offgrid_comparison.xlsx")
+
+# Write the data frames to separate sheets in the Excel file----
+write_xlsx(list(`Meter and LV` = meter_lv_count_off, 
+                `Meter and buffered line`= count_meter_buffered_off,
+                `NEP and meters` = count_offgrid_nep_off,
+                `NEP and LV` = nep_lv_off,
+                `NEP and buffered line` = nep_buffered_off
+                ), excel_file)
+
+
+
+
+##12062023 comparison---
+
+four_district_1206 <- four_district_1108 %>% 
+  mutate(meter = ifelse(meters_xy == 0, "no meter", "meter" ))
+
+write_xlsx(four_district_1206, here("data", "four_district_1206.xlsx"))
+
+two_district <- four_district_1206  %>%
+  filter(district %in% c("Karongi", "Rutsiro"))
+
+two_district_scope <- two_district %>%
+  filter(scope_1024 == 1)
+
+sum(is.na(two_district_scope$lot))
+
+table(two_district_scope$nep_revision)
+
+two_district_scope %>%
+  group_by(meter) %>%
+  summarise(
+    `GE&newly` = sum(grid_status == "newly" & nep_revision == "GE"),
+    `GE&partial`= sum(grid_status == "partial" & nep_revision == "GE"),
+    `Fillin&newly` = sum(grid_status == "newly" & nep_revision == "Fill In"),
+    `Fillin&partial`= sum(grid_status == "partial" & nep_revision == "Fill In")
+            )
+
+#SAS table----
+two_district_scope <- two_district_scope %>% 
+  mutate(SAS = ifelse(nep_revision %in% c("SAS 2023", "GE_Temporaly SAS"), "SAS", "non SAS"))
+
+table(two_district_scope$SAS)
+
+two_district_scope %>% 
+  group_by(SAS) %>% 
+  summarise(
+    `No eligibility & No priority` = sum(offgrid_et == 0 & priority_0 == 1),
+    `No eligibility & priority` = sum(offgrid_et == 0 & priority_0 == 0),
+    `eligibility & No priority` = sum(offgrid_et == 1 & priority_0 == 1),
+    `eligibility & priority` = sum(offgrid_et == 1 & priority_0 == 0)
+  )
+
+meter <- two_district_scope %>% 
+  filter(meters_xy != 0)
+
+summary(meter$meters_xy)
+
+
+

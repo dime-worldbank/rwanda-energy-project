@@ -1,0 +1,259 @@
+library(raster)
+library(exactextractr)
+library(dplyr)
+library(rgdal)
+library(here)
+library(ggplot2)
+library(sf)
+#Dropbox path----
+
+
+if (Sys.getenv("USERNAME") == "wb614406"){
+  DROPBOX <- file.path("C:/Users/wb614406/Dropbox")
+}
+
+rct_data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+
+historical_data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/Historical data"
+)
+
+
+#2010----
+
+ntl_2010 <- raster(file.path(historical_data_path, "harmonized1992-2020", "Harmonized_DN_NTL_2010_calDMSP.tif"), 1)
+
+rwa_boundary <- st_read(dsn = file.path(rct_data_path, "rwa_boundary", "RWA_adm0.shp"))
+rwa_boundary <- st_transform(rwa_boundary, crs = st_crs(ntl_2010))
+rwa_boundary <- rwa_boundary %>% 
+  st_make_valid()
+
+rwa_district <- st_read(dsn = file.path(rct_data_path, "rwa_district", "District.shp"))
+rwa_district <- st_transform(rwa_district, crs = st_crs(ntl_2010))
+
+rwa_villages <- st_read(dsn = file.path(rct_data_path, "rwa_villages", "Village.shp"))
+##Ploting----
+ntl_2010 <- crop(ntl_2010, rwa_boundary)
+ntl_2010 <- mask(ntl_2010, rwa_boundary)
+
+plot(ntl_2010)
+
+df_2010 <- rasterToPoints(ntl_2010, spatial = TRUE) %>% as.data.frame()
+names(df_2010) <- c("value", "x", "y")
+
+summary(df_2010$value)
+
+df_2010 <- df_2010 %>% 
+  mutate(
+    value = ifelse(value >= 10, 10, value)
+  )
+
+
+
+ggplot(data = df_2010) +
+  geom_tile(aes(x = x, y = y, fill = value)) +
+  geom_sf(data = rwa_district, fill = NA, color = "lightgrey") +
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  theme_void() +
+  theme(legend.position = "none")
+
+
+#2021----
+
+
+
+ntl_2021 <- raster(file.path(historical_data_path, "harmonized1992-2020", "Harmonized_DN_NTL_2021_simVIIRS.tif"), 1)
+
+
+##Ploting----
+ntl_2021 <- crop(ntl_2021, rwa_district)
+ntl_2021 <- mask(ntl_2021, rwa_district)
+
+plot(ntl_2021)
+
+df_2021 <- rasterToPoints(ntl_2021, spatial = TRUE) %>% as.data.frame()
+names(df_2021) <- c("value", "x", "y")
+
+summary(df_2021$value)
+
+df_2021 <- df_2021 %>% 
+  mutate(
+    value = ifelse(value >= 10, 10, value)
+  )
+
+
+
+ggplot(data = df_2021) +
+  geom_tile(aes(x = x, y = y, fill = value)) +
+  # geom_sf(data = rwa_district, fill = NA, color = "lightgrey") +
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  theme_void() +
+  theme(legend.position = "none")
+
+
+
+
+#Using the old ntl data----
+##2023----
+ntl_2023 <- raster(file.path(historical_data_path, "harmonized1992-2020", "rw_viirs_corrected_monthly_start_201401_avg_rad.tif"), 101)
+
+df_2023 <- ntl_2023 %>%  mask(rwa_villages)
+
+df_2023 <- rasterToPoints(df_2023, spatial = TRUE) %>% as.data.frame()
+names(df_2023) <- c("value", "x", "y")
+
+df_2023$value[df_2023$value <= 0] <- 0
+df_2023$value_adj <- log(df_2023$value+1)
+
+summary(df_2023$value_adj)
+
+plot_2023 <- ggplot() +
+  geom_tile(data = df_2023, 
+            aes(x = x, y = y, 
+                fill = value_adj )) +  # Use an indicator that's > 0
+  # scale_fill_manual(values = c("black", "yellow")) +  # Custom colors for 0 and > 0
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  
+  # geom_polygon(data = rwa_sp, aes(x = long, y = lat, group = group),
+  #              fill = NA, color = "grey") +
+  # labs(title = "Rwanda NTL, January 2022 (Any NTL)") +
+  coord_quickmap() + 
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none")
+
+plot_2023
+
+
+
+
+##2010----
+ntl_2010.1 <- raster(file.path(historical_data_path, "harmonized1992-2020", "F182010.v4d_web.avg_vis.tif"), 1)
+rwa_villages <- st_transform(rwa_villages, crs = st_crs(ntl_2010.1))
+ntl_2010.1 <- crop(ntl_2010.1, rwa_villages)
+df_2010.1 <- ntl_2010.1 %>%  mask(rwa_district)
+
+df_2010.1 <- rasterToPoints(df_2010.1, spatial = TRUE) %>% as.data.frame()
+names(df_2010.1) <- c("value", "x", "y")
+
+
+summary(df_2010.1$value)
+
+
+
+
+plot_2010.1 <- ggplot() +
+  geom_tile(data = df_2010.1, 
+            aes(x = x, y = y, 
+                fill = value )) +  # Use an indicator that's > 0
+  # scale_fill_manual(values = c("black", "yellow")) +  # Custom colors for 0 and > 10
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  # geom_polygon(data = rwa_sp, aes(x = long, y = lat, group = group),
+  #              fill = NA, color = "grey") +
+  # labs(title = "Rwanda NTL, January 2022 (Any NTL)") +
+  coord_quickmap() + 
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none")
+
+plot_2010.1
+
+
+##2014----
+ntl_2014 <- raster(file.path(historical_data_path, "harmonized1992-2020", "rw_viirs_corrected_monthly_start_201401_avg_rad.tif"), 1)
+
+df_2014 <- ntl_2014 %>%  mask(rwa_villages)
+
+df_2014 <- rasterToPoints(df_2014, spatial = TRUE) %>% as.data.frame()
+names(df_2014) <- c("value", "x", "y")
+
+df_2014$value[df_2014$value <= 0] <- 0
+df_2014$value_adj <- log(df_2014$value+1)
+
+summary(df_2014$value_adj)
+
+plot_2014 <- ggplot() +
+  geom_tile(data = df_2014, 
+            aes(x = x, y = y, 
+                fill = value_adj)) +  # Use an indicator that's > 0
+  # scale_fill_manual(values = c("black", "yellow")) +
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  # Custom colors for 0 and > 0
+  # geom_polygon(data = rwa_sp, aes(x = long, y = lat, group = group),
+  #              fill = NA, color = "grey") +
+  # labs(title = "Rwanda NTL, January 2022 (Any NTL)") +
+  coord_quickmap() + 
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none")
+
+plot_2014
+
+
+
+#Muhanga: Using the old ntl data----
+
+##2010----
+ntl_2010.1 <- raster(file.path(historical_data_path, "harmonized1992-2020", "Harmonized_DN_NTL_2010_calDMSP.tif"), 1)
+muhanga.1 <- st_transform(muhanga, crs = st_crs(ntl_2010.1))
+muhanga_2010.1 <- crop(ntl_2010.1, muhanga.1)
+muhanga_2010.1 <- muhanga_2010.1 %>%  mask(muhanga.1)
+
+muhanga_2010.1 <- rasterToPoints(muhanga_2010.1, spatial = TRUE) %>% as.data.frame()
+names(muhanga_2010.1) <- c("value", "x", "y")
+
+
+summary(muhanga_2010.1$value)
+
+
+plot_2010.1 <- ggplot() +
+  geom_tile(data = muhanga_2010.1, 
+            aes(x = x, y = y, 
+                fill = value )) +  # Use an indicator that's > 0
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  geom_sf(data = muhanga,  fill = NA, color = "lightgrey") +
+  labs(title = "Muhanga NTL 2010") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none")
+
+plot_2010.1
+
+##2023----
+ntl_2023 <- raster(file.path(historical_data_path, "harmonized1992-2020", "Harmonized_DN_NTL_2021_simVIIRS.tif"), 1)
+muhanga <- rwa_villages %>% 
+  filter(District %in% c("Muhanga"))
+muhanga <- st_transform(muhanga, crs = st_crs(ntl_2023))
+muhanga <- muhanga %>% st_zm()
+ntl_2023 <- crop(ntl_2023, muhanga)
+muhanga_2023 <- ntl_2023 %>%  mask(muhanga)
+
+muhanga_2023 <- rasterToPoints(muhanga_2023, spatial = TRUE) %>% as.data.frame()
+names(muhanga_2023) <- c("value", "x", "y")
+
+muhanga_2023$value[muhanga_2023$value <= 0] <- 0
+muhanga_2023$value[muhanga_2023$value < 1] <- 1
+
+
+muhanga_2023_plot <- ggplot() +
+  geom_tile(data = muhanga_2023, 
+            aes(x = x, y = y, 
+                fill = value )) +  # Use an indicator that's > 0
+  scale_fill_gradient(low = "black", high = "yellow") +  # Adjust colors as needed
+  geom_sf(data = muhanga,  fill = NA, color = "lightgrey") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "none") + 
+  labs(title = "Muhanga District NTL 2021") 
+  
+
+muhanga_2023_plot
+
+
+
+

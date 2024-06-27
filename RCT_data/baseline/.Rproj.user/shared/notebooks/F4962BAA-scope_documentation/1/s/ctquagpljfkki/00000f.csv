@@ -1,0 +1,7 @@
+"0","four_district_2406.1 <- four_district_2406.1 %>% "
+"0","  mutate("
+"0","    any_grid = case_when("
+"0","      grid_status %in% c(""newly"") & nep_revision%in% c(""GE"", ""Fill In"")  ~ ""newly"","
+"0","      .default = ""partial"""
+"0","    )"
+"0","  )"

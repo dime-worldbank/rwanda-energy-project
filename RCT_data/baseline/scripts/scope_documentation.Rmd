@@ -1,0 +1,297 @@
+---
+title: "Scope documentation"
+author: "Xiaoming Zhang"
+date: "2024-06-26"
+output: 
+  pdf_document: 
+    keep_tex: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+pacman::p_load(tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, gtsummary, knitr)
+
+getwd()
+
+#Dropbox----
+
+
+if (Sys.getenv("USERNAME") == "wb614406"){
+  DROPBOX <- file.path("C:/Users/wb614406/Dropbox")
+}
+
+#Method One----
+path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data/four_district_2406.xlsx"
+)
+
+data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+
+output_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+#read file----
+four_district_2406 <- read_xlsx( path = file.path(data_path, "four_district_2406.xlsx"))
+
+
+```
+
+
+#Scope selection criteria
+
+If a village is in the scope of EDCL's surveyed LV line, and meet all of the following criteria, the village would be selected for the randomization scope.
+
+## 1. No existing off-grid eligbility
+
+- The village have no households that receives more than 95% subsidy for solar system in the eligibility tool
+- The village is not on the priority list
+- The village is not be labeled as “SAS”, “SAS 2023”, “Microgrid”  or “GE_Temporaly SAS”by nep revision list
+
+
+```{r, warning= FALSE, results='hide'}
+
+four_district_2406.1 <- four_district_2406 %>% 
+  mutate(any_offgrid = case_when(
+    et_sum != 0 | priority_0 == 0 ~ "partial",
+    .default = "newly"
+  ))
+
+```
+
+
+## 2. Minimal grid existence in the village
+
+- The village have less than 100 meter LV and MV line combined within 200 meter of village boundary
+- Village have no MV or LV line
+- The village is labeled “GE” or “Fill In” by NEP revision list
+
+
+```{r, warning= FALSE, results='hide'}
+four_district_2406.1 <- four_district_2406.1 %>% 
+  mutate(
+    any_grid = case_when(
+      grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")  ~ "newly",
+      .default = "partial"
+    )
+  )
+```
+
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+four_district_2406.1 <- four_district_2406.1  %>% 
+  mutate(status = case_when(
+    any_grid == "newly" & any_offgrid == "newly" ~ "newly",
+    .default = "partial"
+  ))
+
+table(four_district_2406.1$scope_2406)
+```
+
+
+## 3. Number of vulnerable households
+
+
+- Previous version: Village must have at least 20 ubudehe_1 household
+- Updated version 062624: Village must have at least 20 vulnerable hosueholds reported by district leaders
+
+
+```{r, warning= FALSE, results='hide'}
+four_district_2406.1  <- four_district_2406.1 %>% 
+  mutate(
+    status = ifelse(ubudehe_1 <20, "partial", status) # Or vulnerable <20
+  )
+```
+
+
+## Number of Meters
+
+- Village must have less than 30% meters
+
+```{r, warning= FALSE, results='hide'}
+
+four_district_2406.1 <- four_district_2406.1 %>% 
+  mutate(meter_percent = round(meter_eucl/total_hh, 2))
+
+four_district_2406.1 <- four_district_2406.1 %>% 
+  mutate(
+    status = ifelse(meter_percent >= 0.3 , "partial", status)
+  )
+```
+
+
+## Number of Surveyed customers
+
+- Village must have more than 20 surveyed customer according to scope of customer estimated by EDCL
+
+```{r, warning= FALSE, results='hide'}
+
+four_district_2406.1 <- four_district_2406.1 %>% 
+  mutate(
+    status = ifelse(customer < 20 , "partial", status)
+  )
+
+```
+
+
+
+
+
+# Number of villages according to previous ubudehe_1 criteria
+
+Villages selected must have more than 20 ubudehe_1 households
+
+```{r, warning = FALSE, echo = FALSE}
+
+four_scope_2406.1 <- four_district_2406.1 %>% 
+  filter( scope_2403 == 1)
+
+
+scope_old <- four_scope_2406.1 %>% 
+  filter(status == "newly") %>% 
+  group_by(district) %>% 
+  summarise(
+    village_n = n(),
+    survey_hh= village_n * 20,
+    readyboard_hh = sum(ubudehe_1)
+  )
+
+
+summary_row_old <- scope_old %>% 
+  summarise(
+    district = "Total",
+    village_n = sum(village_n),
+    survey_hh = sum(survey_hh),
+    readyboard_hh = sum(readyboard_hh)
+  )
+
+scope_old <- bind_rows(scope_old, summary_row_old)
+
+kable(scope_old, format = "pipe", caption = "Previous scope based on ubudehe_1")
+
+
+```
+
+
+
+
+
+
+
+# Number of villages according to updated vulnerable household criteria
+
+villages selected must have more than 20 vulnerable households
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+four_district_2406.2 <- four_district_2406 %>% 
+  mutate(any_offgrid = case_when(
+    et_sum != 0 | priority_0 == 0 ~ "partial",
+    .default = "newly"
+  ))
+
+four_district_2406.2 <- four_district_2406.2 %>% 
+  mutate(
+    any_grid = case_when(
+      grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")  ~ "newly",
+      .default = "partial"
+    )
+  )
+
+four_district_2406.2 <- four_district_2406.2  %>% 
+  mutate(status = case_when(
+    any_grid == "newly" & any_offgrid == "newly" ~ "newly",
+    .default = "partial"
+  ))
+
+table(four_district_2406.2$scope_2406)
+
+four_district_2406.2  <- four_district_2406.2 %>% 
+  mutate(
+    status = ifelse(hh_head_06 <20, "partial", status)
+  )
+
+
+four_district_2406.2 <- four_district_2406.2 %>% 
+  mutate(meter_percent = round(meter_eucl/total_hh, 2))
+
+four_district_2406.2 <- four_district_2406.2 %>% 
+  mutate(
+    status = ifelse(meter_percent >= 0.3 , "partial", status)
+  )
+
+four_district_2406.2 <- four_district_2406.2 %>% 
+  mutate(
+    status = ifelse(customer < 20 , "partial", status)
+  )
+
+```
+
+
+```{r, warning = FALSE, echo = FALSE}
+
+four_scope_2406.2 <- four_district_2406.2 %>% 
+  filter( scope_2403 == 1)
+
+scope_new <- four_scope_2406.2 %>% 
+  filter(status == "newly") %>% 
+  group_by(district) %>% 
+  summarise(
+    village_n = n(),
+    survey_hh= village_n * 20,
+    readyboard_hh = sum(ubudehe_1)
+  )
+
+summary_row_new <- scope_new %>% 
+  summarise(
+    district = "Total",
+    village_n = sum(village_n),
+    survey_hh = sum(survey_hh),
+    readyboard_hh = sum(readyboard_hh)
+  )
+
+scope_new <- bind_rows(scope_new, summary_row_new)
+
+kable(scope_new, format = "pipe", caption = "Updated scope based on ubudehe_1")
+
+
+```
+
+
+
+
+
+
+
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

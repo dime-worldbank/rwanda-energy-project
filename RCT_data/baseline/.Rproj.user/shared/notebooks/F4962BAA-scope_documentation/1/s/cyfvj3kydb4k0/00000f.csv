@@ -1,0 +1,6 @@
+"0",""
+"0","four_district_2406.1 <- four_district_2406.1 %>% "
+"0","  mutate("
+"0","    status = ifelse(customer < 20 , ""partial"", status)"
+"0","  )"
+"0",""

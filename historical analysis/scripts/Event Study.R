@@ -331,3 +331,16 @@ ggplot(coefs_fe_plot, aes(x = as.numeric(year), y = estimate.1)) +
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+

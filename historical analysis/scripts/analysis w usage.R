@@ -80,17 +80,12 @@ rwa_long_did11 <- rwa_long.1 %>%
 did_11 <- lm(Value ~ connect11 + year_2021*connect11, data = rwa_long_did11)
 
 
-
-
-
-
-
 summary(did_11)
 
 stargazer(
   did_11,
   type = "html",
-  title = "Table: Difference in differences",
+  title = "Table: Difference in differences on ntl",
   out = file.path(output_path, "DiD_usage.html"))
 
 
@@ -138,7 +133,7 @@ rwa_long.3 <- rwa_long.2 %>%
     )
   )
 
-sum(is.na(rwa_long.3$connect_vt))
+sum(is.na(rwa_long.3$year_first))
 
 rwa_long.3 <- rwa_long.3 %>% 
   mutate(
@@ -157,8 +152,7 @@ rwa_long.3 <- rwa_long.3 %>%
     treatp1 = ifelse( time_elec == 1, 1, 0), #elec last year
     treatp2 = ifelse( time_elec ==  2, 1, 0), # elec last two years
     treatp3 = ifelse( time_elec >= 3, 1, 0), #elec more than three years ago
-    notreat = ifelse( time_elec <= -30 , 1, 0), # elec 3 or more years in the future
-    
+
   )
 
 rwa_long_check <- rwa_long.3 %>% 
@@ -172,7 +166,7 @@ write_xlsx(rwa_long.3, file.path(data_path, "rwa_long_0501.xlsx"))
 
 ###Fit the fixed effect model----
 model_es_fe <- rwa_long.3 %>% 
-  filter(year_first > 1900) %>% 
+  filter(year_first > 1900 ) %>% 
   filter(Year >= 2010) %>%
  feols(fml = Value ~ treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3 | Village_ID + Year, cluster = "Village_ID") %>% summary()
 
@@ -185,43 +179,271 @@ summary(model_es_fe)
 modelsummary(
   model_es_fe,
   type = "html",
-  title = "Table: Events Study Village and Year(including already electrified first year)",
+  title = "Table: Events Study Village and Year(excluding already electrified first year)",
   stars = TRUE,
   out = file.path(output_path, "es_usage_feols.html"))
 
 
+#Exclude the not electrified ones
 
-##graph----
-coefs <- coef(summary(model_es_lm))
-coefs_df <- data.frame(
-  Term = rownames(coefs),
-  Estimate = coefs[, 1],
-  Std.Error = coefs[, 2]
+rwa_long.4 <- rwa_long.2 %>% 
+  # filter(!is.na(year_first)) %>% 
+  mutate(
+    year_first = case_when(
+      year_first == 2010 ~ 1900,
+      is.na(year_first) ~ 2300,
+      .default = year_first
+    )
+  )
+
+rwa_long.4 <- rwa_long.4 %>% 
+  mutate(
+    Year = as.numeric(Year),
+    year_first =as.numeric(year_first)
+  ) %>% 
+  mutate(time_elec = Year - year_first)
+
+rwa_long.4 <- rwa_long.4 %>% 
+  mutate(
+    treatl3 = ifelse( time_elec <= -3 & time_elec > -30 , 1, 0), # elec 3 or more years in the future
+    treatl2 = ifelse( time_elec == -2, 1, 0), #elec 2 years in the future
+    treatl1 = ifelse( time_elec == -1, 1, 0), #elec 2 years in the future
+    treatp0 = ifelse( time_elec == 0, 1, 0), #elec this year
+    treatp1 = ifelse( time_elec == 1, 1, 0), #elec last year
+    treatp2 = ifelse( time_elec ==  2, 1, 0), # elec last two years
+    treatp3 = ifelse( time_elec >= 3, 1, 0), #elec more than three years ago
+    notreat = ifelse(year_first == 2300, 1, 0)
+  )
+
+sum(rwa_long.3$year_first == 2300)
+
+#Event study regression----
+
+###Fit the fixed effect model----
+model_es_fe.1 <- rwa_long.4 %>% 
+  filter(year_first > 1900 ) %>% 
+  filter(Year >= 2010) %>%
+  feols(fml = Value ~ treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3 | Village_ID + Year, cluster = "Village_ID") %>% summary()
+
+
+
+# View the summary of the model
+summary(model_es_fe.1)
+
+
+modelsummary(
+  model_es_fe.1,
+  type = "html",
+  title = "Table: Events Study Village and Year",
+  stars = TRUE,
+  note = "excluding already electrified first year, including never electrified villages",
+  out = file.path(output_path, "es_usage_feols.html"))
+
+
+
+###Fit the fixed effect model----
+
+rwa_long.5 <- rwa_long.4 %>% 
+  filter(
+    notreat != 1
+  ) 
+model_es_fe.2 <- rwa_long.5 %>% 
+  filter(year_first > 1900) %>% 
+  filter(Year >= 2010) %>%
+  feols(fml = Value ~ treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3 | Village_ID + Year, cluster = "Village_ID") %>% summary()
+
+
+
+# View the summary of the model
+summary(model_es_fe.2)
+
+modelsummary(
+  model_es_fe.1, model_es_fe.2,
+  type = "html",
+  title = "Table: Events Study Village and Year",
+  stars = TRUE,
+  note = "excluding already electrified first year, excluding never electrified villages",
+  out = file.path(output_path, "es_usage_feols(exclude noelec).html"))
+
+
+
+
+
+
+
+# Combine models into a list
+model_list <- list(`including never electrified villages` = model_es_fe.1, `excluding never electrified villages` = model_es_fe.2)
+
+# Create the combined table
+ modelsummary(
+  model_list,
+  type = "html",
+  title = "Table: Events Study Village and Year",
+  stars = TRUE,
+  note = "excluding already electrified first year(2010)",
+  out = file.path(output_path, "es_feols.html")
 )
 
-coefs_df <- coefs_df %>% 
+
+
+
+
+
+
+##graph----
+ library(broom)
+ coefs_df <- tidy(model_es_fe.1)
+ 
+ new_row <- data.frame(term = "treatl1", estimate = 0, std.error = 0, statistic = 0, p.value = 0)
+ 
+ coefs_df <- coefs_df %>%
+   bind_rows(new_row)
+ coefs_df <- coefs_df %>% 
+   mutate(
+     term = factor(term, levels = c("treatl3", "treatl2", "treatl1", "treatp0", "treatp1", "treatp2", "treatp3"))
+   ) %>% 
+   arrange(term) 
+ 
+ ggplot(coefs_df, aes(x = term, y = estimate, group = 1)) +
+   geom_point() +
+   geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 *  std.error),
+                 colour = "black", width = 0.1, position = position_dodge(0.1)) +
+   geom_line() +
+   labs(title = "Event Study Plot for usage",
+        x = "Year",
+        y = "Coefficient")
+
+ 
+ ggplot(coefs_df, aes(x = term, y = estimate, group = 1)) +
+   geom_point() +
+   geom_errorbar(aes(ymin = estimate - 1.96 * std.error, ymax = estimate + 1.96 *  std.error),
+                 colour = "black", width = 0.1, position = position_dodge(0.1)) +
+   geom_line() +
+   labs(title = "Event Study on Nighttime Light",
+        x = "Year",
+        y = "Coefficient",
+        caption = "Including never electrified villages and excluding already electrified villages before 2010") +
+   annotate("text", x = "treatl1", y = 0, label = "reference point", vjust = -1)
+
+
+
+ 
+#Usage data as the outcome----
+ 
+ usage_join <- usage_id %>% 
+   group_by(village_id) %>% 
+   summarise(
+     `2010_usage` = sum(`2010_usage`),
+     `2011_usage` = sum(`2011_usage`),
+     `2012_usage` = sum(`2012_usage`),
+     `2013_usage` = sum(`2013_usage`),
+     `2014_usage` = sum(`2014_usage`),
+     `2015_usage` = sum(`2015_usage`),
+     `2016_usage` = sum(`2016_usage`),
+     `2017_usage` = sum(`2017_usage`),
+     `2018_usage` = sum(`2018_usage`),
+     `2019_usage` = sum(`2019_usage`),
+     `2020_usage` = sum(`2020_usage`),
+     `2021_usage` = sum(`2021_usage`),
+     `2022_usage` = sum(`2022_usage`)
+   )
+ 
+ 
+ usage_long <- usage_join %>% 
+   pivot_longer(
+     cols = ends_with("usage"),
+     names_to = "year",
+     values_to = "usage"
+   )
+ 
+ usage_long <- usage_long %>% 
+   mutate(
+     year = substr(year, 1,4),
+     year = as.double(year)
+   )
+ 
+ 
+ 
+ 
+rwa_long.6 <- left_join(rwa_long.4, usage_long, by = c("Village_ID" = "village_id",
+                                                       "Year" = "year"))
+
+rwa_long.6 <- rwa_long.6 %>% 
+clean_names() %>% 
   mutate(
-    Term = ifelse(Term == "(Intercept)", "notreat", Term)
-  ) %>% 
-  mutate(
-    Term = factor(Term, levels = c("notreat", "treatl3", "treatl2", "treatl1", "treatp0", "treatp1", "treatp2", "treatp3"))
-  ) %>% 
-  arrange(Term) %>% 
-  mutate(
-    Estimate = ifelse(Term != "notreat", Estimate + 1.379, Estimate) 
+    usage = ifelse(is.na(usage), 0, usage)
   )
 
 
-ggplot(coefs_df, aes(x = Term, y = Estimate)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = Estimate - 1.96 * Std.Error, ymax = Estimate + 1.96 *  Std.Error),
-                colour = "black", width = 0.1, position = position_dodge(0.1)) +
-  geom_line() +
-  geom_hline(yintercept = 0.0, linetype = "dashed") +
-  labs(title = "Event Study Plot for usage",
-       x = "Year",
-       y = "Coefficient")
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+##Regression using usage----
+
+###Fit the fixed effect model----
+
+sum(is.na(rwa_long.6$usage))
+
+rwa_long_usage <- rwa_long.6 %>% 
+  filter(year >= 2010) %>% 
+  mutate(usage = as.numeric(usage))
+
+sum(is.na(rwa_long_usage$connect_vt))
+sum(is.na(rwa_long_usage$connect_vt))
+
+
+check <- rwa_long_usage %>% 
+  filter( notreat == 1)
+
+usage_es.1 <- rwa_long_usage %>%
+  filter(year_first > 1900) %>%
+  feols(usage ~ treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3 | village_id + year, cluster = "village_id") %>%
+  summary()
+
+
+usage_es.2 <- rwa_long_usage %>%
+  filter(year_first > 1900) %>%
+  filter(notreat != 1) %>% 
+  feols(usage ~ treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3 | village_id + year, cluster = "village_id") %>%
+  summary()
+
+summary(usage_es.2)
+
+# View the summary of the model
+summary(usage_es.1)
+
+check_model <- lm(value ~  treatl3 + treatl2 + treatp0 + treatp1 + treatp2 + treatp3, data = rwa_long_usage)
+
+summary(check_model)
+
+check <- rwa_long_usage %>% 
+  filter(treatl3 == 1 & usage != 0)
+
+# Combine models into a list
+model_list <- list(`including never electrified villages` = usage_es.1, `excluding never electrified villages` = usage_es.2)
+
+# Create the combined table
+modelsummary(
+  model_list,
+  type = "html",
+  title = "Table: Events Study Village and Year",
+  stars = TRUE,
+  note = "excluding already electrified first year(2010)",
+  out = file.path(output_path, "usage_feols.html")
+)
+
+write_xlsx(rwa_long_usage, path = file.path(data_path, "rwa_long_usage.xlsx"))

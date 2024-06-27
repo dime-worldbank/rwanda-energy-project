@@ -1,7 +1,7 @@
 ##############
 #Author: Xiaoming Zhang
-#Date: 4.11.2024
-#Purpose: household head
+#Date 6.20.2024 
+#Purpose: hh_head and backcheck
 #############
 
 
@@ -30,13 +30,13 @@ output_path <- file.path(
 
 #Read files------
 
-four_district_2404 <- read_xlsx( path = file.path(data_path, "four_district_2404.xlsx"))
+four_district_2405 <- read_xlsx( path = file.path(data_path, "four_district_2405.xlsx"))
 
 scope_0408 <- read_xlsx( path = file.path(data_path, "Scope villages_040824.xlsx"))
 scope_info <- read_xlsx(path = file.path(data_path, "Scope Villages.xlsx"))
 karongi_head <- read_xlsx(path = file.path (data_path, "hh_head", "KARONGI HH Heads.xlsx"))
 rulindo_head <- read_xlsx(path = file.path (data_path, "hh_head", "Copie de Rulindo_Heads_of_HHs.xlsx"))
-rutsiro_head <- read_xlsx(path = file.path (data_path, "hh_head", "RUTSIRO HH Heads.xlsx"))
+rutsiro_head <- read_xlsx(path = file.path (data_path, "hh_head", "RUTSIRO HH_2024.xlsx"))
 rusizi_head <- read_xlsx(path = file.path (data_path, "hh_head", "RUSIZI HOUSEHOLDS DATA PROVIDED TO EDCL 2023.xlsx"))
 
 
@@ -59,7 +59,7 @@ karongi_head_join<- karongi_head %>%
     last_name = ifelse(last_name %in% c("X", "Xxx", "."), NA, last_name),
     village_id = substr(code, 1, 8)
   )
-
+sum(is.na(karongi_head$Code))
 #clean rulindo----
 rulindo_head_join<- rulindo_head %>%
   clean_names() %>% 
@@ -73,16 +73,10 @@ rulindo_head_join<- rulindo_head %>%
     village_id = substr(code, 1, 8)
   )
 
+sum(is.na(rulindo_head$Code))
 #clean rutsiro----
 rutsiro_head_join<- rutsiro_head %>%
   clean_names() %>% 
-  rename(
-    category = cat,
-    code = code_hh,
-    last_name = lastname,
-    gender = sex,
-    nid = id
-         ) %>% 
   filter(category == 1) %>% 
   mutate(
     status = NA
@@ -96,6 +90,7 @@ rutsiro_head_join<- rutsiro_head %>%
     village_id = substr(code, 1, 8)
   )
 
+sum(is.na(rutsiro_head$Code))
 
 #clean rusizi----
 rusizi_head_join<- rusizi_head %>%
@@ -113,9 +108,18 @@ rusizi_head_join<- rusizi_head %>%
     village_id = substr(code, 1, 8)
   )
 
+sum(is.na(rusizi_head$Code))
 #join all four----
 
 head_join <- rbind(karongi_head_join, rulindo_head_join, rutsiro_head_join, rusizi_head_join)
+
+head_join <- head_join %>% 
+  mutate(
+    status = ifelse(is.na(status), "Regular", status)
+  ) %>% 
+  filter(status == "Regular") %>% 
+  distinct(code, .keep_all = TRUE)
+
 
 village_list_join <- village_list %>% 
   rename(
@@ -136,54 +140,68 @@ village_list_join <- village_list %>%
 
 household_head <- left_join(village_list_join, head_join, by = c("villageid_key" = "village_id"))
 
+duplicate_check <- household_head %>% 
+  group_by(code) %>% 
+  summarise(n = n(),
+            district_key = district_key,
+            sector_key = sector_key,
+            cell_key = cell_key,
+            village_key = village_key) %>% 
+  filter( n >= 2)
+
 household_head_check <- household_head %>% 
   group_by(villageid_key) %>% 
   summarise( n = n())
 
+View(household_head_check)
 
-four_district_check <- left_join(four_district_2404, household_head_check, by = c("village_id" = "villageid_key"))
+four_district_check <- left_join(four_district_2405, household_head_check, by = c("village_id" = "villageid_key"))
 
 four_district_check <- four_district_check %>% 
   rename(
     hh_head = n
   )
 
-write_xlsx(four_district_check, path = file.path(data_path, "four_district_2404.xlsx"))
+View(four_district_check)
+
+write_xlsx(four_district_check, path = file.path(data_path, "four_district_2405.xlsx"))
 
 
 filter <- four_district_check %>% 
-  filter( ubudehe_1 > hh_head & status == "newly" & scope_2403 == 1 ) %>% 
+  filter( ubudehe_1 > hh_head & status == "newly" & scope_2403 == 1) %>% 
   select(village_id, name, cell, sector, district, province, ubudehe_1, hh_head)
+
+filter <- filter  %>% 
+  filter(hh_head < 20) %>% 
+  mutate(ifelse(hh_head == 1, NA, hh_head))
 
 write_xlsx(filter, path = file.path(output_path, "household_head_number_mismatch.xlsx"))
 
 #scope----
 
-four_district_scope <- four_district_2404 %>% 
+four_district_scope <- four_district_check %>% 
   filter(status == "newly" & scope_2403 == 1)
 
 household_head_scope <- household_head %>% 
   filter(villageid_key %in% four_district_scope$village_id)
+
+
+n_distinct(household_head_scope$village_id)
 
 household_number <- household_head_scope %>% 
   group_by(villageid_key) %>% 
   summarize(
     n = n()
   ) 
-
-household_head_scope_check <- household_head_scope %>% 
-  group_by(villageid_key) %>% 
-  summarize(
-    n = n()
-  ) 
+ 
 
 household_head_scope.1 <- household_head_scope %>%
   group_by(villageid_key) %>% 
   mutate(
-    hh_index = paste0(villageid_key, "_", row_number()),
-    status = ifelse(is.na(status), "Regular", status)
-    ) %>% 
-  filter(status == "Regular")
+    hh_index = paste0(villageid_key, "_", row_number())
+  ) %>% ungroup()
+
+
 
 write_xlsx(household_head_scope.1, path = file.path(data_path, "household_head.xlsx"))
 
@@ -197,17 +215,6 @@ write.csv(surveycto_scope, file = file.path(data_path, "scope_villages.csv"))
 
 
 
-
-
-# 
-# pull_data(
-#   'household_head', 
-#   'first_name', 
-#   'hh_index', 
-#   concat(
-#     ${village_id} + '_' +index()
-#     )
-#   )
 
 #Left_join hh head with scope village----
 
@@ -232,12 +239,25 @@ admin_raw <- admin_raw %>%
 
 hfc_data_path <- file.path(
   DROPBOX,
-  "Rwanda Energy/datawork/RCT_data/baseline/data/HFC"
+  "Rwanda Energy/datawork/HFC"
 )
 
   
 write.csv(admin_raw, file = file.path(hfc_data_path, "admin_raw.csv"))
-  
-  
-  
-  
+
+
+#Randomly select for the backcheck----
+
+
+
+backcheck <- block_ra(
+  blocks = household_head_scope.1$districtid_key,
+  num_arms = 2,
+  prob_each = c(0.1, 0.9)
+)
+
+household_backcheck <- household_head_scope.1  %>% 
+  filter()
+
+household_backcheck$treatment <- backcheck
+

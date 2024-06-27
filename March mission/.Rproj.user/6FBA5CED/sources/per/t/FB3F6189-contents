@@ -59,8 +59,8 @@ rutsiro_meter <- st_transform(rutsiro_meter, crs = st_crs(rwa_villages))
 #Color----
 
 hv_color <- "orange"
-mv_color <- "blue"
-lv_color <- "red"
+mv_color <- "red"
+lv_color <- "green"
 meter_color <- "darkgrey"
 
 
@@ -91,9 +91,54 @@ karongi_lv_existing <- st_intersection(karongi_villages, existing_LV)
 karongi_mv_existing <- st_intersection(karongi_villages, existing_MV)
 karongi_hv_existing <- st_intersection(karongi_villages, existing_HV)
 
+karongi_villages <- karongi_villages %>% 
+  mutate(
+    electrified = ifelse(Village_ID %in% karongi_lv_existing$Village_ID, 1, 0)
+  )
+
 
 
 ####graph----
+
+karongi_existing <- ggplot() +
+  geom_sf(data = karongi_villages, fill = NA) + 
+  geom_sf(data = subset(karongi_villages, electrified == 1), aes(fill = "Electrified"), size = 0) +
+  scale_fill_manual(
+    values = c("Electrified" = "lightblue"),
+    name = ""
+  )
+
+karongi_existing
+
+
+
+karongi_existing_plot <- karongi_existing +
+  # geom_sf(data = karongi_meter, aes(color = "Meters"), size = 0.1) +
+  # geom_sf(data = karongi_hv_existing, aes(color = "HV"), size = 0.5)+
+  geom_sf(data = karongi_mv_existing, aes(color = "MV"), size = 0.5)+
+  geom_sf(data = karongi_lv_existing, aes(color = "LV"), size = 1)+
+  scale_color_manual(
+    values = c(`HV` =`hv_color`, `MV`= `mv_color`, `LV` = `lv_color`, `Meters` = `meter_color`),
+    guide = guide_legend(title.position = "top"),
+    name = ""
+  ) +
+  theme_void() + 
+  theme(
+    plot.background = element_rect(fill = 'white', color = 'white'),
+    legend.margin = margin(r=10),
+    plot.title = element_text(hjust = 0.5), 
+    plot.margin = margin(t = 20)  
+  ) +
+  labs(title = "Karongi Meter and Grid Network 2022")
+
+
+karongi_existing_plot
+
+
+
+
+
+
 
 
 base_karongi <- ggplot() +
@@ -102,7 +147,8 @@ base_karongi <- ggplot() +
   scale_fill_manual(
     values = c("Scope Villages" = "lightblue"),
     name = ""
-  )
+  ) + 
+  
 
 base_karongi
 
