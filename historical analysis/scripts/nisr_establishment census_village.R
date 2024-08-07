@@ -1,13 +1,13 @@
 
 ##########################
 #Author: Xiaoming Zhang
-#Date of last modification: 06172024
+#Date of last modification: 07182024
 #purpose:NISR establishment census analysis
 ############################
 
 
 #library----
-install.packages("plm")
+# install.packages("plm")
 
 pacman::p_load(fixest, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, plm, haven, stringr, modelsummary, kableExtra, stargazer, lfe)
 
@@ -60,6 +60,33 @@ key_2020 <-village_2020%>%
   mutate(
     year = 2020
   )
+
+#Check dataset----
+
+key_2011 %>%
+  filter((employed_capital_1 + employed_capital_2 + employed_capital_3 + employed_capital_4) != num_establishment)
+
+
+key_2014 %>%
+  filter((employed_capital_1 + employed_capital_2 + employed_capital_3 + employed_capital_4) != num_establishment)
+
+
+key_2017 %>%
+  filter((employed_capital_1 + employed_capital_2 + employed_capital_3 + employed_capital_4) != num_establishment)
+
+
+key_2020 %>%
+  filter((employed_capital_1 + employed_capital_2 + employed_capital_3 + employed_capital_4) != num_establishment)
+
+
+
+
+
+
+
+
+
+#Join dataset----
 
 key_all <- bind_rows(key_2011, key_2014, key_2017, key_2020) 
 
@@ -152,7 +179,7 @@ rwa_bt_selec <- left_join(rwa_bt_selec, village_join, by = c("village_id" = "Vil
 
 rwa_bt_selec <- rwa_bt_selec %>% 
   mutate(
-    Cell_ID = as.numeric(Cell_ID)
+    village_id = as.numeric(village_id)
   )
 
 
@@ -326,7 +353,7 @@ elec_cell <- rwa_regress %>%
 elec_cell <- left_join(elec_cell, rwa_villages, by = c("village_id" = "Village_ID"))
 
 elec_cell <- elec_cell %>% 
-  group_by(Cell_ID) %>% 
+  group_by(village_id) %>% 
   mutate(
     year_first = min(year_first)
   )
@@ -346,15 +373,15 @@ elec_cell <- elec_cell %>%
       year_first == 2300 | is.na(year_first) ~ "never_elec"
     )
   ) %>% 
-  distinct(Cell_ID, .keep_all = TRUE)
+  distinct(village_id, .keep_all = TRUE)
 
 elec_cell <- elec_cell %>% 
-  select(Cell_ID, status, year_first) 
+  select(village_id, status, year_first) 
 
 rwa_cell <- st_make_valid(rwa_cell) %>% 
-  mutate(Cell_ID = as.character(Cell_ID))
+  mutate(village_id = as.character(village_id))
 
-rwa_cell <- left_join(rwa_cell, elec_cell, by = c("Cell_ID"))
+rwa_cell <- left_join(rwa_cell, elec_cell, by = c("village_id"))
 
 rwa_cell <- rwa_cell %>% 
   mutate(
@@ -586,6 +613,90 @@ stargazer(
 
 
 
+
+
+##Log NTL----
+
+#12_14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+
+
+table(elec12_14$year)
+
+ntl12_14 <- felm(log_value ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + year, cluster = "village_id", data = elec12_14)
+
+
+summary(ntl12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+
+
+ntl15_17 <- felm(log_value ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id +year, cluster = "village_id",data = elec15_17)
+
+summary(ntl15_17)
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+
+ntl18_20 <- felm(log_value ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id +year, cluster = "village_id",data = elec18_20)
+
+summary(ntl18_20)
+
+ntl <- list(
+  `For 2014` = ntl12_14,
+  `For 2017` = ntl15_17,
+  `For 2020` = ntl18_20
+)
+
+stargazer(
+  ntl,
+  title = "Event Study log Nighttime light as outcome (range 0~60)",
+  stars = TRUE
+)
+
+
+
+
+
+
+
+
+
+
 ##Num establishment----
 
 #12_14
@@ -663,6 +774,85 @@ stargazer(
 
 
 
+
+
+
+##Log Num establishment----
+
+#12_14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+table(elec12_14$year)
+
+establishment12_14 <- felm(log_num_establishment ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + year, cluster = "village_id", data = elec12_14)
+
+
+summary(establishment12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+
+establishment15_17 <- felm(log_num_establishment ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id +year, cluster = "village_id", data = elec15_17)
+
+
+summary(establishment15_17)
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+establishment18_20 <- felm(log_num_establishment ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id +year, cluster = "village_id", data = elec18_20)
+
+
+summary(establishment18_20)
+establishment <- list(
+  `For 2014` = establishment12_14,
+  `For 2017` = establishment15_17,
+  `For 2020` = establishment18_20
+)
+
+stargazer(
+  establishment,
+  title = "Log Event Study Number of Establishments as outcome ",
+  stars = TRUE
+  # note = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
+  # out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
 ##Total_employee ----
 
 ##12-14
@@ -734,6 +924,89 @@ modelsummary(
 )
 
 
+
+
+##Log Total_employee ----
+
+##12-14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+table(elec12_14$year)
+
+employee12_14 <- felm(log_total_employee ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + year,cluster = "village_id", data = elec12_14)
+
+
+summary(employee12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>%  
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+
+employee15_17 <- felm(log_total_employee ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id +year,cluster = "village_id", data = elec15_17)
+
+summary(employee15_17)
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+
+employee18_20 <- felm(log_total_employee ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id +year,cluster = "village_id", data = elec18_20)
+
+summary(employee18_20)
+
+employee <- list(
+  `For 2014` = employee12_14,
+  `For 2017` = employee15_17,
+  `For 2020` = employee18_20
+)
+
+stargazer(
+  employee,
+  title = "Event Study Log Total Employee as outcome ",
+  stars = TRUE
+)
+
+
+
+
+
+
+
+
+
+
+
+
 #District-year fixed effects-----
 
 
@@ -802,6 +1075,92 @@ stargazer(
 
 
 
+
+
+
+
+
+
+
+##Log Ntl-----
+
+#12_14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )   %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+table(elec12_14$year)
+
+
+ntl12_14 <- felm(log_value ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + district_year, clustervar = "village_id", data = elec12_14)
+
+summary(ntl12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+
+ntl15_17 <- felm(log_value ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + district_year, cluster = "village_id", data = elec15_17)
+
+summary(ntl15_17)
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+ntl18_20 <- felm(log_value ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + district_year, cluster = "village_id", data = elec18_20)
+
+summary(ntl18_20)
+
+ntl <- list(
+  `For 2014` = ntl12_14,
+  `For 2017` = ntl15_17,
+  `For 2020` = ntl18_20
+)
+
+stargazer(
+  ntl,
+  title = "Event Study Log Nighttime light as outcome (range 0~60)",
+  stars = TRUE# out = file.path(output_path, "es_ntl.html")
+)
+
+
+
+
+
+
+
+
+
+
+
 ##Num establishment----
 
 #12_14
@@ -862,6 +1221,89 @@ stargazer(
   stars = TRUE,
   notes = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
 )
+
+
+
+
+
+
+
+
+##Log Num establishment----
+
+#12_14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+table(elec12_14$year)
+
+establishment12_14 <- felm(log_num_establishment ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + district_year, cluster = "village_id" ,data = elec12_14)
+
+
+summary(establishment12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+
+establishment15_17 <- felm(log_num_establishment ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + district_year, cluster = "village_id",data = elec15_17)
+
+summary(establishment15_17)
+
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+establishment18_20 <- felm(log_num_establishment ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + district_year, cluster = "village_id",data = elec18_20)
+
+summary(establishment18_20)
+
+establishment <- list(
+  `For 2014` = establishment12_14,
+  `For 2017` = establishment15_17,
+  `For 2020` = establishment18_20
+)
+
+
+
+
+stargazer(
+  establishment,
+  title = "Event Study Log Number of Establishments as outcome",
+  stars = TRUE
+)
+
+
+
 
 
 
@@ -932,6 +1374,82 @@ stargazer(
 
 
 
+
+##Log total_employee-----
+
+##12-14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+table(elec12_14$year)
+
+employee12_14 <- felm(log_total_employee ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + district_year, cluster = "village_id",  data = elec12_14)
+
+summary(employee12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+
+employee15_17 <- felm(log_total_employee ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + district_year, cluster = "village_id",  data = elec15_17)
+
+summary(employee15_17)
+
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+employee18_20 <- felm(log_total_employee ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + district_year, cluster = "village_id",  data = elec18_20)
+
+summary(employee18_20)
+
+employee <- list(
+  `For 2014` = employee12_14,
+  `For 2017` = employee15_17,
+  `For 2020` = employee18_20
+)
+
+
+
+stargazer(
+  employee,
+  title = "Event Study Log Number of Total employee as outcome",
+  stars = TRUE
+)
+
+
+
+
+
 #Sector-year fixed effects-----
 
 
@@ -991,6 +1509,83 @@ stargazer(
   notes = "Exclude districts Ngororero, Nyabihu, Nyamasheke, Rubavu"
   # out = file.path(output_path, "es_ntl.html")
 )
+
+
+
+
+##Log Ntl-------
+
+
+#12_14
+
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  )  
+
+
+ntl12_14 <- felm(log_value ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + sector_year, clustervar = "village_id", data = elec12_14)
+
+summary(ntl12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+table(elec15_17$year)
+
+
+
+ntl15_17 <- felm(log_value ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + district_year, cluster = "village_id", data = elec15_17)
+
+summary(ntl15_17)
+
+##18_20
+
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(value != 0) %>% 
+  mutate(
+    log_value = log(value)
+  ) 
+
+ntl18_20 <- felm(log_value ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + sector_year, cluster = "village_id", data = elec18_20)
+
+summary(ntl18_20)
+
+ntl <- list(
+  `For 2014` = ntl12_14,
+  `For 2017` = ntl15_17,
+  `For 2020` = ntl18_20
+)
+
+stargazer(
+  ntl,
+  title = "Event Study Log Nighttime light as outcome (range 0~60)",
+  stars = TRUE  # out = file.path(output_path, "es_ntl.html")
+)
+
 
 
 
@@ -1059,6 +1654,84 @@ stargazer(
 
 
 
+
+
+##Log Num establishment----
+
+#12_14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )  %>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+table(elec12_14$year)
+
+establishment12_14 <- felm(log_num_establishment ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + sector_year, cluster = "village_id" ,data = elec12_14)
+
+
+summary(establishment12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+
+establishment15_17 <- felm(log_num_establishment ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + sector_year, cluster = "village_id",data = elec15_17)
+
+summary(establishment15_17)
+
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  filter(num_establishment != 0) %>% 
+  mutate(
+    log_num_establishment = log(num_establishment)
+  )
+
+establishment18_20 <- felm(log_num_establishment ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + sector_year, cluster = "village_id",data = elec18_20)
+
+summary(establishment18_20)
+
+
+establishment <- list(
+  `For 2014` = establishment12_14,
+  `For 2017` = establishment15_17,
+  `For 2020` = establishment18_20
+)
+
+
+stargazer(
+  establishment,
+  title = "Event Study Log Number of Establishments as outcome",
+  stars = TRUE
+)
+
+
+
+
+
 ##Total_employee ----
 
 ##12-14
@@ -1119,3 +1792,77 @@ stargazer(
 )
 
 
+
+
+
+##Log Total_employee ----
+
+##12-14
+elec12_14 <- rwa_event %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )   %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+table(elec12_14$year)
+
+employee12_14 <- felm(log_total_employee ~ p0_2014:elec12_14 + p1_2017:elec12_14 + p2_2020:elec12_14|village_id + sector_year, cluster = "village_id",  data = elec12_14)
+
+summary(employee12_14)
+
+##15_17
+elec15_17 <- rwa_event %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+
+employee15_17 <- felm(log_total_employee ~ p_2_2011:elec15_17 + p0_2017:elec15_17 + p1_2020:elec15_17|village_id + sector_year, cluster = "village_id",  data = elec15_17)
+
+summary(employee15_17)
+
+
+##18_20
+elec18_20 <- rwa_event %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  filter(total_employee != 0) %>% 
+  mutate(
+    log_total_employee = log(total_employee)
+  )
+
+employee18_20 <- felm(log_total_employee ~ p_3_2011:elec18_20 + p_2_2014:elec18_20 + p0_2020:elec18_20|village_id + sector_year, cluster = "village_id",  data = elec18_20)
+
+
+summary(employee18_20)
+
+employee <- list(
+  `For 2014` = employee12_14,
+  `For 2017` = employee15_17,
+  `For 2020` = employee18_20
+)
+
+
+
+stargazer(
+  employee,
+  title = "Event Study Log Number of Total employee as outcome",
+  stars = TRUE
+)

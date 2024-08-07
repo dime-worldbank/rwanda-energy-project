@@ -185,20 +185,20 @@ r_consumption <- r1-r2
 
 #signma set at 1 because there was no baseline data and it was normal distribution
 
-mde_well <- mde(193, 3860, 1, 1)
+mde_well <- mde(200, 4000, 1, 1)
 
 
 #monthly energy spending----
 
 #signma = 21.83, base = 10.83, Table 3--B8: monthly total energy spending in Lee et al.
 
-mde_energy <- mde(193, 3860, 21.83, 10.83)
+mde_energy <- mde(200, 4000, 21.83, 10.83)
 
 
 #monthly kerosene spending----
 # signma = 2.75, base = 2.64, Table 2 -- B7: monthly kerosene spending 
 
-mde_kerosene <- mde(193, 3860, 2.75, 2.64)
+mde_kerosene <- mde(200, 4000, 2.75, 2.64)
 
 
 #Electricity consumption----
@@ -209,7 +209,7 @@ mde_kerosene <- mde(193, 3860, 2.75, 2.64)
 # Standard deviation: we are given Q1 and Q3, the standard deviation is calculated using the formula below. 
 # Sepcifically the standard deviation is taking the IQR of households that are newly connected in the sample and their consumption in 2016 (Round 1 survey)
 
-mde_electricity <- mde(193, 3860, 16.31, 7.9)
+mde_electricity <- mde(200, 4000, 16.31, 7.9)
 
 
 

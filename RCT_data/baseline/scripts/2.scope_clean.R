@@ -1,0 +1,387 @@
+##############
+#Author: Xiaoming Zhang
+#Date: 7.23.2024
+#Purpose: Place for clean scope codes, not including trials and errors
+#############
+
+
+pacman::p_load(knitr, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, gtsummary)
+
+getwd()
+
+#Dropbox----
+
+
+if (Sys.getenv("USERNAME") == "wb614406"){
+  DROPBOX <- file.path("C:/Users/wb614406/Dropbox")
+}
+
+#Method One----
+path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data/four_district_2407.xlsx"
+)
+
+data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+
+output_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/datawork/RCT_data",
+  "baseline/data/data"
+)
+#read file----
+four_district_2407 <- read_xlsx( path = file.path(data_path, "four_district_2407.xlsx"))
+
+#Lot construction Rusizi----
+# 
+# 
+# 
+# four_district_2407 <- four_district_2407 %>% 
+#   mutate(
+#     lot = case_when(
+#       district == "Rusizi" & sector == "Gihundwe" & cell == 
+#         "Gihaya" & name == " Budorozo" ~ "rusizi-2",
+#       district == "Rusizi" & sector == "Nzahaha" & cell == "Kigenge"& name == "Ndabereye" ~ "rusizi-1",
+#       district == "Rusizi" & sector == "Gihundwe" & cell == "Gihaya" & name == "Budorozo" ~ "rusizi-1", #This is not in the 200 villages
+#       .default = lot
+#     ),
+#     lot = ifelse(district %in% c("Rusizi"), lot, district)
+#   )
+# 
+# 
+# #Scope updated Rulindo----
+# 
+# rulindo_scope_update <- read_xlsx(path = file.path(data_path, "List of Villages_in_EPC Rulindo_Updated.xlsx"))
+# 
+# 
+# 
+# four_district_2407 <- four_district_2407 %>% 
+#   mutate(
+#     scope_2407 = case_when(
+#       district == "Rulindo" & village_id %in% rulindo_scope_update$Code_Vill~ 1,
+#       district == "Rulindo" & !village_id %in% rulindo_scope_update$Code_Vill ~ 0,
+#       .default = scope_2403
+#     )
+#   )
+# 
+# 
+# 
+# #Scope update Rusizi-----
+# 
+# rusizi1_update <- read_xlsx(path = file.path(data_path, "Final Village List Rusizi with customers Lot 1 & 2.xlsx"), sheet = "lot-1")
+# rusizi2_update <- read_xlsx(path = file.path(data_path, "Final Village List Rusizi with customers Lot 1 & 2.xlsx"), sheet = "lot-2")
+# 
+# 
+# rwa_villages <- st_read(dsn = file.path(data_path, "rwa_villages", "Village.shp"))
+# 
+# village_join <- rwa_villages %>% 
+#   clean_names() %>% 
+#   select(village_id, district, sector, cell, name) %>% 
+#   st_drop_geometry()
+# 
+# rusizi1_update <- left_join(rusizi1_update, village_join, by = c("District" = "district",
+#                                                                 "Sector" = "sector",
+#                                                                 "Cellule" = "cell",
+#                                                                 "Village" = "name"))
+# 
+# rusizi1_update <- rusizi1_update %>% 
+#   mutate(lot = "Rusizi-1")
+# 
+# rusizi2_update <- left_join(rusizi2_update, village_join, by = c("District" = "district",
+#                                                                  "Sector" = "sector",
+#                                                                  "Cellule" = "cell",
+#                                                                  "Village" = "name"))
+# 
+# rusizi2_update <- rusizi2_update %>% 
+#   mutate(lot = "Rusizi-2") 
+# 
+# rusizi_update <- bind_rows(rusizi1_update, rusizi2_update)
+# 
+# rusizi_update <- rusizi_update %>% 
+#   select(village_id, lot) %>% 
+#   rename(lot_rusizi = lot)
+# 
+# four_district_2407 <- four_district_2407 %>% 
+#   mutate(
+#     scope_2407 = case_when(
+#       district == "Rusizi" & village_id %in% rusizi_update$village_id~ 1,
+#       district == "Rusizi" & !village_id %in% rusizi_update$village_id ~ 0,
+#       .default = scope_2403
+#     )
+#   )
+# 
+# four_district_2407 <- left_join(four_district_2407, rusizi_update, by = c("village_id"))
+# 
+# 
+# four_district_2407 <- four_district_2407  %>% 
+#   mutate(
+#     lot = ifelse(district %in% c("Rusizi"), lot_rusizi, lot)
+#   )
+#   
+#   
+#   
+# 
+# #Append four_district_2407
+# write_xlsx(four_district_2407, path = file.path(data_path, "four_district_2407.xlsx"))
+
+
+
+# write_xlsx(four_district_2407, path = file.path(data_path, "four_district_2408.xlsx"))
+
+
+
+#Scope----
+
+four_district_2407.1 <- four_district_2407 %>%
+  mutate(any_offgrid = case_when(
+    et_sum != 0 | priority_0 == 0 ~ "partial",
+    .default = "newly"
+  ))
+
+four_district_2407.1 <- four_district_2407.1 %>%
+  mutate(
+    any_grid = case_when(
+      grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")  ~ "newly",
+      .default = "partial"
+    )
+  )
+
+four_district_2407.1 <- four_district_2407.1  %>%
+  mutate(status = case_when(
+    any_grid == "newly" & any_offgrid == "newly" ~ "newly",
+    .default = "partial"
+  ))
+
+four_district_2407.1  <- four_district_2407.1 %>%
+  mutate(
+    status = ifelse(hh_head_06 < 20, "partial", status)  #Changed from hh_head_06
+  )
+
+four_district_2407.1 <- four_district_2407.1 %>%
+  mutate(meter_percent = round(meter_eucl/total_hh, 2))
+
+four_district_2407.1 <- four_district_2407.1 %>%
+  mutate(
+    status = ifelse(meter_percent >= 0.3 , "partial", status)
+  )
+
+four_district_2407.1 <- four_district_2407.1 %>%
+  mutate(
+    status = ifelse(customer < 32 , "partial", status)
+  )
+
+
+four_scope_2407.1 <- four_district_2407.1 %>%
+  filter( scope_2407 == 1)
+
+table(four_scope_2407.1$status)
+
+
+write_xlsx(four_district_2407.1, path = file.path(data_path, "four_district_2408.xlsx"))
+
+
+
+
+
+# Newly information----
+ 
+newly <- four_scope_2407.1 %>%
+  filter(status == "newly")
+
+# # 
+# write_xlsx(four_scope_newly, path = file.path(data_path, "193 scope villages.xlsx"))
+# 
+summarise <- newly %>%
+  group_by(lot) %>%
+  summarise(
+    n = n(),
+    survey_hh = n*20,
+    vulnerable = sum(hh_head_06)
+  )
+
+
+summarise_row <- summarise%>%
+  summarise(
+    lot = "Total",
+    n = sum(n),
+    survey_hh = sum(survey_hh),
+    vulnerable = sum(vulnerable)
+  )
+
+summarise <- bind_rows(summarise, summarise_row)
+
+View(summarise)
+# # 
+# # filter <- newly_193 %>%
+#   filter(hh_head_06 <= 20) %>%
+#   group_by(lot) %>%
+#   summarise(n = n())
+# 
+# 
+# 
+# 
+
+
+
+
+# 
+# 
+# 
+# #193 Status update----
+# 
+# #"newly" is in the randomization scope, "partial" is not
+# #Replace with hh_head_06 instead of ubudehe_1 list
+# 
+# four_district_2407.2 <- four_district_2407 %>% 
+#   mutate(any_offgrid = case_when(
+#     et_sum != 0 | priority_0 == 0 ~ "partial",
+#     .default = "newly"
+#   ))
+# 
+# four_district_2407.2 <- four_district_2407.2 %>% 
+#   mutate(
+#     any_grid = case_when(
+#       grid_status %in% c("newly") & nep_revision%in% c("GE", "Fill In")  ~ "newly",
+#       .default = "partial"
+#     )
+#   )
+# 
+# four_district_2407.2 <- four_district_2407.2  %>% 
+#   mutate(status = case_when(
+#     any_grid == "newly" & any_offgrid == "newly" ~ "newly",
+#     .default = "partial"
+#   ))
+# 
+# 
+# four_district_2407.2  <- four_district_2407.2 %>% 
+#   mutate(
+#     status = ifelse(hh_head_06 < 22, "partial", status)  #Changed from hh_head_06
+#   )
+# 
+# 
+# four_district_2407.2 <- four_district_2407.2 %>% 
+#   mutate(meter_percent = round(meter_eucl/total_hh, 2))
+# 
+# four_district_2407.2 <- four_district_2407.2 %>% 
+#   mutate(
+#     status = ifelse(meter_percent >= 0.3 , "partial", status)
+#   )
+# 
+# four_district_2407.2 <- four_district_2407.2 %>% 
+#   mutate(
+#     status = ifelse(customer < 20 , "partial", status)
+#   )
+# 
+# four_district_2407.2 <- four_district_2407.2 %>%
+#   mutate(
+#     status = ifelse(is.na(lot), "partial", status)
+#   )
+# 
+# 
+# write_xlsx(four_district_2407.2, path = file.path(data_path, "four_district_2407.xlsx"))
+# 
+# #Karongi+Rutsiro+Rulindo+Rusizi----
+# 
+# four_scope_2407.2 <- four_district_2407.2 %>% 
+#   filter( scope_2403 == 1)
+# 
+# table(four_scope_2407.2$status)
+# 
+# 
+# newly_193 <- four_scope_2407.2 %>% 
+#   filter(status == "newly")
+# 
+# 
+# newly_193 %>% 
+#   group_by(lot) %>% 
+#   summarise(
+#     n = n(),
+#     survey = n*20,
+#     vulnerable = sum(hh_head_06)
+#   )
+# 
+# 
+# write_xlsx(newly_193, path = file.path(data_path, "newly_193.xlsx"))
+# 
+# 
+# 
+# # write_xlsx(four_scope_newly, path = file.path(data_path, "200 scope villages.xlsx"))
+# 
+
+
+
+#Randomize households----
+
+
+#Other checks-----
+# newly_scope <- four_scope_2407.1 %>% 
+#   filter(status == "newly") %>% 
+#   group_by(lot) %>% 
+#   summarise(
+#     village_n = n(),
+#     survey_hh= village_n * 20,
+#     vulnerable_hh = sum(hh_head_06)
+#   ) %>% 
+#   mutate(
+#     readyboard = case_when(
+#       lot == "Rulindo" ~ 224,
+#       lot == "Karongi" ~ 224,
+#       lot == "Rutsiro" ~ 221,
+#       lot == "rusizi-1" ~ 535,
+#       lot == "rusizi-2" ~ 627
+#     )
+#   )
+# 
+# 
+# 
+# View(newly_scope)
+
+
+
+# 
+# #Other checks----
+# 
+# lot_scope <- newly_193 %>% 
+#   filter(status == "newly") %>% 
+#   group_by(district, lot) %>% 
+#   summarise(
+#     village_n = n(),
+#     survey_hh= village_n * 20,
+#     readyboard_hh = sum(ubudehe_1)
+#   )
+# 
+# sector_scope <- four_scope_2407.1 %>% 
+#   filter(status == "newly") %>%
+#   filter(district %in% c("Karongi", "Rutsiro", "Rulindo")) %>% 
+#   group_by(district, sector) %>% 
+#   summarise(
+#     village_n = n(),
+#     
+#     survey_hh= village_n * 20,
+#     readyboard_hh = sum(ubudehe_1)
+#   )
+# 
+# 
+# data_list <- list(
+#   "Lot Scope(Rusizi)" = lot_scope,
+#   "Sector Scope(Rest)" = sector_scope
+# )
+# 
+# # Write to Excel file
+# write_xlsx(data_list, path = file.path(data_path, "scope_results_newlist.xlsx"))
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+#   
+#   
+  

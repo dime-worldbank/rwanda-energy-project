@@ -218,7 +218,6 @@ write.csv(surveycto_scope, file = file.path(data_path, "scope_villages.csv"))
 
 #Left_join hh head with scope village----
 
-
 scope_villages <- read.csv(file = file.path(data_path, "scope_villages.csv"))
 
 scope_villages <- scope_villages %>% 

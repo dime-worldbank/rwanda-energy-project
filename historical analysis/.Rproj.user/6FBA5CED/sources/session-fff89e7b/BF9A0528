@@ -1,0 +1,28 @@
+{
+    "id": "BF9A0528",
+    "path": "C:/Users/wb614406/github/rwanda-energy-project/historical analysis/scripts/nisr_establishment census_cell.R",
+    "project_path": "scripts/nisr_establishment census_cell.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1722997988972.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "447,69",
+        "scrollLine": "429",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1722355906,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1722355906,
+    "read_only": false,
+    "read_only_alternatives": []
+}
