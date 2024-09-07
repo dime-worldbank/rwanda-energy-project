@@ -1,0 +1,28 @@
+{
+    "id": "8DCC818E",
+    "path": "C:/Users/wb614406/github/rwanda-energy-project/RCT_data/baseline/scripts/3.randomization.R",
+    "project_path": "scripts/3.randomization.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1722871084437.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "212,0",
+        "scrollLine": "0",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1724851919,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1724851919925,
+    "read_only": false,
+    "read_only_alternatives": []
+}
