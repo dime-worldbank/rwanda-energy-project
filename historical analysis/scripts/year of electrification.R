@@ -674,19 +674,16 @@ rwa_map <- left_join(rwa_village, rwa_map, by = c("Village_ID" = "village_id"))
 rwa_map <- rwa_map %>%
   complete(year, Village_ID, fill = list(year_first = 2300)) 
 
-year_2013 <- rwa_map %>% 
-  filter( year == 2013) %>% 
-  mutate(
-    electrified = ifelse(year_first < 2013, "electrified_before_2013", ifelse(
-      year_first == 2013, "electrified_2013", NA
-    ))
-  )
+rwa_map_unique <- rwa_map %>% 
+  distinct(Village_ID, .keep_all = TRUE)
 
+year_2013 <- rwa_map_unique %>% 
+  filter(year_first <= 2013)  # Filter villages electrified by 2013
 
- ggplot() +
-  geom_sf(data = year_2013, aes(fill =electrified, geometry = geometry), color = NA) +
+ggplot() +
+  geom_sf(data = year_2013, aes(geometry = geometry), fill = "Electrified", color = "lightblue") +  # Fill as 'Electrified'
   geom_sf(data = rwa_boundary, color = "black", fill = NA, size = 0.5) +
-  scale_fill_viridis_d() +  # Colorblind-friendly palette
+  scale_fill_manual(values = c("Electrified" = "lightblue")) +  # Manually set 'Electrified' to lightblue
   theme_void() + 
   theme(
     plot.background = element_rect(fill = 'white', color = 'white'),
@@ -696,7 +693,7 @@ year_2013 <- rwa_map %>%
   ) +
   labs(
     title = "Rwanda Village Electrification 2013",
-    fill = "Electrification year"
+    fill = "Electrification Status"  # Legend title as 'Electrification Status'
   ) +
   theme(
     legend.position = "right",
@@ -704,6 +701,33 @@ year_2013 <- rwa_map %>%
     legend.text = element_text(size = 16),
     plot.title = element_text(size = 18)
   )
+
+
+
+
+
+ggplot() +
+  geom_sf(data = year_2013, aes(geometry = geometry, fill = "Electrified"), color = "lightblue")   # Fill as 'Electrified'
+  geom_sf(data = rwa_boundary, color = "black", fill = NA, size = 0.5) +
+  scale_fill_manual(values = c("Electrified" = "lightblue")) +  # Manually set 'Electrified' to lightblue
+  theme_void() + 
+  theme(
+    plot.background = element_rect(fill = 'white', color = 'white'),
+    legend.margin = margin(r = 10),
+    plot.title = element_text(hjust = 0.5), 
+    plot.margin = margin(t = 20)
+  ) +
+  labs(
+    title = "Rwanda Village Electrification 2013",
+    fill = "Electrification Status"  # Legend title as 'Electrification Status'
+  ) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    plot.title = element_text(size = 18)
+  )
+
 
  
 # Save each plot as a PNG file
@@ -771,20 +795,134 @@ gif_output_path <- file.path(data_path, "Electrification map", "Year_elec.gif")
 image_write(gif, gif_output_path)
 
 
+#Staggered map-----
+
+rwa_map_unique <- rwa_map %>% 
+  distinct(Village_ID, .keep_all = TRUE)
+
+rwa_map_unique <- rwa_map_unique %>% 
+  mutate(year_first = as.numeric(year_first))
+
+
+years <- 2010:2021
+
+# Loop over each year
+for (y in years) {
+  
+  # Filter villages electrified by the current year
+  year_data <- rwa_map_unique %>% 
+    filter(year_first <= y)  # Dynamic filter based on the looped year
+  
+  # Create the plot
+  p <- ggplot() +
+    geom_sf(data = year_data, aes(geometry = geometry, fill = "Electrified"), color = NA) +  # Use year_data here
+    geom_sf(data = rwa_boundary, color = "black", fill = NA, size = 0.5) +
+    scale_fill_manual(values = c("Electrified" = "#E69F00")) +  # Manually set colorblind-friendly orange
+    theme_void() + 
+    theme(
+      plot.background = element_rect(fill = 'white', color = 'white'),
+      legend.margin = margin(r = 10),
+      plot.title = element_text(hjust = 0.5), 
+      plot.margin = margin(t = 20)
+    ) +
+    labs(
+      title = paste0("Rwanda Village Electrification ", y),  # Update title with current year
+      fill = "Electrification Status"  # Legend title as 'Electrification Status'
+    ) +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(size = 18),
+      legend.text = element_text(size = 16),
+      plot.title = element_text(size = 18)
+    )
+  
+  # Save the plot for the current year
+  ggsave(filename = file.path(data_path, "Electrification map", "Staggered", paste0(y, ".png")), 
+         plot = p, 
+         width = 10, height = 8, units = "in", dpi = 300)
+}
 
 
 
 
 
+#GIF save
+map_path <- file.path(data_path, "Electrification map", "Staggered")
+
+images <- list.files(map_path, pattern = "*.png", full.names = TRUE)
+
+img_list <- image_read(images)
+
+gif <- image_animate(img_list, fps = 1)
+
+gif_output_path <- file.path(data_path, "Electrification map", "Year_elec_staggered.gif")
+image_write(gif, gif_output_path)
+
+
+#LV and MV line-------
+
+rwa_mv <- st_read(dsn = file.path(data_path, "Existing Electrical Network_2022", "Existing_MVLine.shp"))
+rwa_hv <- st_read(dsn = file.path(data_path, "Existing Electrical Network_2022", "Existing_HVLine.shp"))
+rwa_village <- st_read(dsn = file.path(rct_data_path, "rwa_villages", "Village.shp"))
+rwa_village <- st_make_valid(rwa_village)
+
+
+rwa_boundary = st_read(dsn = file.path(rct_data_path,"rwa_boundary", "RWA_adm0.shp"))
+rwa_boundary = st_transform(rwa_boundary, crs = st_crs(rwa_village))
+
+rwa_mv <- st_transform(rwa_mv , crs = st_crs(rwa_village))
+rwa_hv <- st_transform(rwa_hv, crs = st_crs(rwa_village))
+
+
+
+# Plot Rwanda with HV and MV lines, village boundaries, and Rwanda boundary
+ggplot() +
+  geom_sf(data = rwa_village, fill = NA, color = "lightgrey") +
+  geom_sf(data = rwa_boundary, color = "black", fill = NA, size = 0.8) +
+  geom_sf(data = rwa_mv, color = "blue", size = 0.5) +
+  geom_sf(data = rwa_hv, color = "red", size = 0.5) +
+  theme_void() +  # No axis lines or background
+  theme(
+    plot.background = element_rect(fill = 'white', color = 'white'), 
+    plot.title = element_text(hjust = 0.5, size = 35),               
+    plot.margin = margin(20, 20, 20, 20)                             
+  ) +
+  
+  # Add a title
+  labs(title = "Rwanda Electrical Network 2022")
 
 
 
 
 
-
-
-
-
-
-
+# Plot Rwanda with HV and MV lines, village boundaries, and Rwanda boundary
+ggplot() +
+  # Village boundaries in light grey
+  geom_sf(data = rwa_village, fill = NA, color = "lightgrey") +
+  
+  # Rwanda boundary in black
+  geom_sf(data = rwa_boundary, color = "black", fill = NA, size = 0.8) +
+  
+  # MV and HV lines with legends
+  geom_sf(data = rwa_mv, aes(color = "MV Line"), size = 0.5) +  # MV line (blue)
+  geom_sf(data = rwa_hv, aes(color = "HV Line"), size = 0.5) +  # HV line (red)
+  
+  # Color scale for the lines
+  scale_color_manual(values = c("MV Line" = "blue", "HV Line" = "red")) +
+  
+  # No axis lines or background
+  theme_void() +  
+  theme(
+    plot.background = element_rect(fill = 'white', color = 'white'), 
+    plot.title = element_text(hjust = 0.5, size = 35),               
+    plot.margin = margin(20, 20, 20, 20),
+    legend.text = element_text(size = 20),  # Adjust legend text size
+    legend.title = element_text(size = 24)   # Adjust legend title si
+  ) +
+  
+  # Add title and legend title
+  labs(
+    title = "Rwanda Electrical Network 2022",
+    color = ""  # Legend title
+  )
 

@@ -7,7 +7,7 @@
 
 #library----
 
-pacman::p_load(fixest, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, plm, haven, stringr, modelsummary, kableExtra, stargazer, lfe, ggfixest)
+pacman::p_load(fixest, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, plm, haven, stringr, modelsummary, kableExtra, stargazer, lfe, ggfixest, install = TRUE)
 
 
 #read file----
@@ -23,7 +23,7 @@ data_path <- file.path(
 
 
 #Dataset preparation----
-tax_data <- readRDS(file.path(data_path, "cit-cell-panel-12-22.rds"))
+tax_data <- readRDS(file.path(data_path, "cit-cell-panel-12-22 (1).rds"))
 
 tax_data <- tax_data %>% 
   mutate(cell_id = as.character(cell_id)) %>% 
@@ -2034,19 +2034,32 @@ stargazer(
 
 ##ntl value----
 
+###Construction----
+
+rwa_event_3 <- rwa_event_3 %>%
+  mutate(
+    ntl_qt = ntile(value, 4)  
+  )
+
+
+value_qt <- felm(ntl_qt  ~ elec_m3ormore + elec_m2 +elec_0 + elec_1 + elec_2 + elec_3ormore | cell_id + year, data = rwa_event_3)
+summary(value_qt)
 
 
 value <- felm(value  ~ elec_m3ormore + elec_m2 +elec_0 + elec_1 + elec_2 + elec_3ormore | cell_id + year, data = rwa_event_3)
 summary(value)
 
 
-
 value_distr <- felm( value  ~ elec_m3ormore + elec_m2 +elec_0 + elec_1 + elec_2 + elec_3ormore | cell_id + distr_year, data = rwa_event_3)
 summary(value_distr)
 
 
+value_distr_qt <- felm( ntl_qt  ~ elec_m3ormore + elec_m2 +elec_0 + elec_1 + elec_2 + elec_3ormore | cell_id + distr_year, data = rwa_event_3)
+summary(value_distr_qt)
+
+
 # Create a list of the models
-models <- list(value, value_distr)
+models <- list(value, value_qt, value_distr, value_distr_qt)
 
 
 stargazer(

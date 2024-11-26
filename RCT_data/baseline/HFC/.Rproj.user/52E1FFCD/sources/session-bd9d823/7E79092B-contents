@@ -1,0 +1,298 @@
+########################################################################################################
+#                                                                                                      #
+#                     HIGH-FREQUENCY CHECKS  -- ADMINISTRATIVE-LEVEL HIGH-FREQUENCY CHECKS             #
+#                                                                                                      #
+########################################################################################################
+
+## PURPOSE      Create one or multiple administrative-level check sheets in the HFC dashboard.
+## District 
+## Villages  
+## Households
+
+## AUTHOR      Xiaoming Zhang (adapted from Adrien Ciret & Marc-Andrea Fiorina & Juliana Guerrero)
+
+## LAST UPDATE  April 16th , 2023
+
+########################################################################################################
+
+#Import Data ----
+# 
+
+
+## libraries
+
+library(tidyverse)
+library(lubridate)
+library(googlesheets4)
+library(readxl)
+library(dplyr)
+library(tidyr)
+
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+## Raw High Frequency Data (REMEMBER TO REENCRYPT)
+
+
+data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/data"
+)
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/output"
+)
+
+admin_raw <- read.csv(file.path(
+  data_path, "admin_raw.csv"
+))
+
+admin_raw <- admin_raw %>% 
+  mutate(across(as.character()))
+
+
+# Save useful data 
+hfc_admin <- hfc_constr %>% select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+                                   district, sector, cell, village, hh_id, consent, finish, location,
+                              
+                                   
+                                   #Duration
+                                   survey_duration,
+                                   roster_duration,
+                                   energy_duration,
+                                   wellbeing_duration,
+                                   willingness_duration,
+                                   housing_assets_duration,
+                                   business_duration,
+                                   savings_duration,
+                                   mobile_duration,
+                                   livestock_duration,
+                                   cleancooking_duration,
+                                   mental_health_duration,
+                                   social_desirability_duration,
+                                   all_duration,
+                                
+                                   
+                                   #household head roster
+                                   starts_with("A1"), hh_head_name, gender, marital, head_age_calculate, education, high_edu,  starts_with("A2"),
+                                   starts_with("A3"),
+                                   
+                                   #energy wellbeing
+                                   starts_with("B4"), starts_with("B5"),
+                                   
+                                   #housing assets
+                                   starts_with("C1"), starts_with("C2"), starts_with("C3"),
+                                   
+                                   #business
+                                   starts_with("D1"), starts_with("D2"), starts_with("D3"),starts_with("D4"),
+                                   
+                                   #savings
+                                   starts_with("E1"), formal_savings, informal_savings, starts_with("E2"), starts_with("E3"), starts_with("E4"),
+                                   
+                                   
+                                   # #mobile
+                                   # starts_with("F"),
+                                   
+                                   #land and agriculture
+                                   starts_with("G"),
+                                   
+                                   #Energy
+                                   starts_with("H"),
+                                   
+                                   #clean_cooking
+                                   starts_with("I"),
+                                   
+                                   #willingness
+                                   
+                                   starts_with("J"),
+                                   
+                                   #mental health
+                                   starts_with("B1"), starts_with("B2"), starts_with("B3"),
+                                   
+                                   #desirability
+                                   starts_with("K")
+                              
+                                   )
+
+hfc_constr <- hfc_constr %>% 
+  mutate(
+    finish = ifelse(is.na(A1_1), 0, finish)
+  )
+#1. Village ----
+
+# For each geographic/administrative unit (in this case, village), we want to check:
+# Number of submissions
+# Number of submissions per day
+# Progress (%age of expected surveys completed)
+
+##Submission by day----
+village_check_by_day <- hfc_constr %>%
+  group_by(village, submissiondate) %>%
+  summarize(
+    num_surveys = n()
+  ) %>% 
+  ungroup() %>%
+  pivot_wider(
+    names_from = submissiondate,
+    values_from = num_surveys
+  ) %>%
+  mutate(across(
+    -village,
+    ~ ifelse(is.na(.x), 0, .x)
+  )) %>% 
+  select(village, order(colnames(.)))
+
+
+
+village_completion <- hfc_constr %>% 
+  group_by(village) %>% 
+  summarise(
+    attempt = n(),
+    complete = sum(finish == 1),
+    no_complete = sum(finish == 0),
+    consent = sum(consent == 1, na.rm = TRUE),
+    no_consent = sum(consent == 0, na.rm = TRUE),
+    completion_rate = paste0(round(complete / attempt, 3) * 100, "%"),
+    consent_rate = paste0(round(consent / attempt, 3) * 100, "%")
+  ) %>% 
+  ungroup()
+
+
+village_check <- left_join(admin_raw, village_completion, by = c("villageid_key" = "village")) 
+
+village_check <- village_check%>%
+  mutate(
+    progress = paste0(round(complete / num_to_survey, 3) * 100, "%")
+  ) %>%
+  left_join(village_check_by_day, by = c("villageid_key" = "village"))
+
+
+
+
+
+
+# saving output
+
+hfc_sheet %>%
+  
+  sheet_write(data = village_check, sheet = "village_data")
+
+1
+
+
+
+#2. Treatment completion----
+
+treatment_completion <- village_check %>% 
+  group_by(treatment) %>% 
+  summarise(
+    num_to_survey = sum(num_to_survey, na.rm = TRUE),
+    attempt = sum(attempt, na.rm = TRUE),
+    complete = sum(complete, na.rm = TRUE),
+    no_complete = sum(no_complete, na.rm = TRUE),
+    consent = sum(consent, na.rm = TRUE),
+    no_consent = sum(no_consent, na.rm = TRUE),
+    completion_rate = paste0(round(complete / attempt, 3) * 100,"%"),
+    consent_rate = paste0(round(consent / attempt, 3) * 100, "%"),
+    progress = paste0(round(complete/num_to_survey, 3) * 100, "%")
+  ) %>% t()
+
+treatment_completion <- as.data.frame(treatment_completion) %>% 
+  mutate(stats = rownames(treatment_completion)) %>% 
+  select(stats, everything())
+
+# saving output
+
+hfc_sheet %>%
+  
+  sheet_write(data = treatment_completion, sheet = "treatment_data")
+
+1
+
+
+
+# 3. District----
+##Submission by day----
+district_check_by_day <- hfc_constr %>%
+  group_by(districtid_key, submissiondate) %>%
+  summarize(
+    num_surveys = n()
+  ) %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from = submissiondate,
+    values_from = num_surveys
+  ) %>%
+  mutate(across(
+    -districtid_key,
+    ~ ifelse(is.na(.x), 0, .x)
+  )) %>%
+  select(districtid_key, order(colnames(.)))
+
+
+##Checks----
+
+district_completion <- hfc_constr %>% 
+  group_by(districtid_key) %>% 
+  summarise(
+    attempt = n(),
+    complete = sum(finish == 1),
+    no_complete = sum(finish == 0),
+    consent = sum(consent == 1, na.rm = TRUE),
+    no_consent = sum(consent == 0, na.rm = TRUE),
+    completion_rate = paste0(round(complete / attempt, 3) * 100, "%"),
+    consent_rate = paste0(round(consent / attempt, 3) * 100, "%")
+  ) %>% 
+  ungroup()
+
+admin_district <- admin_raw %>% 
+  group_by(
+    districtid_key, district_key
+  ) %>% 
+  summarise(
+    num_to_survey = sum(num_to_survey)
+  )
+
+district_check <- left_join(district_completion,admin_district, by = c("districtid_key")) 
+
+district_check <- district_check%>%
+  select(districtid_key, district_key, num_to_survey, everything()) %>% 
+  mutate(
+    progress = paste0(round(complete / num_to_survey, 3) * 100, "%")
+  ) %>%
+  left_join(district_check_by_day) 
+
+
+
+
+# saving output
+
+hfc_sheet %>%
+  
+  sheet_write(data = district_check, sheet = "district_data")
+
+1
+
+
+#4. Daily completions----
+
+daily_completion <- hfc_constr %>%
+  group_by(submissiondate) %>%
+  summarise(
+    attempt = n(),
+    complete = sum(finish == 1),
+    no_complete = sum(finish == 0),
+    consent = sum(consent == 1, na.rm = TRUE),
+    no_consent = sum(consent == 0, na.rm = TRUE)
+  )
+
+
+
+hfc_sheet %>%
+  
+  sheet_write(data = daily_completion, sheet = "daily_completion")
+
+1
+
+
+

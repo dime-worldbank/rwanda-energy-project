@@ -1,0 +1,28 @@
+{
+    "id": "DFE30DE5",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/HFC/scripts/issues.R",
+    "project_path": "scripts/issues.R",
+    "type": "r_source",
+    "hash": "570562966",
+    "contents": "",
+    "dirty": false,
+    "created": 1731901806205.0,
+    "source_on_save": false,
+    "relative_order": 9,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "235,20",
+        "scrollLine": "222",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1732573730,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1732573730641,
+    "read_only": false,
+    "read_only_alternatives": []
+}

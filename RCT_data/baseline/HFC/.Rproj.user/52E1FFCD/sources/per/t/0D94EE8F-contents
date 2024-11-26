@@ -1,0 +1,126 @@
+########################################################################################################
+#                                                                                                      #
+#                     HIGH-FREQUENCY CHECKS  -- ENUMERATOR HIGH-FREQUENCY CHECKS                       #
+#                                                                                                      #
+########################################################################################################
+
+## PURPOSE      Create an enumerator high-frequency check sheet in the HFC dashboard.
+
+## AUTHOR       Xiaoming Zhang(adapted from Adrien Ciret & Marc-Andrea Fiorina & Juliana Guerrero)
+
+## LAST UPDATE  April 16th, 2024
+
+########################################################################################################
+
+# 1.Daily number ----
+
+# For each enumerator, we want to check:
+# Number of submissions
+# Number of submissions per day
+# Average duration of each module, average willingness to pay, average household number
+
+
+hfc_constr <- hfc_constr %>% 
+  mutate(
+    enumerator_key = as.character(enumerator_key),
+    enumerator = as.character(enumerator)
+    
+  )
+
+
+enumerator_day <- hfc_constr %>%
+  group_by(enumerator, enumerator_key, submissiondate) %>%
+  summarize(
+    num_surveys = n()
+  ) %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from  = submissiondate,
+    values_from = num_surveys
+  ) %>%
+  # mutate(
+  #   across(
+  #     enumerator,
+  #     ~ case_when(
+  #       is.na(.x) ~ 0,
+  #       TRUE      ~ .x
+  #     )
+  #   )
+  # ) %>%
+  select(
+    enumerator, enumerator_key, order(colnames(.)) # So that the days are ordered chronologically
+  )
+
+
+
+#2.Completion rate----
+
+## Encoding Consent Variable - # Consent is imported as character type, encode Yes = 1 , No = 0
+# hfc_constr <- hfc_constr %>%
+#   mutate(
+#     survey_complete_c=ifelse(finish ==1,'Yes','No'),
+#     consent_c=ifelse(consent==1,'Yes','No')
+#   )
+# 
+# 
+# hfc_constr <- hfc_constr %>% 
+#   mutate(
+#     enumerator_key = ifelse(enumerator_key %in% "Other", enumerator_other, enumerator_key)
+#   )
+
+completion <- hfc_constr %>% 
+  group_by(enumerator, enumerator_key) %>% 
+  summarise(
+    attempt = n(),
+    complete = sum(finish == 1),
+    no_complete = sum(finish == 0),
+    consent = sum(consent == 1),
+    no_consent = sum(consent == 0),
+    completion_rate = paste0(round(complete / attempt, 3) * 100, "%"),
+    consent_rate = paste0(round(consent / attempt, 3) * 100, "%")
+  ) %>% 
+  ungroup()
+
+# enumerator_check <- left_join(enumerator_day, completion, by = c("enumerator", "enumerator_key"))
+
+#3. Location accuracy issue----
+
+accuracy <- hfc_constr %>% 
+  select(submissiondate, coordinate.Accuracy, enumerator, enumerator_key, hh_id, district, district_key, sector, sector_key, cell, cell_key, village, village_key) %>% 
+  filter(coordinate.Accuracy > 8)
+
+
+hfc_sheet %>%
+  sheet_write(data = accuracy, sheet = "coordinate_accuracy")
+
+1
+
+
+
+#4. Quality----
+
+#This is for enumerator general quality
+enumerators <- enumerators %>% 
+  mutate(enumeratorid_key = as.character(enumeratorid_key))
+
+enumerator_check <- left_join(enumerators, completion, by = c("enumeratorid_key" = "enumerator")) 
+  enumerator_check <- enumerator_check %>% 
+    rename(enumerator = enumeratorid_key) %>% 
+    mutate(
+    duplicates = ifelse(enumerator %in% duplicates$enumerator, "Yes", "No"),
+    high_survey_length = ifelse(enumerator %in% high_length_check$enumerator,"Yes", "No"),
+    low_survey_length = ifelse(enumerator %in% low_length_check$enumerator, "Yes", "No"),
+    coordinate_accuracy = ifelse(enumerator %in% accuracy$enumerator,"Yes", "No")
+  )
+
+
+
+hfc_sheet %>%
+  sheet_write(data = enumerator_check, sheet = "enumerator_quality")
+
+1
+
+
+
+
+

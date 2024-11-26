@@ -1,0 +1,27 @@
+{
+    "id": "0F003236",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/scripts/surveyed customers.R",
+    "project_path": "scripts/surveyed customers.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1731902636209.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "docOutlineVisible": "1",
+        "cursorPosition": "308,9",
+        "scrollLine": "302"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1727809821,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1731903758811,
+    "read_only": false,
+    "read_only_alternatives": []
+}

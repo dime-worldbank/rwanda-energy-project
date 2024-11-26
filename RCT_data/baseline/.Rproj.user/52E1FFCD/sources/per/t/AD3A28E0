@@ -1,0 +1,27 @@
+{
+    "id": "AD3A28E0",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/scripts/hh_head.R",
+    "project_path": "scripts/hh_head.R",
+    "type": "r_source",
+    "hash": "27604096",
+    "contents": "",
+    "dirty": false,
+    "created": 1731902622457.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "docOutlineVisible": "1",
+        "cursorPosition": "126,14",
+        "scrollLine": "117"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1727809821,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1727809821,
+    "read_only": false,
+    "read_only_alternatives": []
+}
