@@ -28,13 +28,15 @@ set.seed(1118)
 # Select 20 households for the main list
 main_select <- hfc_constr %>% 
   filter(
-    submissiondate >= "2024-11-24" 
+    submissiondate >= "2025-01-10" 
   ) %>% 
   select(
-    village, hh_id, phonenumber, second_phonenumber
+    village, hh_id, phonenumber, second_phonenumber, submissiondate, startdate
   ) %>% 
   sample_n(min(n(), 25)) 
 
+
+View(main_select)
 # set.seed(1118)
 # # Select an additional 5 households for backup
 # backup_select <- hfc_constr %>% 
@@ -83,12 +85,13 @@ main_select <- main_select %>%
 # Write to the same Excel file as separate sheets
 write_xlsx(
   main_select,
-  path = file.path(bc_output,paste0("backcheck_", format(Sys.Date(), "%Y%m%d"), ".xlsx")))
+  path = file.path(bc_output,paste0("backcheck_", format(Sys.Date() , "%Y%m%d"), ".xlsx")))
 
 
 
 
 #Household_head.csv----
+# household_yesterday <- read_xlsx(path = file.path(bc_output, paste0("household_head", "20241220", ".xlsx")))
 
 household_yesterday <- read_xlsx(path = file.path(bc_output, paste0("household_head", format(Sys.Date() - 1, "%Y%m%d"), ".xlsx")))
 
@@ -104,7 +107,7 @@ write.csv(household_join, "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questio
 ##Audio check----
 
 main_select <- main_select %>% 
-  mutate(hh_id = as.numeric(hh_id))
+  mutate(hh_id = as.numeric(household_id))
 
 audio <- anti_join(hfc_constr, main_select, by = ("hh_id"))
 
@@ -113,13 +116,13 @@ audio <- anti_join(hfc_constr, main_select, by = ("hh_id"))
     audio_check = ifelse(grepl("media", audio, ignore.case = TRUE), audio, NA)
   ) %>% 
     filter(!is.na(audio_check)) %>% 
-    filter(submissiondate >= "2024-11-24") %>% 
+    filter(submissiondate >= "2025-01-10") %>% 
   select(
     district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, submissiondate, enumerator, enumerator_key, phonenumber, audio
   ) %>% 
   mutate(
     hh_id = as.character(hh_id)
-  ) %>% 
+  ) %>%
   sample_n(min(n(), 20))
 
 
@@ -239,8 +242,18 @@ hfc_constr_bc <- left_join(hfc_constr_bc, village, by = c("village" = "villageid
                                                     "district" = "districtid_key"))
 
 
+enumerator_bc <- hfc_constr_bc %>% 
+  group_by(enumerator, enumerator_key, submissiondate) %>% 
+  summarise(num_surveyed = n(), .groups = "drop") %>% 
+  pivot_wider(
+    names_from = submissiondate,   
+    values_from = num_surveyed,
+    values_fill = list(num_surveyed = 0)
+  ) %>% 
+  mutate(Total = rowSums(select(., -enumerator, -enumerator_key))) %>% 
+  relocate(Total, .after = enumerator_key)
 
-
+write_xlsx(enumerator_bc, path = file.path(data_path, "enumerator_backcheck_progress.xlsx"))
 # 2. Backcheck full data ----
 backcheck_select <- hfc_constr_bc %>% 
   select(
@@ -253,7 +266,7 @@ backcheck_select <- hfc_constr_bc %>%
               -c(hh_id, submissiondate)) %>% 
   filter(
     formdef_version_bc >= 2024100807
-  )
+  ) 
 
 
 main_select <- hfc_constr %>% 
@@ -332,3 +345,10 @@ hfc_sheet %>%
   sheet_write(data = backcheck_summary, sheet = "backcheck_summary")
 
 1
+
+
+
+
+
+
+

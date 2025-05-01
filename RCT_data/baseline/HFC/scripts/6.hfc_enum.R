@@ -66,6 +66,7 @@ completion <- hfc_constr %>%
     consent = sum(consent == 1, na.rm = TRUE),
     no_consent = sum(consent == 0, na.rm = TRUE),
     completion_rate = paste0(round(complete / attempt, 3) * 100, "%"),
+    completion = round(complete/attempt,3),
     consent_rate = paste0(round(consent / attempt, 3) * 100, "%")
   ) %>% 
   ungroup()
@@ -110,16 +111,27 @@ enumerator_check <- left_join(enumerator_check, enumerator_check_by_day, by = c(
 
 
 hfc_sheet %>%
-  sheet_write(data = enumerator_check, sheet = "enumerator_quality")
+  sheet_write(data = enumerator_check, sheet = "enumerator_check")
 
 1
 
 
+#Mean survey complete enumerator----
 
+mean_surveys_per_enumerator_per_day <- hfc_constr %>%
+  group_by(enumerator, submissiondate) %>%
+  summarize(
+    num_completed_surveys = sum(finish == 1), # Count only completed surveys
+    .groups = 'drop'
+  ) %>%
+  group_by(submissiondate) %>%
+  summarize(
+    mean_surveys_per_enumerator = mean(num_completed_surveys), # Calculate mean per enumerator
+    .groups = 'drop'
+  )
 
+hfc_sheet %>%
+  sheet_write(data = mean_surveys_per_enumerator_per_day, sheet = "enumerator_quality")
 
-
-
-
-
+1
 

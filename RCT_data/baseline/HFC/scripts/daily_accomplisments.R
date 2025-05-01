@@ -3,18 +3,18 @@ pacman::p_load(knitr, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, jani
 
 getwd()
 
-karongi <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Karongi")
-rutsiro <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Rutsiro")
-rulindo <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Rulindo")
-rusizi <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Rusizi")
+karongi <- read_xlsx(path = file.path(data_path, "Daily achievements_1201.xlsx"), sheet = "Karongi")
+rutsiro <- read_xlsx(path = file.path(data_path, "Daily achievements_1201.xlsx"), sheet = "Rutsiro")
+rulindo <- read_xlsx(path = file.path(data_path, "Daily achievements_1201.xlsx"), sheet = "Rulindo")
+rusizi <- read_xlsx(path = file.path(data_path, "Daily achievements_1201.xlsx"), sheet = "Rusizi")
 
 
 daily_achievements <- bind_rows(karongi, rutsiro, rulindo, rusizi)
 
 day_mapping <- data.frame(
-  input_value = c(paste0("Day ", 1:14), as.character(1:14)),
+  input_value = c(paste0("Day ", 1:16), as.character(1:16)),
   date_value = rep(seq.Date(from = as.Date("2024-11-11"), 
-                            to = as.Date("2024-11-24"), 
+                            to = as.Date("2024-11-26"), 
                             by = "days"), 2)
 )
 
@@ -120,7 +120,6 @@ summarise <- daily_achievements %>%
 issue_analysis <- rbind(issue_analysis, summarise)
 
 
-
 #Track on daily village----
 
 village_track <- daily_achievements %>% 
@@ -162,7 +161,6 @@ village_track <- left_join(admin_raw, village_track, by = c("villageid_key" = "v
 
 
 
-
 # saving output
 
 hfc_sheet %>%
@@ -174,6 +172,18 @@ hfc_sheet %>%
   
 ##check the orders----
 
+village_order_problem <- village_track %>%
+  mutate(
+    num_left = ceiling(num_to_survey * attempt / complete) # Round up instead of `round`
+  )  %>% 
+  select(
+    villageid_key, num_left
+  ) %>% 
+  mutate(
+    villageid_key = as.character(villageid_key)
+  )
+
+
 replacement_list <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households/household_replacement.xlsx")
 
 replacement_list <- replacement_list %>% 
@@ -183,21 +193,39 @@ replacement_list <- replacement_list %>%
   mutate(household_id = as.numeric(household_id))
 
 hfc_replacement <- daily_achievements %>% 
-  filter(hh_id %in% replacement_list $respondent_id) %>% 
-  filter(submissiondate >= "2024-11-21") %>% 
-  distinct(hh_id, .keep_all = TRUE) %>% 
+  filter(respondent_id %in% replacement_list $household_id) %>% 
+  filter(date >= "2024-11-21") %>% 
+  distinct(respondent_id, .keep_all = TRUE) %>% 
   group_by(village) %>% 
   mutate(order_survey = row_number()) %>% 
   ungroup() %>% 
-  select(hh_id, order_survey, submissiondate)
+  select(respondent_id, order_survey, date) %>% 
+  mutate(
+    respondent_id = as.numeric(respondent_id)
+  )
 
-replacement_list <- left_join(replacement_list, hfc_replacement, by = c("household_id" = "hh_id"))
+replacement_list <- left_join(replacement_list, hfc_replacement, by = c("household_id" = "respondent_id"))
+
+replacement_list <- left_join(replacement_list, village_order_problem, by = c("villageid_key"))
 
 replacement_check <- replacement_list %>% 
-  filter(order_replacement != order_survey)
+  filter(order_survey >= num_left) %>% 
+  filter(order_replacement != order_survey) 
 
 hfc_sheet %>%
   
   sheet_write(data = replacement_check, sheet = "replacement")
+
+1
+
+replacement_group <- replacement_check %>% 
+  group_by(district) %>% 
+  summarise(
+    n = n()
+  )
+
+hfc_sheet %>%
+  
+  sheet_write(data = replacement_group, sheet = "replacement_district")
 
 1

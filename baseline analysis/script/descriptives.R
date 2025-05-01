@@ -1,0 +1,1442 @@
+##############
+#Author: Xiaoming Zhang
+#Date: 1.21.2025
+#Purpose: Analysis
+#############
+
+
+pacman::p_load(knitr, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, RCT, purrr)
+library(googlesheets4)
+getwd()
+
+
+# Import Data ----
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+hfc_data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/data"
+)
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/output"
+)
+
+data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/data"
+)
+
+hfc_constr <- read_xlsx(file.path(hfc_data_path, "hfc_constr.xlsx"))
+
+hfc_constr <- hfc_constr %>% 
+  filter(finish == 1) %>% 
+  distinct(hh_head_name, hh_id, A1_2, A1_3, .keep_all = TRUE)
+
+duration <- hfc_constr %>% 
+  select(ends_with("duration"))
+
+#1. Roster----
+
+
+head_roster <- hfc_constr %>% select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+                                   district, sector, cell, village, hh_id, consent,
+                                   
+                                   #household head roster
+                                   starts_with("A1"), hh_head_name, gender, gender_label, marital, head_age_calculate, education,education_label, high_edu,  high_edu_label,starts_with("A2"),
+                                   starts_with("A3")
+                                   )
+                                   
+
+age_size <- head_roster %>%
+  mutate(
+    head_age_calculate = ifelse(
+      head_age_calculate < quantile(head_age_calculate, 0.01, na.rm = TRUE),
+      quantile(head_age_calculate, 0.01, na.rm = TRUE),
+      head_age_calculate
+    )
+  ) %>% 
+  summarize(
+    across(
+      c(head_age_calculate, A1_1),
+      list(
+        mean   = ~ round(mean(.x, na.rm = TRUE),2),
+        sd     = ~ round(sd(.x, na.rm = TRUE),2),
+        min    = ~ min(.x, na.rm = TRUE),
+        max    = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from  = "stat",
+    values_from = "value"
+  )  
+
+
+
+descriptives_sheet <- googledrive::drive_get(paste0("Baseline Descriptives"))
+
+# In case googledrive function asks me to enter '1' to continue
+
+1
+
+descriptives_sheet %>%
+  
+  sheet_write(data = age_size, sheet = "roster_age_size")
+
+
+
+
+
+household_size <- hfc_constr %>% 
+  select(A1_1) %>% 
+  rename(`Household size` = A1_1) %>% 
+  group_by(`Household size`) %>% 
+  summarise(n = n()) %>% 
+  arrange(n)
+
+# Create bar plot with continuous line for distribution
+ggplot(household_size, aes(x = `Household size`, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  geom_smooth(aes(x = `Household size`, y = n), method = "loess", se = FALSE, color = "red") +
+  labs(title = "Distribution of Household Size", x = "Household Size", y = "Frequency") +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14),  # Increase size of x and y axis labels
+    axis.text = element_text(size = 12),   # Increase size of x and y axis tick labels
+    plot.title = element_text(size = 16, hjust = 0.5),  # Increase plot title size and center it
+    legend.title = element_text(size = 14),  # Increase legend title size (if applicable)
+    legend.text = element_text(size = 12)    # Increase legend text size (if applicable)
+  )
+
+head_gender <- head_roster %>% 
+  group_by(gender_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%"))
+
+descriptives_sheet %>%
+  
+  sheet_write(data = head_gender, sheet = "head_gender")
+
+
+
+head_education <- head_roster %>% 
+  group_by(high_edu_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%"))
+
+descriptives_sheet %>%
+  
+  sheet_write(data = head_education, sheet = "head_education")
+
+
+head_occupation <- head_roster %>% 
+  group_by(A2_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%"))
+
+descriptives_sheet %>%
+  
+  sheet_write(data = head_occupation, sheet = "head_occupation")
+
+
+
+
+##Member_roster----
+
+library(tidyr)
+library(dplyr)
+
+# Select the relevant columns (all member-related columns)
+member_roster <- hfc_constr %>%
+  select(
+    hh_id, 
+    starts_with("member_name"),
+    starts_with("member_gender"),
+    starts_with("member_marital"),
+    starts_with("member_age_calculate"),
+    starts_with("member_education"),
+    starts_with("member_current_school"),
+    starts_with("member_high_edu"),
+    starts_with("A4"),
+    starts_with("A5")
+  )
+
+# Pivot the data to long format
+member_roster <- member_roster %>%
+  pivot_longer(
+    cols = starts_with("member_") | starts_with("A4_") | starts_with("A5_"),  # Pivot all member columns
+    names_to = c(".value", "member_id"),  # Extract the 'member' part and assign the 'member_id'
+    names_pattern = "(.*)_(\\d+)",  # Match the pattern of variable name and member number
+    values_drop_na = TRUE  # Drop NAs if there are missing values for some members
+  )
+
+# View the resulting long format data
+head(long_member_roster)
+
+
+##Head Salary----
+head_salary <- hfc_constr %>% 
+  select(
+    hh_id, 
+    starts_with("A2_4"),
+    starts_with("A2_5"),
+    starts_with("A2_7"),
+    starts_with("A2_8"),
+    starts_with("A2_9"),
+    starts_with("A3_5"),
+    starts_with("A3_6"),
+    starts_with("A3_8"),
+    starts_with("A3_9"),
+    starts_with("A3_10")
+  ) %>% 
+  rename(
+  primary_week = A2_7,
+  primary_day = A2_8,
+  primary_hour = A2_9,
+  secondary_week = A3_8,
+  secondary_day = A3_9,
+  secondary_hour = A3_10
+  )
+  
+head_primary <- head_salary %>%
+  filter(A2_5_label != "Other") %>% 
+  mutate(
+    A2_4_week = case_when(
+      A2_5_label == "Hour" ~ A2_4 * primary_hour * primary_day,
+      A2_5_label == "Day"  ~ A2_4 * primary_week,
+      A2_5_label == "Week" ~ A2_4 ,
+      A2_5_label == "2 Weeks" ~ round(A2_4/2,2),
+      A2_5_label == "Month" ~ round(A2_4/4,2),
+      A2_5_label == "Quarter" ~ round(A2_4/(3*4),2),
+      A2_5_label == "Agricultural season" ~ round(A2_4/(4*4),2),
+      A2_5_label == "Half Year" ~ round(A2_4/(6*4),2),
+      A2_5_label == "Year" ~ round(A2_4/(12*4),2)
+    )
+  ) %>% 
+  mutate(
+    A2_4_week = ifelse(
+      A2_4_week > quantile(A2_4_week, 0.99, na.rm = TRUE),
+      quantile(A2_4_week, 0.99, na.rm = TRUE), A2_4_week
+    ) 
+  )%>% 
+  summarise(
+    mean = round(mean(A2_4_week, na.rm = TRUE),2),
+    sd = round(sd(A2_4_week, na.rm = TRUE),2),
+    min = min(A2_4_week, na.rm = TRUE),
+    max = max(A2_4_week, na.rm = TRUE),
+    median = median(A2_4_week, na.rm = TRUE)
+  )   %>%
+  mutate(
+    var_winsorized99 = "HH head primary salary(Rwf/week)"
+  ) %>% 
+  select(
+    var_winsorized99, everything()
+  )
+
+
+head_secondary <- head_salary %>%
+  filter(A3_6_label != "Other") %>% 
+  mutate(
+    A3_5_week = case_when(
+      A3_6_label == "Hour" ~ A3_5 * primary_hour * primary_day,
+      A3_6_label == "Day"  ~ A3_5 * primary_week,
+      A3_6_label == "Week" ~ A3_5 ,
+      A3_6_label == "2 Weeks" ~ round(A3_5/2,2),
+      A3_6_label == "Month" ~ round(A3_5/4,2),
+      A3_6_label == "Quarter" ~ round(A3_5/(3*4),2),
+      A3_6_label == "Agricultural season" ~ round(A3_5/(4*4),2),
+      A3_6_label == "Half Year" ~ round(A3_5/(6*4),2),
+      A3_6_label == "Year" ~ round(A3_5/(12*4),2)
+    )
+  ) %>% 
+  mutate(
+    A3_5_week = ifelse(
+      A3_5_week > quantile(A3_5_week, 0.99, na.rm = TRUE),
+      quantile(A3_5_week, 0.99, na.rm = TRUE), A3_5_week
+    ) 
+  )%>% 
+  summarise(
+    mean = round(mean(A3_5_week, na.rm = TRUE),2),
+    sd = round(sd(A3_5_week, na.rm = TRUE),2),
+    min = min(A3_5_week, na.rm = TRUE),
+    max = max(A3_5_week, na.rm = TRUE),
+    median = median(A3_5_week, na.rm = TRUE)
+  )   %>%
+  mutate(
+    var_winsorized99 = "HH head secondary salary(Rwf/week)"
+  ) %>% 
+  select(
+    var_winsorized99, everything()
+  )
+
+
+##Member Salary----
+member_salary <- member_roster %>% 
+  select(
+    hh_id, 
+    starts_with("A4_5"),
+    starts_with("A4_6"),
+    starts_with("A4_8"),
+    starts_with("A4_9"),
+    starts_with("A4_10"),
+    starts_with("A5_5"),
+    starts_with("A5_6"),
+    starts_with("A5_8"),
+    starts_with("A5_9"),
+    starts_with("A5_10")
+  ) %>% 
+  rename(
+    primary_week = A4_8,
+    primary_day = A4_9,
+    primary_hour = A4_10,
+    secondary_week = A5_8,
+    secondary_day = A5_9,
+    secondary_hour = A5_10
+  )
+
+member_primary <- member_salary %>%
+  filter(A4_6_label != "Other") %>% 
+  mutate(
+    A4_5_week = case_when(
+      A4_6_label == "Hour" ~ A4_5 * primary_hour * primary_day,
+      A4_6_label == "Day"  ~ A4_5 * primary_week,
+      A4_6_label == "Week" ~ A4_5 ,
+      A4_6_label == "2 Weeks" ~ round(A4_5/2,2),
+      A4_6_label == "Month" ~ round(A4_5/4,2),
+      A4_6_label == "Quarter" ~ round(A4_5/(3*4),2),
+      A4_6_label == "Agricultural season" ~ round(A4_5/(4*4),2),
+      A4_6_label == "Half Year" ~ round(A4_5/(6*4),2),
+      A4_6_label == "Year" ~ round(A4_5/(12*4),2)
+    )
+  ) %>% 
+  mutate(
+    A4_5_week = ifelse(
+      A4_5_week > quantile(A4_5_week, 0.99, na.rm = TRUE),
+      quantile(A4_5_week, 0.99, na.rm = TRUE), A4_5_week
+    ) 
+  )%>% 
+  summarise(
+    mean = round(mean(A4_5_week, na.rm = TRUE),2),
+    sd = round(sd(A4_5_week, na.rm = TRUE),2),
+    min = min(A4_5_week, na.rm = TRUE),
+    max = max(A4_5_week, na.rm = TRUE),
+    median = median(A4_5_week, na.rm = TRUE)
+  )   %>%
+  mutate(
+    var_winsorized99 = "HH member primary salary(Rwf/week)"
+  ) %>% 
+  select(
+    var_winsorized99, everything()
+  )
+
+
+member_secondary <- member_salary %>%
+  filter(A5_6_label != "Other") %>% 
+  mutate(
+    A5_5_week = case_when(
+      A5_6_label == "Hour" ~ A5_5 * primary_hour * primary_day,
+      A5_6_label == "Day"  ~ A5_5 * primary_week,
+      A5_6_label == "Week" ~ A5_5 ,
+      A5_6_label == "2 Weeks" ~ round(A5_5/2,2),
+      A5_6_label == "Month" ~ round(A5_5/4,2),
+      A5_6_label == "Quarter" ~ round(A5_5/(3*4),2),
+      A5_6_label == "Agricultural season" ~ round(A5_5/(4*4),2),
+      A5_6_label == "Half Year" ~ round(A5_5/(6*4),2),
+      A5_6_label == "Year" ~ round(A5_5/(12*4),2)
+    )
+  ) %>% 
+  mutate(
+    A5_5_week = ifelse(
+      A5_5_week > quantile(A5_5_week, 0.99, na.rm = TRUE),
+      quantile(A5_5_week, 0.99, na.rm = TRUE), A5_5_week
+    ) 
+  )%>% 
+  summarise(
+    mean = round(mean(A5_5_week, na.rm = TRUE),2),
+    sd = round(sd(A5_5_week, na.rm = TRUE),2),
+    min = min(A5_5_week, na.rm = TRUE),
+    max = max(A5_5_week, na.rm = TRUE),
+    median = median(A5_5_week, na.rm = TRUE)
+  )   %>%
+  mutate(
+    var_winsorized99 = "HH member secondary salary(Rwf/week)"
+  ) %>% 
+  select(
+    var_winsorized99, everything()
+  )
+
+
+salary_summary <- bind_rows(head_primary, head_secondary, member_primary, member_secondary)
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = salary_summary, sheet = "salary_summary"
+  )
+
+
+
+
+
+#2.Energy section-----
+
+energy <- hfc_constr %>% 
+  select(
+    hh_id, starts_with("H")
+  )
+
+primary_energy <- hfc_constr %>% 
+  group_by(H3_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%"))
+  
+
+descriptives_sheet %>%
+  
+  sheet_write(data = primary_energy, sheet = "primary_energy")
+
+
+
+energy_other <- hfc_constr %>% 
+  select(
+    hh_id, H3_1_label, H3_2
+  ) %>% 
+  filter(
+    H3_1_label == "Other/None"
+  )
+
+# write_xlsx(energy_other, path = file.path(output_path, "energy_other_translate.xlsx"))
+
+energy_other_translate <- read_xlsx(path = file.path(output_path, "energy_other_translate.xlsx"))
+
+energy_other_translate <- energy_other_translate %>%
+  filter(hh_id %in% hfc_constr$hh_id) %>% 
+  select(hh_id, `English Translation`) %>% 
+  rename(
+    other = `English Translation`
+  ) %>% 
+  mutate(
+    other = case_when(
+      grepl("phone", other, ignore.case = TRUE) ~ "Phone light",  # Match if 'phone' is in the string
+      grepl("lamp", other, ignore.case = TRUE) ~ "Lamp",    # Match if 'lamp' is in the string
+      grepl(c("torch", "touch"), other, ignore.case = TRUE) ~ "Torch",  # Match if 'torch' is in the stri
+      TRUE ~ "Other"  # If no match, categorize as 'Other'
+    )
+  )
+
+energy_other_table <-energy_other_translate %>% 
+  group_by(other) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n))
+
+descriptives_sheet %>% 
+  sheet_write(data = energy_other_table, sheet = "energy_other_table")
+
+
+member_gender <- member_roster %>% 
+  select(
+    hh_id, member_id, member_gender_label
+  ) %>% 
+  mutate(
+    member_id = as.numeric(member_id)
+  )
+
+energy_gender <- left_join(energy, member_gender, by = c("hh_id" = "hh_id", "H3_3" = "member_id"))
+
+energy_gender_group <-energy_gender %>% 
+  group_by(member_gender_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n))
+
+descriptives_sheet %>% 
+  sheet_write(data = energy_gender_group, sheet = "energy_gender")
+
+
+
+##Fuel----
+
+candle <- hfc_constr %>% 
+  group_by(H4_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = H4_1_label,
+    values_from = n
+  ) %>% 
+  mutate(
+    energy_source = "Candle"
+  ) %>% 
+  select(energy_source, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+biomass <- hfc_constr %>% 
+  group_by(H5_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = H5_1_label,
+    values_from = n
+  ) %>% 
+  mutate(
+    energy_source = "Biomass"
+  ) %>% 
+  select(energy_source, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+
+kerosene <- hfc_constr %>% 
+  group_by(H6_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = H6_1_label,
+    values_from = n
+  ) %>% 
+  mutate(
+    energy_source = "Kerosene"
+  ) %>% 
+  select(energy_source, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+energy_source <- bind_rows(candle, biomass, kerosene)
+
+descriptives_sheet %>% 
+  sheet_write(data = energy_source, sheet = "energy_source_use")
+
+
+##Expenditure----
+
+energy_expenditure <- hfc_constr%>%
+  mutate(
+    H4_2 = ifelse(
+      H4_2 > quantile(H4_2, 0.99, na.rm = TRUE),
+      quantile(H4_2, 0.99, na.rm = TRUE),
+      H4_2
+    ),
+    H5_4 = ifelse(
+      H5_4 > quantile(H5_4, 0.99, na.rm = TRUE),
+      quantile(H5_4, 0.99, na.rm = TRUE),
+      H5_4
+    ),
+    H6_4 = ifelse(
+      H6_4 > quantile(H6_4, 0.99, na.rm = TRUE),
+      quantile(H6_4, 0.99, na.rm = TRUE),
+      H6_4
+    )
+  ) %>% 
+  summarize(
+    across(
+      c( "H4_2", #candle expenditure
+         "H5_4", #biomass expenditure
+         "H6_2",
+         ),
+      list(
+        mean   = ~ round(mean(.x, na.rm = TRUE),2),
+        sd     = ~ round(sd(.x, na.rm = TRUE),2),
+        min    = ~ min(.x, na.rm = TRUE),
+        max    = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from  = "stat",
+    values_from = "value"
+  )   %>% 
+  mutate(
+    var = case_when(
+      var == "H4_2" ~ "Candle(Rwf/month)",
+      var == "H5_4" ~ "Biomass(Rwf/month)",
+      var == "H6_2" ~ "Kerosene(Rwf/month)"
+    )
+  ) %>% 
+  rename(
+    var_winsorized99 = var
+  )
+
+
+descriptives_sheet %>% 
+  write_sheet( data = energy_expenditure, sheet = "energy_expenditure")
+
+
+
+
+##Lighting----
+primary_light_energy <- hfc_constr %>% 
+  group_by(H7_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  rename(primary_lighting_energy = H7_1_label)
+
+descriptives_sheet %>% 
+  sheet_write(data =primary_light_energy, sheet = "primary_light")
+
+secondary_light_energy <- hfc_constr %>% 
+  group_by(H7_3_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  rename(secondary_lighting_energy = H7_3_label)
+
+descriptives_sheet %>% 
+  sheet_write(data =secondary_light_energy, sheet = "secondary_light")
+
+
+light_hour <- hfc_constr%>%
+  summarize(
+    across(
+      c( "H8_1", #begin
+         "H8_2"
+      ),
+      list(
+        mean   = ~ round(mean(.x, na.rm = TRUE),2),
+        sd     = ~ round(sd(.x, na.rm = TRUE),2),
+        min    = ~ min(.x, na.rm = TRUE),
+        max    = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from  = "stat",
+    values_from = "value"
+  )  %>% 
+  mutate(
+    var = case_when(
+      var == "H8_1" ~ "Evening Begin using light",
+      var == "H8_2" ~ "Evening stop using light",
+    )
+  )
+
+
+descriptives_sheet %>% 
+  sheet_write (data = light_hour, sheet = "light_hour")
+
+
+
+
+#3. Energy Well-being ------
+
+
+energy_well <- hfc_constr %>% 
+  summarize(
+    across(
+      c( "B4_1", #energy reliability
+         "B4_2", #energy efficiency
+         "B4_3", #energy accessibility
+         "B4_4", #light accessbility
+         "B4_5", #energy service satisfaction
+         "B4_6", #anxiety related to energy
+         "B4_7", #energy challenges
+         "B4_8"
+      ),
+      list(
+        mean   = ~ round(mean(.x, na.rm = TRUE),2),
+        sd     = ~ round(sd(.x, na.rm = TRUE),2),
+        min    = ~ min(.x, na.rm = TRUE),
+        max    = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from  = "stat",
+    values_from = "value"
+  )  %>% 
+  mutate(
+    var = case_when(
+      
+      var == "B4_1" ~ "Not reliable energy",
+      var == "B4_2" ~ "Inefficient_energy",
+      var == "B4_3" ~ "Energy inaccessibility",
+      var == "B4_4" ~ "Light inaccessibility",
+      var == "B4_5" ~ "Local energy service not satisfied",
+      var == "B4_6" ~ "Energy anxiety",
+      var == "B4_7" ~ "Energy challenge",
+      var == "B4_8" ~ "Lack of energy peace of mind"
+      
+    )
+  )
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = energy_well, sheet = "energy_wellbeing" 
+  )
+
+
+
+
+
+#4. General well being----
+
+
+general_well <- hfc_constr %>% 
+  summarize(
+    across(
+      c( "B5_1", #personal ladder
+         "B5_2", #ladder one year back
+         "B5_3", #financial situation
+         "B5_4", #cooking ladder
+         "B5_5", #mobile phone charging ladder
+         "B5_6", #lighting ladder
+         "B5_7", #energy satisfaction
+         "B5_8" #energy general
+      ),
+      list(
+        mean   = ~ round(mean(.x, na.rm = TRUE),2),
+        sd     = ~ round(sd(.x, na.rm = TRUE),2),
+        min    = ~ min(.x, na.rm = TRUE),
+        max    = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols          = everything(),
+    names_to      = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from  = "stat",
+    values_from = "value"
+  )  %>% 
+  mutate(
+    var = case_when(
+      
+      var == "B5_1" ~ "Current economic status",
+      var == "B5_2" ~ "Economic status one year ago",
+      var == "B5_3" ~ "Financial situation",
+      var == "B5_4" ~ "Energy use in cooking",
+      var == "B5_5" ~ "Energy use in mobile phone charging",
+      var == "B5_6" ~ "Energy use in lighting",
+      var == "B5_7" ~ "Subjective energy status",
+      var == "B5_8" ~ "Current energy status"
+      
+    )
+  )
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = general_well, sheet = "general_wellbeing" 
+  )
+
+general_well_select <- general_well %>% 
+  filter(
+    var %in% c("Current economic status", "Current energy status",
+               "Energy use in mobile phone charging","Energy use in lighting"
+               )
+  )   %>% 
+  mutate(
+    max = 2.5
+  ) %>% 
+  mutate(
+    var = factor(
+      var,
+      levels = c( "Energy use in lighting",
+                  "Energy use in mobile phone charging",
+                 "Current energy status",
+                 "Current economic status"
+                 
+                )
+    )
+  )
+  
+ggplot(general_well_select, aes(x = var)) +
+  # Draw a line from min to max
+  geom_linerange(aes(ymin = min, ymax = max), color = "gray70", size = 2) +
+  # Place a point at the mean
+  geom_point(aes(y = mean), color = "steelblue", size = 4) +
+  geom_text(
+    aes(y = mean, label = round(mean, 2)),
+    color = "steelblue",
+    nudge_x = 0.2,      # Move the label slightly to the right
+    size = 6,           # Adjust text size as needed
+    fontface = "bold"   # Optional styling
+  ) +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 22, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 20)
+  ) + 
+  labs(
+    x = "",
+    y = "Value",
+    title = "Household Satisfaction \n On Cantril’s ladder (from 1-10) "
+  ) 
+  
+
+#5. Willingness to pay----
+
+
+wtp <- hfc_constr %>%
+  mutate(
+    wtp_12 = J4_2*12,
+    wtp_24 = J5_2*24
+  )
+  
+wtp_var <- c(
+  "J1_final", # wtp_fixed
+  "J2_1",     # wtp_fixed_appliance
+  "J3_1",     # wtp_fixed_low_reliability
+  "J4_2",     # wtp_paygo_12
+  "J5_2",     # wtp_paygo_24
+  "wtp_12",
+  "wtp_24",
+  "J6_1")
+
+wtp <- wtp %>% 
+  mutate(across(
+    wtp_var, 
+    ~ pmin(.x, quantile(.x, 0.99, na.rm = TRUE), na.rm = TRUE)  # Applying pmin for each column
+  ))
+
+wtp_summary <- wtp %>% 
+  summarise(
+    across(
+      wtp_var,
+      list(
+        mean = ~ round(mean(.x, na.rm = TRUE), 2),
+        sd = ~ round(sd(.x, na.rm = TRUE), 2),
+        min = ~ min(.x, na.rm = TRUE),
+        max = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from = "stat",
+    values_from = "value"
+  ) %>%
+  mutate(
+    var = case_when(
+      var == "J1_final" ~ "wtp_fixed_system (Rwf)",
+      var == "J2_1" ~ "wtp_fixed_appliance(Rwf)",
+      var == "J3_1" ~ "wtp_fixed_low_reliability(Rwf)",
+      var == "J4_2" ~ "wtp_fixed_paygo_12(Rwf/month)",
+      var == "J5_2" ~ "wtp_fixed_paygo_24(Rwf/month)",
+      var == "wtp_12" ~ "wtp_paygo12_total(Rwf)", 
+      var == "wtp_24" ~ "wtp_paygo24_total(Rwf)",
+      var == "J6_1" ~ "wtp_lightbulb(Rwf/month)"
+    )
+  ) %>%
+  rename(
+    var_winsorized99 = var
+  )
+
+View(wtp_summary)
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = wtp_summary, sheet = "willingness to pay" 
+  )
+
+
+
+wtp_selected <- wtp %>%
+  select(hh_id, all_of(wtp_var)) %>% 
+  rename(
+    fixed_system = J1_final,
+    appliance = J2_1,
+    low_reliability = J3_1,
+    lightbulb = J6_1
+  )
+
+
+#Appliances over low_reliability----
+appliances_lowreliability <-
+  ggplot(wtp_selected, aes(x = log(appliance), y = log(low_reliability))) +
+  geom_point() +  # Add points
+  geom_smooth(method = "loess", se = FALSE) +  # Add smooth curve
+  labs(title = "Relationship between Log(Appliances) and Log(Low Reliability)",
+       x = "Log(Appliances)",
+       y = "Log(Low Reliability)") +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1, size = 30),  # Increase size of x-axis labels
+        axis.text.y = element_text(size = 40),  # Increase size of y-axis labels
+        axis.title = element_text(size = 30),  # Increase size of axis titles
+        plot.title = element_text(size = 30))  # Increase size of plot title
+
+appliances_lowreliability
+
+#Fixed system over low_reliability
+fixedsystem_lowreliability <-
+  ggplot(wtp_selected, aes(x = log(fixed_system), y = log(low_reliability))) +
+  geom_point() +  # Add points
+  geom_smooth(method = "loess", se = FALSE) +  # Add smooth curve
+  labs(title = "Relationship between Log(Fixed System) and Log(Low Reliability)",
+       x = "Log(Fixed System)",
+       y = "Log(Low Reliability)") +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1, size = 30),  # Increase size of x-axis labels
+        axis.text.y = element_text(size = 40),  # Increase size of y-axis labels
+        axis.title = element_text(size = 30),  # Increase size of axis titles
+        plot.title = element_text(size = 30))  # Increase size of plot title
+
+fixedsystem_lowreliability
+
+#Fixed system over appliances
+
+fixedsystem_appliances <-
+  ggplot(wtp_selected, aes(x = log(fixed_system), y = log(appliance))) +
+  geom_point() +  # Add points
+  geom_smooth(method = "loess", se = FALSE) +  # Add smooth curve
+  labs(title = "Relationship between Log(Fixed System) and Log(Appliances)",
+       x = "Log(Fixed System)",
+       y = "Log(Appliances)") +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1, size = 30),  # Increase size of x-axis labels
+        axis.text.y = element_text(size = 40),  # Increase size of y-axis labels
+        axis.title = element_text(size = 30),  # Increase size of axis titles
+        plot.title = element_text(size = 30))  # Increase size of plot title
+
+fixedsystem_appliances
+
+#Appliances lightbulb
+
+appliances_lightbulb <- ggplot(wtp_selected, aes(x = log(appliance), y = log(lightbulb))) +
+  geom_point() +  # Add points
+  geom_smooth(method = "loess", se = FALSE) +  # Add smooth curve
+  labs(title = "Relationship between Log(Appliances) and Log(Lightbulb)",
+       x = "Log(Appliances)",
+       y = "Log(Lightbulb)") +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1, size = 30),  # Increase size of x-axis labels
+        axis.text.y = element_text(size = 40),  # Increase size of y-axis labels
+        axis.title = element_text(size = 30),  # Increase size of axis titles
+        plot.title = element_text(size = 30))  # Increase size of plot title
+
+appliances_lightbulb
+
+#6. Business----
+business <- hfc_constr %>% 
+  select(
+    hh_id, starts_with("D")
+  )
+
+business_own <- business %>% 
+  group_by(
+    D1_1_label
+  ) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  rename(
+    `None farming business` = D1_1_label
+  ) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%")) 
+  
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = business_own, 
+    sheet = "business_own"
+  )
+  
+
+business_type <- business %>% 
+  group_by(
+   D2_2_label
+  ) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  filter(!is.na(D2_2_label)) %>% 
+  rename(
+    `Type of business` = D2_2_label
+  ) %>% 
+    mutate(percentage = paste(round((n / sum(n)),4) * 100, "%")) 
+
+
+
+descriptives_sheet %>% 
+  sheet_write(data = business_type, sheet = "business_type")
+
+
+#7. Formal savings-----
+
+savings <- hfc_constr %>% 
+  select(hh_id, formal_savings, formal_savings_label, informal_savings, informal_savings_label, starts_with("E"))
+
+
+
+formal <- savings %>% 
+  group_by(formal_savings_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = formal_savings_label,
+    values_from = n) %>% 
+  mutate(
+    Var = "Formal Savings"
+  ) %>% 
+  select(Var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+informal <- savings %>% 
+  group_by(informal_savings_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = informal_savings_label,
+    values_from = n) %>% 
+  mutate(
+    Var = "Informal Savings"
+  ) %>% 
+  select(Var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+borrow <- savings %>% 
+  group_by(E4_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = E4_1_label,
+    values_from = n) %>% 
+  mutate(
+    Var = "Borrow money"
+  ) %>% 
+  select(Var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+mobile_banking <- savings %>% 
+  group_by(E1_3_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = E1_3_label,
+    values_from = n) %>% 
+  mutate(
+    Var = "Mobile baking"
+  ) %>% 
+  select(Var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+
+savings_row <- bind_rows(mobile_banking,formal, informal, borrow)
+
+
+descriptives_sheet %>% 
+  sheet_write(data = savings_row, sheet = "savings_yesno")
+
+
+savings_var <- c(
+ "E1_5", "E2_3", "E3_3", "E4_2"
+)
+
+savings_summary <- savings %>% 
+  mutate(across(
+    savings_var, 
+    ~ pmin(.x, quantile(.x, 0.99, na.rm = TRUE), na.rm = TRUE)  # Applying pmin for each column
+  ))
+
+savings_summary <- savings_summary%>% 
+  summarise(
+    across(
+      savings_var,
+      list(
+        mean = ~ round(mean(.x, na.rm = TRUE), 2),
+        sd = ~ round(sd(.x, na.rm = TRUE), 2),
+        min = ~ min(.x, na.rm = TRUE),
+        max = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from = "stat",
+    values_from = "value"
+  ) %>%
+  mutate(
+    var = case_when(
+      var == "E1_5" ~"Mobile banking", 
+      var == "E2_3" ~"Formal savings amount", 
+      var == "E3_3" ~ "Informal savings amount", 
+      var == "E4_2" ~ "Borrowed money"
+    )
+  ) %>%
+  rename(
+    var_winsorized99 = var
+  ) 
+
+descriptives_sheet %>% 
+  sheet_write(data = savings_summary, sheet = "savings_summary")
+
+
+
+
+formal_place <- savings %>% 
+  group_by(E2_1_label) %>% 
+  filter( !is.na(E2_1_label )) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(
+    percentage = paste(round(n/sum(n),4) * 100, "%" )
+  )
+
+descriptives_sheet %>% sheet_write(
+  data = formal_place, sheet = "formal_saving"
+)
+
+informal_place <- savings %>% 
+  group_by(E3_1_label) %>% 
+  filter( !is.na(E3_1_label )) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(
+    percentage = paste(round(n/sum(n),4) * 100, "%" )
+  )
+
+descriptives_sheet %>%  sheet_write(
+  data = informal_place, sheet = "informal_saving"
+)
+
+borrow_place <- savings %>% 
+  group_by(E4_7_label) %>% 
+  filter( !is.na(E4_7_label )) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  mutate(
+    percentage = paste(round(n/sum(n),4) * 100, "%" )
+  )
+
+descriptives_sheet %>%  sheet_write(
+  data = borrow_place, sheet = "borrow_place"
+)
+
+
+
+
+
+
+
+#8.Mobile roster----
+
+mobile_own <-hfc_constr %>%
+  mutate(
+    own_mobile = ifelse(F1_1 >0, "Yes", "No")
+  )  %>% 
+  group_by(own_mobile) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  pivot_wider(
+    names_from = own_mobile,
+    values_from = n
+  ) %>% 
+  mutate(
+    percent = paste(round(Yes / (Yes+No), 4) * 100, "%")
+  ) %>% 
+  mutate(
+    var = "Own mobile or tablet"
+  ) %>% 
+  select(var, everything())
+
+descriptives_sheet %>% 
+  sheet_write(
+    data = mobile_own, sheet = "Mobile_own"
+  )
+
+
+mobile <- hfc_constr %>% 
+  filter(F1_1 != 0) %>% 
+  select(hh_id, starts_with("F")) %>% 
+  pivot_longer(
+    cols = starts_with("F"),  # Pivot all member columns
+    names_to = c(".value", "mobile_id"),  # Extract the 'member' part and assign the 'member_id'
+    names_pattern = "(.*)_(\\d+)",  # Match the pattern of variable name and member number
+    values_drop_na = TRUE  # Drop NAs if there are missing values for some members
+  )
+
+
+mobile_charge <- mobile %>% 
+  group_by(F2_1_label) %>%
+  filter(!is.na(F2_1_label)) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(
+    desc(n)
+  ) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%")) %>% 
+  rename(
+    `Where to charge mobile` = F2_1_label
+  )
+
+descriptives_sheet %>% 
+  sheet_write(data = mobile_charge, sheet = "mobile_charge")
+
+
+mobile_var <- c(
+  "F1_6", #7day airtime
+  "F1_7", #30day airtime
+  "F1_8", #7 day data bundle
+  "F1_9", #30 day data bundle,
+  "F2_4" #charge_pay
+  
+)
+
+mobile_summary <- mobile %>% 
+  mutate(across(
+    mobile_var, 
+    ~ pmin(.x, quantile(.x, 0.99, na.rm = TRUE), na.rm = TRUE)  # Applying pmin for each column
+  ))
+
+mobile_summary <- mobile_summary%>% 
+  summarise(
+    across(
+      mobile_var,
+      list(
+        mean = ~ round(mean(.x, na.rm = TRUE), 2),
+        sd = ~ round(sd(.x, na.rm = TRUE), 2),
+        min = ~ min(.x, na.rm = TRUE),
+        max = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from = "stat",
+    values_from = "value"
+  ) %>%
+  mutate(
+    var = case_when(
+      var == "F1_6"~ "Past 7 day airtime(Rwf)", #7day airtime
+      var == "F1_7" ~"Past 30 day airtime(Rwf)", #30day airtime
+      var == "F1_8" ~"Past 7 day data bundle(Rwf)", #7 day data bundle
+      var == "F1_9" ~"Past 30 day data bundle(Rwf)", #30 day data bundle,
+      var == "F2_4" ~"Phone charging(Rwf/month)"#charge_pay
+    )
+  ) %>%
+  rename(
+    var_winsorized99 = var
+  ) 
+
+descriptives_sheet %>% 
+  sheet_write(data = mobile_summary, sheet = "mobile_summary")
+
+
+#9. Land----
+ land <- hfc_constr %>% 
+  select(hh_id, starts_with("G"))
+
+
+
+land_own <- land %>% 
+  group_by(G1_1_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = G1_1_label,
+    values_from = n) %>% 
+  mutate(
+    var = "Own land"
+  ) %>% 
+  select(var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+
+
+livestock_own <- land %>% 
+  group_by(G1_3_label) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(desc(n)) %>% 
+  pivot_wider(
+    names_from = G1_3_label,
+    values_from = n) %>% 
+  mutate(
+    var = "Own livestock"
+  ) %>% 
+  select(var, everything()) %>% 
+  mutate(
+    percent = paste0(round(Yes/(No+Yes), 4)*100, "%")
+  )
+
+
+land_summary <- bind_rows(land_own, livestock_own)
+
+descriptives_sheet %>% 
+  sheet_write(data = land_summary, sheet = "Land and agriculture")
+
+#10.Cookstove----
+
+cookstove <- hfc_constr %>% 
+  select(hh_id, starts_with("I"))
+
+
+
+main_cookstove <- cookstove %>% 
+  group_by(I1_1_label) %>%
+  filter(!is.na(I1_1_label)) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(
+    desc(n)
+  ) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%")) %>% 
+  rename(
+    `Main cookstove` = I1_1_label
+  )
+
+descriptives_sheet %>% 
+  sheet_write(data = main_cookstove, sheet = "Main cookstove")
+
+
+second_cookstove <- cookstove %>% 
+  group_by(I1_2_label) %>%
+  filter(!is.na(I1_2_label)) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  arrange(
+    desc(n)
+  ) %>% 
+  mutate(percentage = paste(round((n / sum(n)),4) * 100, "%")) %>% 
+  rename(
+    `Secondary cookstove` = I1_2_label
+  )
+
+descriptives_sheet %>% 
+  sheet_write(data = second_cookstove, sheet = "Second cookstove")
+
+
+
+
+
+
+
+
+sum(!is.na(hfc_constr$I4_1))
+sum(!is.na(hfc_constr$I4_2))
+
+fuel_prep <- cookstove%>% 
+  summarise(
+    across(
+      c("I4_1", "I4_2"),
+      list(
+        mean = ~ round(mean(.x, na.rm = TRUE), 2),
+        sd = ~ round(sd(.x, na.rm = TRUE), 2),
+        min = ~ min(.x, na.rm = TRUE),
+        max = ~ max(.x, na.rm = TRUE),
+        median = ~ median(.x, na.rm = TRUE)
+      )
+    )
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("var", "stat"),
+    names_pattern = "^(.*)_(mean|sd|min|max|median)$"
+  ) %>%
+  pivot_wider(
+    names_from = "stat",
+    values_from = "value"
+  ) %>%
+  mutate(
+    var = case_when(
+      var == "I4_1"~"Fuel prep women(minute per day)", #7day airtime
+      var == "I4_2" ~"Fuel prep men(minute per day" 
+    )
+  ) 
+
+
+descriptives_sheet %>% 
+  sheet_write(data = fuel_prep, sheet = "Fuel prep time")
+
+
+

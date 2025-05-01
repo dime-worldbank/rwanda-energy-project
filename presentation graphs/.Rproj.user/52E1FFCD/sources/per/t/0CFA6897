@@ -3,7 +3,7 @@
     "path": "~/GitHub/rwanda-energy-project/presentation graphs/scripts/october presentation.R",
     "project_path": "scripts/october presentation.R",
     "type": "r_source",
-    "hash": "2287757416",
+    "hash": "1425394566",
     "contents": "",
     "dirty": false,
     "created": 1728467672794.0,
@@ -12,16 +12,16 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "23,0",
+        "cursorPosition": "32,0",
         "scrollLine": "0",
         "docOutlineVisible": "1"
     },
     "folds": "",
-    "lastKnownWriteTime": 1730404056,
+    "lastKnownWriteTime": 1731000964,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1730404056,
+    "last_content_update": 1731000964513,
     "read_only": false,
     "read_only_alternatives": []
 }

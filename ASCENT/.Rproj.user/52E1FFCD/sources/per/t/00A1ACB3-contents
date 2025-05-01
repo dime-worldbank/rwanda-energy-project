@@ -1,0 +1,603 @@
+library(rgee)
+library(rgeeExtra)
+library(tmap)
+library(tidyverse)
+library(sp)
+library(sf)
+library(raster)
+library(rgeos)
+library(lfe)
+library(fixest)
+
+# ee_Initialize(drive = T)
+
+setwd("/home/jal/Dropbox/Irrigation_Rwanda/Data/")
+
+blplot <- readRDS("analysis_master/data/rds/blplotv2.rds")
+
+blplotunion <- blplot %>%
+  spTransform("+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0") %>%
+  gUnaryUnion()
+kbbox <- blplot %>% subset(centlong < 29.55) %>% st_as_sf() %>% st_bbox %>% st_as_sfc() %>% sf_as_ee()
+nbbox <- blplot %>% subset(centlong > 29.55) %>% st_as_sf() %>% st_bbox %>% st_as_sfc() %>% sf_as_ee()
+
+wugspbdry <- readRDS("analysis_master/data/rds/wugspbdryv2.rds") %>%
+  spTransform(blplot@proj4string)
+wugsp <- readRDS("analysis_master/data/rds/wugsp.rds") %>%
+  spTransform("+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# ee$ImageCollection("LANDSAT/LE07/C02/T1_L2") %>%
+#   ee$ImageCollection$filterDate("1900-01-01", "2018-09-30") %>%
+#   ee$ImageCollection$filterBounds(kbbox) %>%
+#   ee$ImageCollection$size() %>%
+#   ee$Number$getInfo()
+
+# ee$ImageCollection("SKYSAT/GEN-A/PUBLIC/ORTHO/MULTISPECTRAL") %>%
+#   ee$ImageCollection$filterBounds(kbbox) %>%
+#   # ee$ImageCollection$filterBounds(nbbox) %>%
+#   ee$ImageCollection$size() %>%
+#   ee$Number$getInfo()
+
+# ee$ImageCollection("LANDSAT/LC08/C02/T1_L2") %>%
+#   ee$ImageCollection$filterDate("2014-05-01", "2018-09-30") %>%
+#   ee$ImageCollection$filterBounds(kbbox) %>%
+#   ee$ImageCollection$size() %>%
+#   ee$Number$getInfo()
+
+downloadlandsat7 <- F
+downloadlandsat8 <- F
+if(downloadlandsat8) {
+  #### KARONGI ####
+  kls <- ee$ImageCollection("LANDSAT/LC08/C02/T1_L2") %>%
+    ee$ImageCollection$filterDate("2014-05-01", "2018-09-30") %>%
+    ee$ImageCollection$filterBounds(kbbox) %>%
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
+    # B, G, R, NIR, SWIR1
+    ee$ImageCollection$select(c("SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "QA_PIXEL"))
+  
+  ktmp <- tempdir()
+  
+  kls_task <- ee_imagecollection_to_local(
+    ic = kls, region = kbbox, dsn = file.path(ktmp, "drive_"), via = "drive",
+    scale = 30, description = "klandsat"
+  )
+  
+  kls_paths <- list.files(ktmp, full.names = T) %>%
+    (function(x) x %>% subset(x %>% grepl(pattern = paste0(ktmp, "/drive_"), fixed = T)))
+  
+  for(f in kls_paths) {
+    file.copy(from = f,
+              to = paste0("/home/jal/Dropbox/Irrigation_Rwanda/Data/geo/202107landsat/k8",
+                          f %>% gsub(pattern = ktmp, replacement = "")))
+  }
+  
+  #### NYANZA ####
+  nls <- ee$ImageCollection("LANDSAT/LC08/C02/T1_L2") %>%
+    ee$ImageCollection$filterDate("2014-05-01", "2018-09-30") %>%
+    ee$ImageCollection$filterBounds(nbbox) %>%
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
+    # B, G, R, NIR, SWIR1
+    ee$ImageCollection$select(c("SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "QA_PIXEL"))
+  
+  ntmp <- tempdir()
+  
+  nls_task <- ee_imagecollection_to_local(
+    ic = nls, region = nbbox, dsn = file.path(ntmp, "drive_"), via = "drive",
+    scale = 30, description = "nlandsat"
+  )
+  
+  nls_paths <- list.files(ntmp, full.names = T) %>%
+    (function(x) x %>% subset(x %>% grepl(pattern = paste0(ntmp, "/drive_"), fixed = T)))
+  
+  for(f in nls_paths) {
+    file.copy(from = f,
+              to = paste0("/home/jal/Dropbox/Irrigation_Rwanda/Data/geo/202107landsat/n8",
+                          f %>% gsub(pattern = ntmp, replacement = "")))
+  }
+}
+
+if(downloadlandsat7) {
+  ktmp <- tempdir()
+  # # ktmp <- "/tmp/RtmpYO2qVV"
+  # ktmp <- "/tmp/RtmpqmwQrL"
+  print(ktmp)
+  for(y in 1999:2018) {
+  # for(y in 2018:2018) {
+    print(y)
+    #### KARONGI ####
+    kls <- ee$ImageCollection("LANDSAT/LE07/C02/T1_L2") %>%
+      ee$ImageCollection$filterDate(paste0(y, "-01-01"), paste0(y, "-12-31")) %>%
+      ee$ImageCollection$filterBounds(kbbox) %>%
+      # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LE07_C02_T1_L2
+      # B, G, R, NIR, SWIR1
+      ee$ImageCollection$select(c("SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "QA_PIXEL"))
+    
+    kls_task <- ee_imagecollection_to_local(
+      ic = kls, region = kbbox, dsn = file.path(ktmp, "drive_"), via = "drive",
+      scale = 30, description = "klandsat"
+    )
+  }
+  
+  kls_paths <- list.files(ktmp, full.names = T) %>%
+    (function(x) x %>% subset(x %>% grepl(pattern = paste0(ktmp, "/drive_"), fixed = T)))
+  
+  for(f in kls_paths) {
+    file.copy(from = f,
+              to = paste0("/home/jal/Dropbox/Irrigation_Rwanda/Data/geo/202107landsat/k7",
+                          f %>% gsub(pattern = ktmp, replacement = "")))
+  }
+  
+  
+  ntmp <- tempdir()
+  # ntmp <- "/tmp/RtmpqmwQrL"
+  print(ntmp)
+  # for(y in 2018:2018) {
+  for(y in 1999:2018) {
+    print(y)
+    #### NYANZA ####
+    nls <- ee$ImageCollection("LANDSAT/LE07/C02/T1_L2") %>%
+      ee$ImageCollection$filterDate(paste0(y, "-01-01"), paste0(y, "-12-31")) %>%
+      ee$ImageCollection$filterBounds(nbbox) %>%
+      # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LE07_C02_T1_L2
+      # B, G, R, NIR, SWIR1
+      ee$ImageCollection$select(c("SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "QA_PIXEL"))
+    
+    nls_task <- ee_imagecollection_to_local(
+      ic = nls, region = nbbox, dsn = file.path(ntmp, "drive_"), via = "drive",
+      scale = 30, description = "nlandsat"
+    )
+  }
+  
+  nls_paths <- list.files(ntmp, full.names = T) %>%
+    (function(x) x %>% subset(x %>% grepl(pattern = paste0(ntmp, "/drive_"), fixed = T)))
+  
+  for(f in nls_paths) {
+    file.copy(from = f,
+              to = paste0("/home/jal/Dropbox/Irrigation_Rwanda/Data/geo/202107landsat/n7",
+                          f %>% gsub(pattern = ntmp, replacement = "")))
+  }
+}
+
+#### HELPER FUNCTIONS ####
+
+bitk <- function(x, k) {
+  as.integer((x %% 2^(k+1)) >= 2^k)
+}
+getdate <- function(x) {
+  x %>% gsub(pattern = ".*17306[1-2]_", replacement = "") %>%
+    gsub(pattern = ".tif", replacement = "", fixed = T) %>%
+    as.Date(format = "%Y%m%d")
+}
+
+#### CLEANING TO RASTER (KARONGI) ####
+
+k_paths <- list.files("geo/202107landsat/k7", full.names = T)
+kr <- sapply(k_paths, function(f) {
+  # print(f)
+  r <- lapply(1:5, function(b) {
+    raster(f, band = b)
+  }) %>% stack
+  # GETS CLOUD BIT FROM QA_PIXEL
+  # SEE https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
+  rcloud <- raster(f, band = 6) %>% bitk(3)
+  rcloud[rcloud == 1] <- NA
+  # SETS CLOUD PIXELS TO MISSING
+  r <- mask(r, rcloud)
+  names(r) <- c("b", "g", "r", "nir", "swir1")
+  r$ndvi <- (r$nir - r$r) / (r$nir + r$r)
+  r$evi <- 2.5 * (r$nir - r$r) / (r$nir + 6 * r$r + 7 * r$b + 65536)
+  return(r)
+}, simplify = F, USE.NAMES = T)
+
+kdistances <- kr[[1]] %>% coordinates %>% SpatialPoints(proj4string = kr[[1]]@crs)
+kdistances$zero <- rep(0, length(kdistances))
+# kdistances$k12ca <- gIntersects(kdistances,
+#                                 wugspbdry %>% spTransform(kr[[1]]@crs) %>%
+#                                   subset(site == "K12") %>% gUnaryUnion(),
+#                                 byid = T)[1,]
+# kdistances$k12dist <- gDistance(kdistances,
+#                                 wugspbdry %>% spTransform(kr[[1]]@crs) %>%
+#                                   subset(site == "K12") %>% gUnaryUnion() %>%
+#                                   as("SpatialLines"),
+#                                 byid = T)[1,]
+# kdistances$plotdist <- gDistance(kdistances,
+#                                  blplotunion,
+#                                  byid = T)[1,]
+# kdistances$nearwug <- sapply(1:nrow(kdistances), function(i) {
+#   if(i %% 1000 == 1) print(i)
+#   # if(kdistances$k12dist[i] >= 130) return(NA)
+#   # else return(wugsp$sp[which.min(gDistance(kdistances[i,], wugsp, byid = T))])
+#   return(wugsp$sp[which.min(gDistance(kdistances[i,], wugsp, byid = T))])
+# })
+
+# kdistances$k12x <- case_when(kdistances$k12dist <= 30 ~ 0,
+#                              kdistances$k12dist >= 80 ~ 1,
+#                              kdistances$k12ca ~ 2,
+#                              !kdistances$k12ca ~ 3)
+# plot(kdistances, col = kdistances$k12x)
+# plot(wugspbdry %>% subset(site == "K12") %>% spTransform(kr[[1]]@crs, col = "blue"), add = T)
+
+kdistancesdf <- lapply(names(kr), function(i) {
+  kdistancesi <- kdistances
+  kdistancesi[1:nrow(kdistancesi),names(kr[[i]])] <- kr[[i]]
+  kdistancesi <- cbind(kdistancesi@coords, kdistancesi@data)
+  kdistancesi$n <- i
+  return(kdistancesi)
+}) %>% bind_rows()
+kdistancesdf <- kdistancesdf %>% dplyr::select(-zero) %>%
+  mutate(t = n %>% getdate)
+
+#### CLEANING TO RASTER (NYANZA) ####
+
+n_paths <- list.files("geo/202107landsat/n7", full.names = T)
+nr <- sapply(n_paths, function(f) {
+  # print(f)
+  r <- lapply(1:5, function(b) {
+    raster(f, band = b)
+  }) %>% stack
+  # GETS CLOUD BIT FROM QA_PIXEL
+  # SEE https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
+  rcloud <- raster(f, band = 6) %>% bitk(3)
+  rcloud[rcloud == 1] <- NA
+  # SETS CLOUD PIXELS TO MISSING
+  r <- mask(r, rcloud)
+  names(r) <- c("b", "g", "r", "nir", "swir1")
+  r$ndvi <- (r$nir - r$r) / (r$nir + r$r)
+  r$evi <- 2.5 * (r$nir - r$r) / (r$nir + 6 * r$r + 7 * r$b + 65536)
+  return(r)
+}, simplify = F, USE.NAMES = T)
+
+ndistances <- nr[[1]] %>% coordinates %>% SpatialPoints(proj4string = nr[[1]]@crs)
+ndistances$zero <- rep(0, length(ndistances))
+# ndistances$n23ca <- gIntersects(ndistances,
+#                                 wugspbdry %>% spTransform(nr[[1]]@crs) %>%
+#                                   subset(site == "N23") %>% gUnaryUnion(),
+#                                 byid = T)[1,]
+# ndistances$n23dist <- gDistance(ndistances,
+#                                 wugspbdry %>% spTransform(nr[[1]]@crs) %>%
+#                                   subset(site == "N23") %>% gUnaryUnion() %>%
+#                                   as("SpatialLines"),
+#                                 byid = T)[1,]
+# ndistances$plotdist <- gDistance(ndistances,
+#                                  blplotunion,
+#                                  byid = T)[1,]
+# ndistances$nearwug <- sapply(1:nrow(ndistances), function(i) {
+#   if(i %% 1000 == 1) print(i)
+#   if(ndistances$n23dist[i] >= 130) return(NA)
+#   else return(wugsp$sp[which.min(gDistance(ndistances[i,], wugsp, byid = T))])
+# })
+ndistancesdf <- lapply(names(nr), function(i) {
+  ndistancesi <- ndistances
+  ndistancesi[1:nrow(ndistancesi),names(nr[[i]])] <- nr[[i]]
+  ndistancesi <- cbind(ndistancesi@coords, ndistancesi@data)
+  ndistancesi$n <- i
+  return(ndistancesi)
+}) %>% bind_rows()
+ndistancesdf <- ndistancesdf %>% dplyr::select(-zero) %>%
+  mutate(t = n %>% getdate)
+
+dfk <- list("kr" = kr, "kdistancesdf" = kdistancesdf)
+saveRDS(dfk, file = "geo/202107landsat/cleanlandsatkv2.rds")
+dfn <- list("nr" = nr, "ndistancesdf" = ndistancesdf)
+saveRDS(dfn, file = "geo/202107landsat/cleanlandsatnv2.rds")
+# df <- readRDS("geo/202107landsat/cleanlandsat.rds")
+
+# #### VISUALIZING HOW THINGS SHOULD LOOK ####
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"))
+# plotRGB(df$kr[[2]][[c("r", "g", "b")]] * 3, scale = 65535, add = T)
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"), add = T)
+# 
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"))
+# plotRGB(df$kr[[317]][[c("r", "g", "b")]] * 3, scale = 65535, add = T)
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"), add = T)
+# 
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"))
+# plot(df$kr[[2]]$evi, add = T)
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"), add = T)
+# 
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"))
+# plot(df$kr[[317]]$ndvi, add = T)
+# plot(wugspbdry %>% spTransform(df$kr[[1]]@crs) %>% subset(site == "K12"), add = T)
+# 
+# distancesdf <- bind_rows(df$kdistancesdf %>% rename(ca = k12ca, dist = k12dist),
+#                          df$ndistancesdf %>% rename(ca = n23ca, dist = n23dist))
+# 
+# #### ROUNDED CENTROIDS ####
+# stopifnot(c(sapply(df$nr, function(x) x@crs),
+#             sapply(df$kr, function(x) x@crs)) %>% unique %>% length == 1)
+# stopifnot(unique(distancesdf$x %% 30) == 0 & unique(distancesdf$y %% 30) == 0)
+# blplot@data[,c("xround", "yround")] <- gCentroid(spTransform(blplot, df$kr[[1]]@crs), byid = T)@coords
+# blplot$xround <- round(blplot$xround / 30) * 30
+# blplot$yround <- round(blplot$yround / 30) * 30
+# 
+# blplot@data %>% filter(centlong < 29.55 & abs(distbdry2lines) <= 50) %>%
+#   ggplot(aes(x = xround, y = yround)) + geom_tile(height = 30) + coord_equal()
+# blplot@data %>% filter(centlong > 29.55 & abs(distbdry2lines) <= 50) %>%
+#   ggplot(aes(x = xround, y = yround)) + geom_tile(height = 30) + coord_equal()
+# 
+# #### FIRST PASS USING felm, INSTEAD USING feols TO ADD ADDITIONAL CONTROL VARIABLES ####
+# 
+# # bigregpost <- felm(ndvi ~ m * ca + m * dist + m * dist * ca | n | 0 | nearwug,
+# #                    data = distancesdf %>% filter(dist <= 65 & dist >= 15) %>%
+# #                      mutate(m = lubridate::month(t), y = lubridate::year(t),
+# #                             m = as.character(m), ca = as.numeric(ca)) %>%
+# #                      filter(y >= 2015 & m >= 6 | y >= 2016))
+# # (t(bigregpost$coef[c("ca", paste0("m", 2:12, ":ca")),]) %*%
+# #     solve(bigregpost$clustervcv[c("ca", paste0("m", 2:12, ":ca")), c("ca", paste0("m", 2:12, ":ca"))]) %*%
+# #     bigregpost$coef[c("ca", paste0("m", 2:12, ":ca")),]) %>%
+# #   pchisq(df = 12)
+# # bigregpre <- felm(ndvi ~ m * ca + m * dist + m * dist * ca | n | 0 | nearwug,
+# #                   data = distancesdf %>% filter(dist <= 65 & dist >= 15) %>%
+# #                     mutate(m = lubridate::month(t), y = lubridate::year(t),
+# #                            m = as.character(m), ca = as.numeric(ca)) %>%
+# #                     filter(y <= 2008))
+# # (t(bigregpre$coef[c("ca", paste0("m", 2:12, ":ca")),]) %*%
+# #     solve(bigregpre$clustervcv[c("ca", paste0("m", 2:12, ":ca")), c("ca", paste0("m", 2:12, ":ca"))]) %*%
+# #     bigregpre$coef[c("ca", paste0("m", 2:12, ":ca")),]) %>%
+# #   pchisq(df = 12)
+# 
+# # NEXT STEP: WEIGHT OBSERVATIONS SO SIMILAR TO rdsamp_sp !!!
+# 
+# # bigregpost <- feols(fml = ndvi ~ m * ca | n[dist] + n[distxca] + n,
+# bigregpost <- feols(fml = ndvi ~ m * ca | m[dist] + m[distxca] + n,
+#                     cluster = "nearwug",
+#                     data = distancesdf %>% filter(dist <= 65 & dist >= 15) %>%
+#                       mutate(m = lubridate::month(t), y = lubridate::year(t),
+#                              m = as.character(m), ca = as.numeric(ca),
+#                              distxca = dist * ca) %>%
+#                       filter(y >= 2015 & m >= 6 | y >= 2016))
+# (t(bigregpost$coeftable[c("ca", paste0("m", 2:12, ":ca")),"Estimate"]) %*%
+#     solve(bigregpost$cov.scaled[c("ca", paste0("m", 2:12, ":ca")), c("ca", paste0("m", 2:12, ":ca"))]) %*%
+#     bigregpost$coeftable[c("ca", paste0("m", 2:12, ":ca")),"Estimate"]) %>%
+#   pchisq(df = 12)
+# 
+# # bigregpre <- feols(fml = ndvi ~ m * ca | n[dist] + n[distxca] + n,
+# bigregpre <- feols(fml = ndvi ~ m * ca | m[dist] + m[distxca] + n,
+#                     cluster = "nearwug",
+#                     data = distancesdf %>% filter(dist <= 65 & dist >= 15) %>%
+#                       mutate(m = lubridate::month(t), y = lubridate::year(t),
+#                              m = as.character(m), ca = as.numeric(ca),
+#                              distxca = dist * ca) %>%
+#                       filter(y <= 2008))
+# (t(bigregpre$coeftable[c("ca", paste0("m", 2:12, ":ca")),"Estimate"]) %*%
+#     solve(bigregpre$cov.scaled[c("ca", paste0("m", 2:12, ":ca")), c("ca", paste0("m", 2:12, ":ca"))]) %*%
+#     bigregpre$coeftable[c("ca", paste0("m", 2:12, ":ca")),"Estimate"]) %>%
+#   pchisq(df = 12)
+# 
+# 
+# 
+# #### FIRST REGRESSION ATTEMPT: BY DATE ####
+# kregs <- lapply(names(kr), function(i) {
+#   dfi <- kdistancesdf %>% subset(k12dist <= 80 & k12dist >= 30 & n == i) %>% filter(!is.na(ndvi))
+#   if(nrow(dfi) == 0) return(NULL)
+#   regi <- felm(ndvi ~ k12ca + k12dist + k12dist * k12ca | 0 | 0 | nearwug, data = dfi) %>% summary()
+#   if(!"k12caTRUE" %in% row.names(regi$coef)) return(NULL)
+#   data.frame(n = i, t = getdate(i), coef = regi$coef["k12caTRUE", "Estimate"],
+#              se = regi$coef["k12caTRUE", "Cluster s.e."])
+# }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# ggplot(kregs, aes(x = t)) +
+#   geom_point(aes(y = coef)) +
+#   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# nregs <- lapply(names(nr), function(i) {
+#   dfi <- ndistancesdf %>% subset(n23dist <= 80 & n23dist >= 30 & n == i) %>% filter(!is.na(ndvi))
+#   if(nrow(dfi) == 0) return(NULL)
+#   regi <- felm(ndvi ~ n23ca + n23dist + n23dist * n23ca | 0 | 0 | nearwug, data = dfi) %>% summary()
+#   if(!"n23caTRUE" %in% row.names(regi$coef)) return(NULL)
+#   data.frame(n = i, t = getdate(i), coef = regi$coef["n23caTRUE", "Estimate"],
+#              se = regi$coef["n23caTRUE", "Cluster s.e."])
+# }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# ggplot(nregs, aes(x = t)) +
+#   geom_point(aes(y = coef)) +
+#   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# #### SECOND REGRESSION ATTEMPT: BY MONTH, POST- ####
+# kregs2df <- kdistancesdf %>%
+#   mutate(m = lubridate::month(t), y = lubridate::year(t),
+#          post = y >= 2016 | (y >= 2015 & m >= 6))
+# kregs2 <- lapply(1:12, function(i) {
+#   dfi <- kregs2df %>% subset(k12dist <= 80 & k12dist >= 30 & m == i) %>% filter(!is.na(ndvi))
+#   if(nrow(dfi) == 0) return(NULL)
+#   regndvi <- felm(ndvi ~ k12ca + k12dist + k12dist * k12ca | n | 0 | nearwug, data = dfi) %>% summary()
+#   regevi <- felm(evi ~ k12ca + k12dist + k12dist * k12ca | n | 0 | nearwug, data = dfi) %>% summary()
+#   if(!"k12caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+#   data.frame(m = i, lhs = c("ndvi", "evi"),
+#              coef = c(regndvi$coef["k12caTRUE", "Estimate"], regevi$coef["k12caTRUE", "Estimate"]),
+#              se = c(regndvi$coef["k12caTRUE", "Cluster s.e."], regevi$coef["k12caTRUE", "Cluster s.e."]))
+# }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# 
+# ggplot(kregs2, aes(x = m, group = lhs, col = lhs)) +
+#   geom_point(aes(y = coef)) +
+#   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# #### THIRD REGRESSION ATTEMPT: POOLING ####
+# regs3df <- bind_rows(kdistancesdf %>% mutate(site = "k") %>%
+#                        rename(dist = k12dist, ca = k12ca),
+#                      ndistancesdf %>% mutate(site = "n") %>%
+#                        rename(dist = n23dist, ca = n23ca)) %>%
+#   mutate(m = lubridate::month(t), y = lubridate::year(t),
+#          post = y >= 2016 | (y >= 2015 & m >= 6),
+#          nxsite = paste0(n, "x", site))
+# regs3 <- lapply(1:12, function(i) {
+#   dfi <- regs3df %>% subset(dist <= 70 & dist >= 20 & m == i) %>% filter(!is.na(ndvi))
+#   if(nrow(dfi) == 0) return(NULL)
+#   regndvi <- felm(ndvi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+#   regevi <- felm(evi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+#   if(!"caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+#   data.frame(m = i, lhs = c("ndvi", "evi"),
+#              coef = c(regndvi$coef["caTRUE", "Estimate"], regevi$coef["caTRUE", "Estimate"]),
+#              se = c(regndvi$coef["caTRUE", "Cluster s.e."], regevi$coef["caTRUE", "Cluster s.e."]))
+# }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# 
+# ggplot(regs3, aes(x = m, group = lhs, col = lhs)) +
+#   geom_point(aes(y = coef)) +
+#   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# #### FOURTH REGRESSION ATTEMPT: RESTRICTING TO AGRICULTURAL LAND ####
+# regs4df <- bind_rows(kdistancesdf %>% mutate(site = "k") %>%
+#                        rename(dist = k12dist, ca = k12ca),
+#                      ndistancesdf %>% mutate(site = "n") %>%
+#                        rename(dist = n23dist, ca = n23ca)) %>%
+#   mutate(m = lubridate::month(t), y = lubridate::year(t),
+#          post = y >= 2016 | (y >= 2015 & m >= 6),
+#          nxsite = paste0(n, "x", site)) %>%
+#   filter(plotdist <= 20)
+# regs4 <- lapply(1:12, function(i) {
+#   dfi <- regs4df %>% subset(dist <= 70 & dist >= 20 & m == i) %>% filter(!is.na(ndvi))
+#   if(nrow(dfi) == 0) return(NULL)
+#   regndvi <- felm(ndvi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+#   regevi <- felm(evi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+#   if(!"caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+#   data.frame(m = i, lhs = c("ndvi", "evi"),
+#              coef = c(regndvi$coef["caTRUE", "Estimate"], regevi$coef["caTRUE", "Estimate"]),
+#              se = c(regndvi$coef["caTRUE", "Cluster s.e."], regevi$coef["caTRUE", "Cluster s.e."]))
+# }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# 
+# ggplot(regs4, aes(x = m, group = lhs, col = lhs)) +
+#   geom_point(aes(y = coef)) +
+#   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# #### OLD: BEFORE WORKING WITH LANDSAT 7 DATA ####
+# 
+# # #### SECOND REGRESSION ATTEMPT: BY MONTH, POST- ####
+# # kregs2df <- kdistancesdf %>%
+# #   mutate(m = lubridate::month(t), y = lubridate::year(t),
+# #          post = y >= 2016 | (y >= 2015 & m >= 6))
+# # kregs2 <- lapply(1:12, function(i) {
+# #   dfi <- kregs2df %>% subset(k12dist <= 80 & k12dist >= 30 & m == i) %>% filter(!is.na(ndvi))
+# #   if(nrow(dfi) == 0) return(NULL)
+# #   regndvi <- felm(ndvi ~ k12ca + k12dist + k12dist * k12ca | n | 0 | nearwug, data = dfi) %>% summary()
+# #   regevi <- felm(evi ~ k12ca + k12dist + k12dist * k12ca | n | 0 | nearwug, data = dfi) %>% summary()
+# #   if(!"k12caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+# #   data.frame(m = i, lhs = c("ndvi", "evi"),
+# #              coef = c(regndvi$coef["k12caTRUE", "Estimate"], regevi$coef["k12caTRUE", "Estimate"]),
+# #              se = c(regndvi$coef["k12caTRUE", "Cluster s.e."], regevi$coef["k12caTRUE", "Cluster s.e."]))
+# # }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# # 
+# # ggplot(kregs2, aes(x = m, group = lhs, col = lhs)) +
+# #   geom_point(aes(y = coef)) +
+# #   geom_errorbar(aes(ymin = lci, ymax = uci))
+# # 
+# # #### THIRD REGRESSION ATTEMPT: POOLING ####
+# # regs3df <- bind_rows(kdistancesdf %>% mutate(site = "k") %>%
+# #                        rename(dist = k12dist, ca = k12ca),
+# #                      ndistancesdf %>% mutate(site = "n") %>%
+# #                        rename(dist = n23dist, ca = n23ca)) %>%
+# #   mutate(m = lubridate::month(t), y = lubridate::year(t),
+# #          post = y >= 2016 | (y >= 2015 & m >= 6),
+# #          nxsite = paste0(n, "x", site))
+# # regs3 <- lapply(1:12, function(i) {
+# #   dfi <- regs3df %>% subset(dist <= 70 & dist >= 20 & m == i) %>% filter(!is.na(ndvi))
+# #   if(nrow(dfi) == 0) return(NULL)
+# #   regndvi <- felm(ndvi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+# #   regevi <- felm(evi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+# #   if(!"caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+# #   data.frame(m = i, lhs = c("ndvi", "evi"),
+# #              coef = c(regndvi$coef["caTRUE", "Estimate"], regevi$coef["caTRUE", "Estimate"]),
+# #              se = c(regndvi$coef["caTRUE", "Cluster s.e."], regevi$coef["caTRUE", "Cluster s.e."]))
+# # }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# # 
+# # ggplot(regs3, aes(x = m, group = lhs, col = lhs)) +
+# #   geom_point(aes(y = coef)) +
+# #   geom_errorbar(aes(ymin = lci, ymax = uci))
+# # 
+# # #### FOURTH REGRESSION ATTEMPT: RESTRICTING TO AGRICULTURAL LAND ####
+# # regs4df <- bind_rows(kdistancesdf %>% mutate(site = "k") %>%
+# #                        rename(dist = k12dist, ca = k12ca),
+# #                      ndistancesdf %>% mutate(site = "n") %>%
+# #                        rename(dist = n23dist, ca = n23ca)) %>%
+# #   mutate(m = lubridate::month(t), y = lubridate::year(t),
+# #          post = y >= 2016 | (y >= 2015 & m >= 6),
+# #          nxsite = paste0(n, "x", site)) %>%
+# #   filter(plotdist <= 20)
+# # regs4 <- lapply(1:12, function(i) {
+# #   dfi <- regs4df %>% subset(dist <= 70 & dist >= 20 & m == i) %>% filter(!is.na(ndvi))
+# #   if(nrow(dfi) == 0) return(NULL)
+# #   regndvi <- felm(ndvi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+# #   regevi <- felm(evi ~ ca + dist + dist * ca | nxsite | 0 | nearwug, data = dfi) %>% summary()
+# #   if(!"caTRUE" %in% row.names(regndvi$coef)) return(NULL)
+# #   data.frame(m = i, lhs = c("ndvi", "evi"),
+# #              coef = c(regndvi$coef["caTRUE", "Estimate"], regevi$coef["caTRUE", "Estimate"]),
+# #              se = c(regndvi$coef["caTRUE", "Cluster s.e."], regevi$coef["caTRUE", "Cluster s.e."]))
+# # }) %>% bind_rows() %>% mutate(lci = coef + se * qnorm(.025), uci = coef + se * qnorm(.975))
+# # 
+# # ggplot(regs4, aes(x = m, group = lhs, col = lhs)) +
+# #   geom_point(aes(y = coef)) +
+# #   geom_errorbar(aes(ymin = lci, ymax = uci))
+# 
+# #### OLD NOTES ####
+# 
+# # print("Hello world!")
+# # ee$String("Hello world from Earth Engine!")$getInfo()
+# # ee$Image("LANDSAT/LC08/C01/T1/LC08_044034_20140318")$getInfo()
+# # ee$String("Hello world from Earth Engine!") %>%
+# #   ee$String$getInfo()
+# # ee$Image("LANDSAT/LC08/C01/T1/LC08_044034_20140318") %>%
+# #   ee$Image$getInfo()
+# 
+# # image <- ee$Image("LANDSAT/LC08/C01/T1/LC08_044034_20140318")
+# # Map$centerObject(image)
+# # Map$addLayer(image, name = "Landsat 8 original image")
+# # vizParams <- list(
+# #   bands = c("B5", "B4", "B3"),
+# #   min = 5000, max = 15000, gamma = 1.3
+# # )
+# # Map$addLayer(image, vizParams, "Landsat 8 False color")
+# # counties <- ee$FeatureCollection("TIGER/2016/Counties")
+# # Map$addLayer(
+# #   eeObject = counties,
+# #   visParams = vizParams,
+# #   name = "counties"
+# # )
+# 
+# # s2 <- ee$ImageCollection("COPERNICUS/S2_SR") %>%
+# #   # ee$ImageCollection$filterDate("2014-05-01", "2018-09-30") %>%
+# #   ee$ImageCollection$filterDate("2017-01-01", "2017-12-31") %>%
+# #   ee$ImageCollection$filterBounds(kbbox) %>%
+# #   ee$ImageCollection$select(c("B2", "B3", "B4", "B8"))
+# # 
+# # # s2_task <- s2$map(function(image) {
+# # #   ee_image_to_drive(image,
+# # #                     region = kbbox,
+# # #                     description = 
+# # # })
+# # 
+# # s2_task <- ee_image_to_drive(s2,
+# #                              region = kbbox,
+# #                              description = "k_201809",
+# #                              scale = 10)
+# # s2_task$start()
+# # s2_task$active()
+# # 
+# # s2_r <- ee_as_raster(s2,
+# #                      region = kbbox,
+# #                      scale = 10)
+# # 
+# # # s2 <- ee$ImageCollection("COPERNICUS/S2_SR") %>%
+# # #   ee$ImageCollection$filterDate("2020-01-01", "2020-12-31") %>%
+# # #   ee$ImageCollection$filterBounds(kbbox)
+# # # 
+# # # s2_ndvi <- s2$map(function(image) {
+# # #   ndvi <- image$normalizedDifference(c("B8", "B4"))$rename("ndvi")
+# # #   image_ndvi <- image$addBands(ndvi)
+# # #   image_ndvi
+# # # })
+# # # months <- ee$List$sequence(1, 12)
+# # # monthly_s2 <- function(m) {
+# # #   s2_ndvi$filter(ee$Filter$calendarRange(m, m, "month")) %>%
+# # #     ee$ImageCollection$median() %>%
+# # #     ee$Image$select("ndvi") 
+# # # }
+# # # s2_monthly <- months$map(ee_utils_pyfunc(monthly_s2))
+# # # s2_jan <- ee$Image(s2_monthly$get(0))
+# # # s2_jan_task <- ee_image_to_drive(s2_jan,
+# # #                                  region = kbbox, 
+# # #                                  description = "kndvi_202001", 
+# # #                                  scale = 10)
+# # # s2_jan_task$start()
+# # # s2_jan_task$active()
+# # # s2_jan_r <- ee_as_raster(s2_jan, 
+# # #                          region = kbbox, 
+# # #                          scale = 10)
+# # # 
+# # # kf <- raster("/tmp/RtmpvyriG8/noid_image.tif")

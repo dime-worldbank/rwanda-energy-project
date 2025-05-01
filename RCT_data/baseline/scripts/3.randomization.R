@@ -19,26 +19,26 @@ if (Sys.getenv("USERNAME") == "wb614406"){
 
 path <- file.path(
   DROPBOX,
-  "Rwanda Energy/datawork/RCT_data",
+  "Rwanda Energy/EAQIP/datawork/RCT_data",
   "baseline/data/data/four_district_2402.xlsx"
 )
 
 
 data_path <- file.path(
   DROPBOX,
-  "Rwanda Energy/datawork/RCT_data",
+  "Rwanda Energy/EAQIP/datawork/RCT_data",
   "baseline/data/data"
 )
 
 scope_path <- file.path(
   DROPBOX,
-  "Rwanda Energy/datawork/RCT_data",
+  "Rwanda Energy/EAQIP/datawork/RCT_data",
   "baseline/data/Updated scope villages& households"
 )
 
 output_path <- file.path(
   DROPBOX,
-  "Rwanda Energy/datawork/RCT_data",
+  "Rwanda Energy/EAQIP/datawork/RCT_data",
   "baseline/outputs"
 )
 
@@ -184,7 +184,7 @@ household_head <- household_head %>%
     )
 
 
-# write_xlsx(household_head, path = file.path(data_path, "household_head_clean.xlsx"))
+write_xlsx(household_head, path = file.path(data_path, "household_head_clean.xlsx"))
 
 
 ##Sample hh----
@@ -227,17 +227,17 @@ check <- household_backup %>%
 household <- list( `selected` = household_select, `backup` = household_backup)
 
 
-# write_xlsx(
-#   household, path = file.path(scope_path, "scope_households_0807.xlsx")
-# )
-# 
-# write_xlsx(
-#   household_select, path = file.path(scope_path, "household_select_0807.xlsx")
-# )
-# 
-# write_xlsx(
-#   household_backup, path = file.path(scope_path, "household_backup_0807.xlsx")
-# )
+write_xlsx(
+  household, path = file.path(scope_path, "scope_households_0807.xlsx")
+)
+
+write_xlsx(
+  household_select, path = file.path(scope_path, "household_select_0807.xlsx")
+)
+
+write_xlsx(
+  household_backup, path = file.path(scope_path, "household_backup_0807.xlsx")
+)
 
 #household situation-----
 
@@ -248,13 +248,11 @@ household_select <- read_xlsx(path = file.path(scope_path, "household_select_080
 
 household_join <- bind_rows(household_backup, household_select)
 
-# write_xlsx(household_join, path = file.path(scope_path, "household_join_1111.xlsx"))
+write_xlsx(household_join, path = file.path(scope_path, "household_join_1111.xlsx"))
 
-household_csv <- read.csv("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/cto attachments/household_head.csv")
-household_join <- read_xlsx(path = file.path(scope_path, "household_join_1111.xlsx"))
 
-filter <- household_join %>% 
-  filter(household_id %in% household_csv$household_id)
+
+
 
 
 #Join back to get summary----
@@ -293,7 +291,7 @@ four_scope_newly <- four_scope_newly %>%
     )
   )
 
-# write_xlsx(four_scope_newly, path = file.path(scope_path, "scope_193_0807.xlsx"))
+write_xlsx(four_scope_newly, path = file.path(scope_path, "scope_193_0807.xlsx"))
 
 four_scope_newly %>% 
   group_by(lot) %>% 

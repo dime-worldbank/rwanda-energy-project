@@ -308,7 +308,7 @@ p1 <- ggplot(customer_graph, aes(x = customer)) +
   labs(
     title = "Surveyed customer distribution in the four districts(50 and under)",
     x = "Number of Surveyed Customer",
-    y = "Frequency"
+    y = "Number of Villages"
   )
 
 p1

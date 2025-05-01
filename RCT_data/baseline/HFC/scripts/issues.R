@@ -9,6 +9,621 @@ pacman::p_load(knitr, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, jani
 
 getwd()
 
+
+#12 villages----
+
+
+village_12 <- village_check %>% 
+  mutate(
+    village = as.character(villageid_key)
+  ) %>% 
+  filter(villageid_key %in% c("32030402", "32070103", "32080307",
+                                      "32090105", "32090108", "32090305",
+                                      "32110105", "32120506", "32120606",
+                                      "32120204", "32130303", "32130402")) %>% 
+  select(!starts_with("2024")) %>% 
+  select(!starts_with("2025"))
+
+write_xlsx(village_12, path = file.path(data_path, "village_12_noscope.xlsx"))
+
+#Output raw data----
+
+raw_data <- hfc_constr %>% 
+  select(-contains("name"), -contains("coordinate")) %>% 
+  select(
+    submissiondate, startdate, enddate, enumerator_key, district_key, districtid_key,province_key, provinceid_key, sector_key, sector, cell_key,cell, village_key, village, everything() )
+  
+
+write_xlsx(raw_data, path = file.path(data_path, "raw_data_01142024.xlsx"))
+write_xlsx(raw_data, path = file.path(data_path, "raw_data_02192024.xlsx"))
+#Rusizi_lot_2 remaining----
+
+rusizi_2 <- four_scope %>% 
+  filter(lot %in% "Rusizi-2")
+
+rusizi_2_remain <- village_check %>% 
+  filter(villageid_key %in% rusizi_2$village_id )
+
+rusizi_2_na <- rusizi_2_remain %>% 
+  filter(is.na(attempt))
+
+sum(rusizi_2_na$num_to_survey)
+sum(is.na(rusizi_2_remain$attempt))
+
+sum(rusizi_2_remain$hh_head_06[is.na(rusizi_2_remain$attempt)])
+
+
+
+
+
+
+
+
+#backcheck issues--village_check#backcheck issues----
+
+bc_hh <- hfc_constr %>% 
+  filter(
+    hh_id == "411404011006" | hh_id == "411404010285"
+  ) %>% 
+  mutate(hh_id = as.character(hh_id)) %>% 
+  select(startdate, submissiondate, enumerator, enumerator_key,
+         district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, 
+         hh_head_name, consent, no_consent_reason, A1_2, A1_2_label, A1_3, A1_3_label, locate) 
+
+
+
+write_xlsx(bc_hh, path = file.path(data_path, "backcheck_issue_20241219.xlsx"))
+
+
+
+
+###audio check----
+
+
+
+audio_two <- hfc_constr %>% 
+  mutate(
+    audio_check = ifelse(grepl("media", audio, ignore.case = TRUE), audio, NA)
+  ) %>% 
+  filter(!is.na(audio_check)) %>% 
+  filter(
+    hh_id == "411404011006" | hh_id == "411404010285"
+  ) %>% 
+  select(
+    district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, submissiondate, enumerator, enumerator_key, phonenumber, audio
+  ) %>% 
+  mutate(
+    hh_id = as.character(hh_id)
+  ) 
+
+
+# Create a new folder with the date as the name
+audio_folder <- file.path("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/backcheck_20241219.xlsx")
+dir.create(audio_folder, showWarnings = FALSE)
+
+# Define the media folder path
+source_folder <- "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/HFC/data/media"
+
+# Extract the filenames (without 'media\' prefix)
+audio_filenames <- basename(audio_two$audio)
+
+# Full paths to the audio files in the media folder
+audio_files <- file.path(source_folder, audio_filenames)
+
+# Check which files exist and filter them
+existing_files <- audio_files[file.exists(audio_files)]
+
+# Copy the filtered files to the new folder
+file.copy(existing_files, audio_folder)
+
+write_xlsx(audio_two, path = file.path(audio_folder, "audiocheck_list.xlsx"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Filter no hh_head_name---
+
+no_name <- hfc_constr %>% 
+  filter(
+    A1_2 == 0 & A1_3 == 0 & consent == 1
+    
+  ) 
+
+all_hh <- hfc_constr %>% 
+  select(startdate, submissiondate, enumerator, enumerator_key,
+         district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, hh_head_name, consent, no_consent_reason, A1_2, A1_2_label, A1_3, A1_3_label, locate) %>% 
+  rename(
+    grid = A1_2, 
+    solar = A1_3
+  ) 
+
+write_xlsx(all_hh, path = file.path(data_path, "all_surveyed_12192024.xlsx"))      
+
+
+
+#How many villages to finish----
+# can you quickly compute, how many replacements do they need to reach 20, 18 and 15 households per village? 
+# Take the per village the average number of replacements visited
+# for all villages they completed 20, 18 and 15 separately for each. 
+
+
+replacement_list <- read_xlsx(path = file.path("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households/household_replacement.xlsx"))
+  
+  
+village_replacement <- hfc_constr %>% 
+  group_by(village) %>% 
+  summarise(visited_replacement = sum(hh_id %in% replacement_list$household_id, na.rm = TRUE))
+
+
+village_replacement <- left_join(village_check, village_replacement, by = c("villageid_key" = "village"))
+
+
+mean_20 <- village_replacement %>%
+  filter(complete >= 20) %>%
+  summarise(mean_visited = mean(visited_replacement, na.rm = TRUE)) %>%
+  pull(mean_visited)
+
+mean_18 <- village_replacement %>%
+  filter(complete >= 18) %>%
+  summarise(mean_visited = mean(visited_replacement, na.rm = TRUE)) %>%
+  pull(mean_visited)
+
+mean_15 <- village_replacement %>%
+  filter(complete >= 15) %>%
+  summarise(mean_visited = mean(visited_replacement, na.rm = TRUE)) %>%
+  pull(mean_visited)
+
+# Print results
+mean_20
+mean_18
+mean_15
+#Unique enumerators----
+
+enumerator <- hfc_constr %>% 
+  filter(
+    startdate <= "2024-12-15"
+  ) 
+
+#Check one household----
+
+
+one_hh <- hfc_constr %>% 
+  filter(
+    hh_id == "411503010331"
+  ) %>% 
+  select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+         district, sector, cell, village, hh_id, consent, finish, location, comment, 
+         
+         
+         #Duration
+         survey_duration,
+         roster_duration,
+         energy_duration,
+         wellbeing_duration,
+         willingness_duration,
+         housing_assets_duration,
+         business_duration,
+         savings_duration,
+         mobile_duration,
+         livestock_duration,
+         cleancooking_duration,
+         mental_health_duration,
+         social_desirability_duration,
+         all_duration,
+         
+         
+         #household head roster
+         starts_with("A1"), hh_head_name, gender, marital, head_age_calculate, education, high_edu,  starts_with("A2"),
+         starts_with("A3"),
+         
+         #energy wellbeing
+         starts_with("B4"), starts_with("B5"),
+         
+         #housing assets
+         starts_with("C1"), starts_with("C2"), starts_with("C3"),
+         
+         #business
+         starts_with("D1"), starts_with("D2"), starts_with("D3"),starts_with("D4"),
+         
+         #savings
+         starts_with("E1"), formal_savings, informal_savings, starts_with("E2"), starts_with("E3"), starts_with("E4"),
+         
+         
+         # #mobile
+         # starts_with("F"),
+         
+         #land and agriculture
+         starts_with("G"),
+         
+         #Energy
+         starts_with("H"),
+         
+         #clean_cooking
+         starts_with("I"),
+         
+         #willingness
+         
+         starts_with("J"),
+         
+         #mental health
+         starts_with("B1"), starts_with("B2"), starts_with("B3"),
+         
+         #desirability
+         starts_with("K")
+         
+  ) 
+
+
+
+write_xlsx(one_hh, path = file.path(data_path, "411503010331.xlsx"))
+
+
+
+
+#Duplicate check-----
+
+
+duplicates_enumerator <- hfc_constr %>% 
+  filter(consent == 1) %>% 
+  group_by(hh_id) %>%  # Group by household ID
+  mutate(n = n_distinct(enumerator)) %>%  # Count distinct enumerators for each household
+  filter(n > 1) %>%  # Keep only households with more than 1 enumerator
+  ungroup() %>% 
+  select(enumerator, enumerator_key, district, district_key, sector, sector_key, 
+         cell, cell_key, village, village_key, hh_id, hh_head_name, A1_2, A1_3,
+         starttime, submissiondate, n) %>% 
+  rename(
+    grid_connect = A1_2,
+    offgrid_connect = A1_3
+  ) %>% 
+  arrange(desc(hh_id))
+
+# Write to Google Sheet
+hfc_sheet %>%
+  sheet_write(data = duplicates_enumerator, sheet = "duplicates_enumerator")
+
+
+1
+
+duplicates_general <- hfc_constr %>% 
+  filter(hh_id %in% duplicates_enumerator$hh_id | hh_id %in% duplicates$hh_id) %>% 
+  select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+         district, sector, cell, village, hh_id, consent, finish, location,
+         
+         
+         #Duration
+         survey_duration,
+         roster_duration,
+         energy_duration,
+         wellbeing_duration,
+         willingness_duration,
+         housing_assets_duration,
+         business_duration,
+         savings_duration,
+         mobile_duration,
+         livestock_duration,
+         cleancooking_duration,
+         mental_health_duration,
+         social_desirability_duration,
+         all_duration,
+         
+         
+         #household head roster
+         starts_with("A1"), hh_head_name, gender, marital, head_age_calculate, education, high_edu,  starts_with("A2"),
+         starts_with("A3"),
+         
+         #energy wellbeing
+         starts_with("B4"), starts_with("B5"),
+         
+         #housing assets
+         starts_with("C1"), starts_with("C2"), starts_with("C3"),
+         
+         #business
+         starts_with("D1"), starts_with("D2"), starts_with("D3"),starts_with("D4"),
+         
+         #savings
+         starts_with("E1"), formal_savings, informal_savings, starts_with("E2"), starts_with("E3"), starts_with("E4"),
+         
+         
+         # #mobile
+         # starts_with("F"),
+         
+         #land and agriculture
+         starts_with("G"),
+         
+         #Energy
+         starts_with("H"),
+         
+         #clean_cooking
+         starts_with("I"),
+         
+         #willingness
+         
+         starts_with("J"),
+         
+         #mental health
+         starts_with("B1"), starts_with("B2"), starts_with("B3"),
+         
+         #desirability
+         starts_with("K")
+         
+  ) %>% 
+  arrange(desc(hh_id))
+
+
+
+write_xlsx(duplicates_general, path = file.path(data_path, "duplicates_general_01082025.xlsx"))
+
+duplicate_issue <- read_xlsx(path = file.path(data_path, "duplicates_general.xlsx"), sheet = "need_report")
+
+duplicate_need_report <- hfc_constr %>% 
+  filter(hh_id %in% duplicate_issue$hh_id) %>% 
+  select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+         district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, phonenumber, comment
+         
+  ) %>% 
+  arrange(desc(hh_id))
+
+write_xlsx(duplicate_need_report, path = file.path(data_path, "duplicate_report.xlsx"))
+
+
+
+
+#Completed village----
+
+village_complete <- village_check %>% 
+  filter(
+     hh_head_06 == attempt | complete == 20 
+  )
+
+village_check.1 <- village_check %>% 
+  mutate(
+    complete.1 = ifelse(hh_head_06 == attempt | complete == 20 , 1, 0)
+  ) %>% 
+  select(-starts_with("2024"))
+
+sum(village_check.1$complete.1, na.rm = TRUE)
+village_no_complete <- village_check %>% 
+  anti_join(village_complete, by = c("villageid_key"))
+
+sum(village_no_complete)
+
+
+
+
+
+
+
+
+
+
+
+#Filter two households-----
+
+two_hh <- hfc_constr %>% 
+  filter(
+    hh_id == "410503050266" | hh_id == "410503050233"
+  ) %>% 
+  select(starttime, endtime, submissiondate, enumerator, enumerator_key,
+         district,district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, consent, finish, location)
+         
+  )
+
+write_xlsx(two_hh , path = file.path(data_path, "issue_hh_12102024.xlsx"))
+
+
+
+#Two household audio check----
+
+
+
+##Audio check----
+
+audio_two <- hfc_constr %>% 
+  mutate(
+    audio_check = ifelse(grepl("media", audio, ignore.case = TRUE), audio, NA)
+  ) %>% 
+  filter(!is.na(audio_check)) %>% 
+  filter(
+    hh_id == "410503050266" | hh_id == "410503050233"
+  ) %>% 
+  select(
+    district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, submissiondate, enumerator, enumerator_key, phonenumber, audio
+  ) %>% 
+  mutate(
+    hh_id = as.character(hh_id)
+  ) 
+
+
+# Create a new folder with the date as the name
+audio_folder <- file.path("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/special_case.xlsx")
+dir.create(audio_folder, showWarnings = FALSE)
+
+# Define the media folder path
+source_folder <- "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/HFC/data/media"
+
+# Extract the filenames (without 'media\' prefix)
+audio_filenames <- basename(audio_two$audio)
+
+# Full paths to the audio files in the media folder
+audio_files <- file.path(source_folder, audio_filenames)
+
+# Check which files exist and filter them
+existing_files <- audio_files[file.exists(audio_files)]
+
+# Copy the filtered files to the new folder
+file.copy(existing_files, audio_folder)
+
+write_xlsx(audio_two, path = file.path(audio_folder, "audiocheck_list.xlsx"))
+
+
+
+
+
+
+
+
+#Electric generator-----
+
+electric_generator <- hfc_constr %>% 
+  filter(H3_1_label == "Electric Generator") %>% 
+  select(startdate, submissiondate,enumerator, enumerator_key, district, district_key, sector, sector_key, 
+         cell, cell_key, village, village_key, hh_id,  H3_1_label, phonenumber) %>% 
+  rename(
+    main_energy_source = H3_1_label
+  )
+  
+
+write_xlsx(electric_generator, path = file.path(data_path, "electric_generator_hh.xlsx"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Audio check duplicates----
+
+audio_18 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241118/audiocheck_list.xlsx")
+audio_19 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241119/audiocheck_list.xlsx")
+audio_20 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241120/audiocheck_list.xlsx")
+audio_24 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241124/audiocheck_list.xlsx")
+audio_25 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241125/audiocheck_list.xlsx")
+audio_26 <- read_xlsx("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/20241126/audiocheck_list.xlsx")
+
+audio_18 <- audio_18 %>% select(hh_id)
+audio_19 <- audio_19 %>% select(hh_id)
+audio_20 <- audio_20 %>% select(hh_id)
+audio_24 <- audio_24 %>% select(hh_id)
+audio_25 <- audio_25 %>% select(hh_id)
+audio_26 <- audio_26 %>% select(hh_id)
+
+backcheck_before <- read.csv("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/cto attachments/household_head.csv")
+##Audio check----
+
+audio_before <- rbind(audio_18, audio_19, audio_20, audio_20, audio_24, audio_25, audio_26)
+
+audio <- hfc_constr %>% 
+  filter(
+    submissiondate == c("2024-11-18", "2024-11-19", "2024-11-20", "2024-11-24", "2024-11-25", "2024-11-26")
+  ) %>% 
+ filter(!hh_id %in% audio_before$hh_id) %>% 
+  filter(!hh_id %in% backcheck_before$household_id)
+
+audio_select <- audio %>% 
+  mutate(
+    audio_check = ifelse(grepl("media", audio, ignore.case = TRUE), audio, NA)
+  ) %>% 
+  filter(!is.na(audio_check)) %>% 
+  # filter(submissiondate == "2024-11-19") %>% 
+  select(
+    district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, submissiondate, enumerator, enumerator_key, phonenumber, audio
+  ) %>% 
+  mutate(
+    hh_id = as.character(hh_id)
+  ) %>% 
+  sample_n(min(n(), 59 ))
+
+
+# Create a new folder with the date as the name
+audio_folder <- file.path("C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/questionnaires/REP Backcheck survey/Audio Check/Duplicates_1119_1126.xlsx")
+dir.create(audio_folder, showWarnings = FALSE)
+
+# Define the media folder path
+source_folder <- "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/HFC/data/media"
+
+# Extract the filenames (without 'media/' prefix)
+audio_filenames <- basename(audio_select$audio)
+
+# Full paths to the audio files in the media folder
+audio_files <- file.path(source_folder, audio_filenames)
+
+# Check which files exist and filter them
+existing_files <- audio_files[file.exists(audio_files)]
+
+# Copy the filtered files to the new folder
+file.copy(existing_files, audio_folder)
+
+write_xlsx(audio_select, path = file.path(audio_folder, "audiocheck_list.xlsx"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Lighting energy----
+
+main_lightenergy <- hfc_constr %>% 
+  filter(!is.na(H3_1)) %>% 
+  select(
+   H3_1,H3_1_label, H7_1, H7_1_label, H7_3, H7_3_label
+  ) %>% 
+  mutate(
+    flash_light = ifelse(H3_1 == 6, "Uses electric torch", "Don't use electric torch")
+  ) %>% 
+  group_by(flash_light, H7_1_label) %>% 
+  summarise(
+    count = n()
+  )
+
+main_lightenergy <- main_lightenergy %>% 
+  group_by(flash_light) %>% 
+  mutate(
+    total_count = sum(count),                 # Total count for the category
+    percentage = paste0(round(count / total_count, 2) * 100, "%") # Percentage within the category
+  ) %>% 
+  select(-total_count) %>% 
+  rename(
+    main_lighting_energy = H7_1_label
+  )
+
+# Separate datasets for each category
+flash <- main_lightenergy %>% 
+  filter(flash_light == "Uses electric torch")
+
+noflash <- main_lightenergy %>% 
+  filter(flash_light == "Don't use electric torch")
+  
+
+
+#Daily achievements----
 karongi <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Karongi")
 rutsiro <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Rutsiro")
 rulindo <- read_xlsx(path = file.path(data_path, "Daily achievements_1125.xlsx"), sheet = "Rulindo")
@@ -232,8 +847,7 @@ francine <- hfc_constr %>%
     district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, phonenumber, audio
   )
 
-filter <- francine %>% 
-  filter(hh_id %in% )
+
 
 source_folder <- "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/datawork/HFC/data/media"
 

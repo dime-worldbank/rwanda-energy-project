@@ -69,9 +69,18 @@ raw <- raw %>%
                 ~ (ymd_hms(.,
                            tz = Sys.timezone() )
                 )))
- 
+
+
+
+pilot <- raw %>% 
+  filter(as.Date(starttime) == as.Date("2024-10-09")) %>% 
+  filter(!is.na(gender))
+
+
+write_xlsx(pilot, path = file.path(data_path, "baseline_pilot_20241009.xlsx"))
 
 ## Date filter
+
 
 hfc_constr <- raw %>%
   filter(starttime >= as.Date("2024-11-11"))
@@ -96,7 +105,6 @@ hfc_constr <- hfc_constr %>%
     startdate              = lubridate::date(starttime),
     enddate                = lubridate::date(endtime)
   ) 
-
 
 
 
@@ -209,18 +217,21 @@ hfc_sheet %>%
 
 
 
-
-
-
 # 4. Data duplicates files ----
 
 duplicates <- hfc_constr %>% 
   filter(consent==1) %>% 
   group_by(hh_id) %>%  #household id
   mutate(n=n()) %>% 
-  filter(n>1) %>% 
-  select(enumerator,enumerator_key,district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, 
-         starttime, submissiondate, n)
+  filter(n>1) %>%  
+  ungroup() %>% 
+  select(enumerator,enumerator_key,district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, hh_head_name,A1_2, A1_3,
+         starttime, submissiondate, n) %>% 
+  rename(
+    grid_connect = A1_2,
+    offgrid_connect = A1_3
+  ) %>% 
+  arrange(desc(hh_id))
   
   
   
