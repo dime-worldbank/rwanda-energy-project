@@ -406,7 +406,7 @@ for(yr in years) {
 #Dropping electrified 2013----
 
 
-electrified <- electrified_year %>% 
+electrified <- electrification_status %>% 
   filter(electrified_2013 == 1)
 
 

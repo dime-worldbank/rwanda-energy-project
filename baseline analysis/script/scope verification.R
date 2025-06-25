@@ -20,8 +20,11 @@ data_path <- file.path(
 
 
 # Compare
-
-scope_villages <- read_xlsx(path = file.path(data_path, "Scope Villages.xlsx"))
+scope_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households"
+)
+scope_village <- read_xlsx(path = file.path(scope_path, "scope_193_0807.xlsx"))
 four_district <- read_xlsx(path = file.path(data_path,"data", "four_district_2408.xlsx" ))
 
 #Scope filter----
@@ -35,10 +38,7 @@ four_district <- read_xlsx(path = file.path(data_path,"data", "four_district_240
 rusizi_epc <- read_xlsx(path = file.path(data_path, "EPC-Rusizi_Scope Villages.xlsx"))
 
 
-rusizi_dime <- scope_treat %>% 
-  filter(
-    status == "newly"
-  ) %>% 
+rusizi_dime <- scope_village %>% 
   filter(
     district == "Rusizi"
   )
@@ -96,11 +96,48 @@ write_xlsx(rusizi_dime, path = file.path(data_path, "Rusizi_randomization_list.x
 
 
 
+#Rusizi EPC customer check-------
+
+rusizi_epc1 <- read_xls(path = "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/New EDCL List/Rusizi/EPC/Detailed customer list for EPC Rusizi..xls", sheet = "EPC RUSIZI-LOT_1")
+
+rusizi_epc2 <- read_xls(path = "C:/Users/wb614406/Dropbox/Rwanda Energy/EAQIP/New EDCL List/Rusizi/EPC/Detailed customer list for EPC Rusizi..xls", sheet = "EPC RUSIZI-LOT_2")
+
+rusizi_epc_customer <- rbind(rusizi_epc1, rusizi_epc2)
+
+rusizi_epc_customer <- rusizi_epc_customer %>% 
+  mutate(
+    across(
+      c(Village, Cell, Sector),
+      ~ str_to_title(.x)
+      
+    )) %>% 
+  rename(
+    village = Village,
+    cell = Cell,
+    sector = Sector
+  ) %>% 
+  mutate(
+    district = "Rusizi"
+  ) 
+
+village_join <- four_district %>% 
+  select(village_id, name, cell, sector, district) %>% 
+  rename(
+    village = name
+  
+  )
+
+rusizi_epc_customer <- rusizi_epc_customer %>% 
+  left_join(village_join, by = c("district", "sector", "cell", "village"))
+
+rusizi_epc_customer_village <- rusizi_epc_customer %>% 
+  distinct(district, sector, cell, village, .keep_all = TRUE) %>% 
+  select(district, sector, cell, village, village_id)
 
 
-
-
-
+rusizi_discrepency_epccustomer <- rusizi_dime %>% 
+  filter(!village_id %in% rusizi_epc_customer_village$village_id)
+write_xlsx(rusizi_discrepency_epccustomer, path = file.path(data_path, "Rusizi_EPC_customer_discrepency.xlsx"))
 
 #Karongi-----
 
