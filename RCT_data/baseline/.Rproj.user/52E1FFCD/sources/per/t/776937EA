@@ -3,7 +3,7 @@
     "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/scripts/6. Number approached for EDCl.R",
     "project_path": "scripts/6. Number approached for EDCl.R",
     "type": "r_source",
-    "hash": "1350365743",
+    "hash": "3050120339",
     "contents": "",
     "dirty": false,
     "created": 1748439424292.0,
@@ -13,15 +13,15 @@
         "tempName": "Untitled1",
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "90,3",
-        "scrollLine": "66"
+        "cursorPosition": "10,0",
+        "scrollLine": "7"
     },
     "folds": "",
-    "lastKnownWriteTime": 1749136713,
+    "lastKnownWriteTime": 1752788103,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1749136713725,
+    "last_content_update": 1752788103288,
     "read_only": false,
     "read_only_alternatives": []
 }

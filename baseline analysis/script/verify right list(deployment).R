@@ -34,6 +34,95 @@ data_path_2 <- file.path(
   "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households"
 )
 
+
+
+
+#Check rulindo-----
+
+complete  <- read_xlsx(path = file.path(data_path_2, "vulnerable households in sample villages.xlsx"))
+
+
+complete_second_round <- read_xlsx(path = file.path(data_path_2, "completed_second_round.xlsx")) %>% 
+  mutate(
+    hh_id = as.character(hh_id)
+  )
+
+
+complete <- left_join(complete, complete_second_round, by = c("household_id" = "hh_id"))
+
+
+complete_join <- complete %>% 
+  select(nid, `Approached by Lattanzio`, `Completed by Lattanzio`, `In Fully Completed village`, `Dropped from scope due to 15kv`, `Completed Second Round`)
+
+complete_join <- complete_join %>% 
+  mutate(complete_2 = ifelse(`Completed by Lattanzio` == "Yes" | `Completed Second Round` == "Yes", "Yes", "No")) %>% 
+  mutate(complete_2 = ifelse(is.na(complete_2), "No", complete_2)) 
+
+
+#Check rulindo----
+
+##epc----
+
+rulindo_epc <- read_xlsx(path = file.path(data_path_2, "Lot-Rulindo-20250601.xlsx"))
+
+rulindo_epc <- rulindo_epc %>% 
+  mutate(
+    nid = ifelse(nid == "1198780122610117,", "1198980075181012", nid)
+  ) %>% 
+  filter(is.na(scope))
+
+rulindo_epc <- left_join(rulindo_epc, complete_join, by = "nid")
+
+
+sum(rulindo_epc$complete_2 == "Yes", na.rm = TRUE)
+
+
+##dime----
+rulindo_15 <- complete %>% 
+  filter(`Dropped from scope due to 15kv` == "Yes") 
+
+rulindo_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rulindo.xlsx"),
+                          sheet = "household list")
+
+rulindo_dime_join <- left_join(rulindo_dime, complete_join, by = "nid") %>% 
+  filter(!villageid_key %in% rulindo_15$villageid_key) %>% 
+  filter(villageid_key %in% rulindo_epc$villageid_key)
+
+sum(rulindo_dime_join$complete_2 == "Yes", na.rm = TRUE)
+
+rulindo_check <- rulindo_dime_join %>% 
+  group_by(villageid_key) %>% 
+  summarise(
+    vulnerable_hh = n(),
+    complete = sum(complete_2 == "Yes", na.rm = TRUE)
+  )
+
+
+rulindo_check_epc <- rulindo_epc %>% 
+  group_by(villageid_key) %>% 
+  summarise(
+    readyboard_hh = n(),
+    complete_epc = sum(complete_2 == "Yes", na.rm = TRUE)
+  )
+
+
+rulindo_check <- left_join(rulindo_check, rulindo_check_epc, by = "villageid_key") 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #check rulindo 2
 
 rulindo_site2 <- read_xlsx(path = file.path(data_path_2, "Rulindo_Site2.xlsx"), sheet = "in_scope")

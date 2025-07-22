@@ -20,6 +20,7 @@ library(tidyverse)
 library(lubridate)
 library(googlesheets4)
 library(writexl)
+library(readxl)
 
 
 
@@ -173,8 +174,18 @@ hfc_constr <- hfc_constr %>%
         TRUE   ~ as.numeric(.x)
       )
     )
-  )
+  ) 
 
+
+hfc_constr <- hfc_constr %>%
+  mutate(
+    hh_id = as.character(hh_id),
+    hh_id = case_when(
+      hh_head_name == "Twizerimana Twizerimana" ~ "410702060516",
+      hh_head_name == "Jeanette  Nyirahabimana" ~ "320104070412",
+      TRUE ~ hh_id
+    )
+  )
 
 ## Duration by Module Overall
 duration_mods <- hfc_constr %>%
@@ -225,7 +236,7 @@ duplicates <- hfc_constr %>%
   mutate(n=n()) %>% 
   filter(n>1) %>%  
   ungroup() %>% 
-  select(enumerator,enumerator_key,district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, hh_head_name,A1_2, A1_3,
+  select(enumerator,enumerator_key,district, district_key, sector, sector_key, cell, cell_key, village, village_key, hh_id, hh_head_name, phonenumber, second_phonenumber, A1_2, A1_3,
          starttime, submissiondate, n) %>% 
   rename(
     grid_connect = A1_2,

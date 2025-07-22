@@ -64,7 +64,7 @@ outlier_check <- outlier_variables %>%
 ## Update variable names in outlier_check ----
 outlier_check <- outlier_check %>%
   mutate(
-    issue_var = case_when(
+    issue_var_label = case_when(
       issue_var == "F1_1" ~ "n_tablet",
       issue_var == "J1_final" ~ "wtp_fixed",
       issue_var == "J2_1" ~ "wtp_add_appliance",
@@ -77,8 +77,10 @@ outlier_check <- outlier_check %>%
       issue_var == "H8_7" ~ "n_lightbulb",
       TRUE ~ NA_character_
     )
-  )
-
+  ) %>% 
+  select(
+    hh_id, village, enumerator, enumerator_key, issue_var_label, issue_var, value, mean, sd, low_limit, high_limit
+  ) 
 
 #Export Data
 

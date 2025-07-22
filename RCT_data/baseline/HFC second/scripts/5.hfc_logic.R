@@ -112,10 +112,30 @@ low_length_check <- hfc_constr%>%
 
 
 
+#6. Not in deployment list----
+
+deployment_list <- read.csv(file.path(data_path, "household_head.csv"))
+
+not_in_deployment <- hfc_constr %>%
+  filter(!hh_id %in% deployment_list$household_id) %>%
+  mutate(issue = "Household not in deployment list")  %>% 
+  select(hh_id, village, village_key, enumerator, enumerator_key, submissiondate,issue)
+
+
+
+
+
+#7 Household surveyed last time----
+
+
+
+
+
+
 
 #7. Creat final dataset----
 
-logic_check <- rbind(formdef_check, elec_check, start_end_check, end_submission_check, negative_length_check, low_length_check, high_length_check)
+logic_check <- rbind(formdef_check, elec_check, start_end_check, end_submission_check, negative_length_check, low_length_check, high_length_check, not_in_deployment)
 
 
 # Export Data ----
@@ -143,6 +163,21 @@ hfc_sheet %>%
   sheet_write(data = logic_summary, sheet = "logic_summary")
 
 1
+
+#9. 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

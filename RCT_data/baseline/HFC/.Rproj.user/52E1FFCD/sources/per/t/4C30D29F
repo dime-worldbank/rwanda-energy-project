@@ -1,0 +1,27 @@
+{
+    "id": "4C30D29F",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/HFC/scripts/3.hfc_admin.R",
+    "project_path": "scripts/3.hfc_admin.R",
+    "type": "r_source",
+    "hash": "4110651684",
+    "contents": "",
+    "dirty": false,
+    "created": 1751910472334.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "300,0",
+        "scrollLine": "272",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1750784007,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1750784007,
+    "read_only": false,
+    "read_only_alternatives": []
+}

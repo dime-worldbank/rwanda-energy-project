@@ -528,3 +528,186 @@ ggplot(data = southern, color = "black", fill = NA) +
 
 
 
+# 
+# ##ISIC Regression-------
+# 
+# ###Cell-id-----
+# poisson_employee <- feglm(
+#   total_employee ~ usage:isic | village_id^year + cell_id^isic^year,
+#   family = "poisson",
+#   data =earp_did_nozero
+# )
+# 
+# 
+# poisson_establishment <- feglm(
+#   num_establishment ~ usage:isic | village_id^year + cell_id^isic^year,
+#   family = "poisson",
+#   data =earp_did_nozero
+# )
+# 
+# poisson_reg <- list(
+#     "num_establishment" = poisson_establishment,
+#     "total_employee" = poisson_employee
+#   )
+# 
+# 
+# modelsummary(
+#   poisson_reg, 
+#   output = "huxtable",
+#   stars = TRUE,
+#   fmt = 10 # show 10 digits after the decimal point
+# )
+# 
+# 
+# #absorbed isic----
+# 
+# 
+# poisson_employee <- fepois(
+#   total_employee ~ usage | village_id^year + cell_id^isic^year,
+#   data = earp_did_nozero
+# )
+# 
+# 
+# summary(poisson_employee)
+# 
+# poisson_establishment <- fepois(
+#   num_establishment ~ usage | village_id^year + cell_id^isic^year,
+#   data = earp_did_nozero
+# )
+# 
+# summary(poisson_establishment)
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# # ###feols----
+# # 
+# # 
+# # 
+# # poisson_employee_feols <- feols(
+# #   total_employee ~ usage:isic | village_id^year + isic^year,
+# #   data = earp_did_nozero
+# # )
+# # 
+# # summary(poisson_employee_feols)
+# # 
+# # 
+# # poisson_employee_boss <- fepois(
+# #   total_employee ~ usage:isic | cell_id^isic^year,
+# #   data = earp_did_nozero
+# # )
+# # 
+# # summary(poisson_employee_boss)
+
+
+
+
+#Poisson-----
+
+poisson_establishment <- feglm(
+  num_establishment ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did
+)
+
+summary(poisson_establishment)
+
+
+poisson_employee <- feglm(
+  total_employee ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did
+)
+
+summary(poisson_employee)
+
+
+##Poisson 3------
+
+poisson_establishment_3 <- feglm(
+  num_establishment ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_3
+)
+
+summary(poisson_establishment_3)
+
+
+poisson_employee_3 <- feglm(
+  total_employee ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_3
+)
+
+summary(poisson_employee_3)
+
+
+##Poisson 7----
+
+poisson_establishment_7 <- feglm(
+  num_establishment ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_7
+)
+
+summary(poisson_establishment_7)
+
+
+poisson_employee_7 <- feglm(
+  total_employee ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_7
+)
+
+summary(poisson_employee_7)
+
+
+##Poisson 19-----
+
+
+poisson_establishment_19 <- feglm(
+  num_establishment ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_19
+)
+
+summary(poisson_establishment_19)
+
+
+poisson_employee_19 <- feglm(
+  total_employee ~ p0_2014*`earp_mv or earp_lv` + p1_2017*`earp_mv or earp_lv` + p2_2020*`earp_mv or earp_lv`|
+    village_id + cell_year,
+  family = "poisson",
+  data =earp_did_19
+)
+
+summary(poisson_employee_19)
+
+
+poisson_reg <- list(
+  "num_establishment" = poisson_establishment,
+  "total_employee" = poisson_employee,
+  "establishment_isic3" = poisson_establishment_3,
+  "employee_isic_3" = poisson_employee_3,
+  "establishment_isic7" = poisson_establishment_7,
+  "employee_isic_7" = poisson_employee_7,
+  "establishment_isic19" = poisson_establishment_19,
+  "employee_isic_19" = poisson_employee_19
+)
+
+modelsummary(
+  poisson_reg, 
+  output = "huxtable",
+  stars = TRUE
+)
+

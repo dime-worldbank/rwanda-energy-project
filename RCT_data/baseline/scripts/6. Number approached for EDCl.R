@@ -111,6 +111,8 @@ village_check <- read_xlsx(path = file.path(scope_path, "HFC_REP_24 (1).xlsx"), 
 village_finish <- village_check %>% 
   filter(attempt == hh_head_06 | complete >= 20)
 
+
+
 households_clean <- households %>% 
   mutate(
     `In Fully Completed village` = ifelse(villageid_key %in% village_finish$villageid_key , "Yes", "No"),

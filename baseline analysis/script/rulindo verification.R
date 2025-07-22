@@ -157,27 +157,6 @@ rulindo_14_hh <- rulindo_readyboard %>%
 
 
 
-# 
-# #match village name-----
-# 
-# 
-# rulindo_224 <- rulindo_224 %>% 
-#   mutate(
-#     Cell = ifelse(Cell == "Rwiri", "Rwili", Cell)
-#   )
-# 
-# rulindo_224 <- left_join(rulindo_224, rulindo_village, by = c("District" = "District",
-#                                                                               "Sector" = "Sector",
-#                                                                               "Cell" = "Cell",
-#                                                                               "Village" = "Name"))
-# 
-# rulindo_224_village <- rulindo_224 %>% 
-#   distinct(Village_ID, District, Sector, Cell, Village)
-# 
-# rulindo_check <- rulindo_224_villages %>% 
-#   filter(Village_ID %in% rulindo_scope$Village_ID)
-
-
 
 
 
