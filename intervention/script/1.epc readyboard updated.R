@@ -1,0 +1,536 @@
+##################################
+#2025-8-28 new readyboard list for Karongi and Rutsiro
+
+
+
+pacman::p_load(knitr, stargazer, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, RCT, purrr, lfe, install = TRUE)
+library(googlesheets4)
+getwd()
+
+
+# Import Data ----
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/output"
+)
+
+data_path_1 <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data"
+)
+
+hfc_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/data"
+)
+
+
+data_path_2 <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households"
+)
+
+
+
+
+#Complete-----
+
+complete  <- read_xlsx(path = file.path(data_path_2, "survey status of vulnerable households in sample villages_final.xlsx"))
+
+complete_survey <- complete %>% 
+  filter(`Completed by Lattanzio` == "Yes")
+
+treatment_raw <- read_xlsx(path = file.path(data_path_2, "scope_193_0807.xlsx"))  
+
+View(treatment)
+treatment <- read_xlsx(path = file.path(data_path_2, "scope_193_0807.xlsx")) %>%
+  select(village_id, treat) %>%
+  filter(treat %in% c("T1", "T3"))
+
+complete_krr <- complete %>% 
+  mutate(across(c(district, sector, cell, village), ~ str_to_title(.))) %>%
+  filter(villageid_key %in% treatment$village_id) %>%
+  mutate(key = paste0(first_name, last_name, nid))
+
+
+## Rulindo----
+rulindo_epc_6 <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Beneficiary List of Rulindo.xlsx"))
+rulindo_epc_6 <- rulindo_epc_6 %>% 
+  mutate(
+    nid = ifelse(nid == "1198780122610117,", "1198980075181012", nid)
+  ) %>% 
+  mutate(readyboard = ifelse(is.na(scope), 1, 0)) %>% 
+  rename(comment = scope) %>% 
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+
+
+
+
+rulindo_epc_7 <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_7.xlsx"))
+
+rulindo_epc_7 <- rulindo_epc_7 %>%
+  clean_names() %>% 
+  rename(comment = comments) %>% 
+  mutate(readyboard = 1) %>% 
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  )
+
+  
+# rulindo_epc <- rbind(rulindo_epc_6, rulindo_epc_7) %>% 
+#   distinct(nid, .keep_all = TRUE)
+
+rulindo_epc <- rulindo_epc_6
+
+##Karongi----
+
+karongi_epc <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Copy of EPC-KARONGI-REDBOARD-CUSTOMER-LISTE-9.xlsx"), sheet = "EPC-KARONGI-CUSTO-REDBOARD") %>%
+  mutate(readyboard = 1,
+         comment = NA) %>% 
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+
+##Rutsiro=====
+
+
+
+rutsiro_epc<- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "EPC-RUTSIRO- REDBOARD-CUSTOMER-LISTE.xlsx"), sheet = "RUTSIRO-LOT1-REDBOARD") %>% 
+  mutate(readyboard = 1,
+         comment = NA) %>% 
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+
+
+
+
+
+
+##Rusizi----
+
+rusizi1_epc_scope <- read_xlsx(
+  path = file.path(data_path_2, "Readyboard EPC negotiation", "Beneficiary List of Rusizi_1 (Final).xlsx"),
+  sheet = "Within scope"
+) %>%
+  mutate(
+    readyboard = ifelse(`Status 1` %in% c("Available", "available"), 1, 0),
+    comment    = ifelse(`Status 1` %in% c("Available", "available"), "Within scope", "Outside of scope")
+  ) %>%
+  select(
+    villageid_key, village, cell, sector, district,
+    first_name, last_name, gender, nid,
+    readyboard, comment
+  )
+
+rusizi1_epc_noscope <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Beneficiary List of Rusizi_1 (Final).xlsx"), sheet = "Outside of scope") %>% 
+  mutate(readyboard = 0,
+         comment = "Outside of scope") %>%
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+
+rusizi1_epc <- rbind(rusizi1_epc_scope, rusizi1_epc_noscope)
+
+rusizi2_epc_scope <- read_xlsx(path = file.path(data_path_2,"Readyboard EPC negotiation",  "Beneficiary List of Rusizi_2 (Final).xlsx"), sheet = "Within scope") %>% 
+  mutate(readyboard = ifelse(`Status` == "Available", 1, 0),
+         comment = ifelse(`Status` == "Available", "Within scope", "Outside of scope")) %>%
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+rusizi2_epc_noscope <- read_xlsx(path = file.path(data_path_2,"Readyboard EPC negotiation",  "Beneficiary List of Rusizi_2 (Final).xlsx"), sheet = "Outside of scope") %>% 
+  mutate(readyboard = 0,
+         comment = "Outside of scope") %>%
+  select(
+    villageid_key, village, cell, sector, district, first_name, last_name, gender, nid, readyboard, comment
+  ) 
+
+rusizi2_epc <- rbind(rusizi2_epc_scope, rusizi2_epc_noscope)
+
+epc_join <- rbind(karongi_epc, rulindo_epc, rutsiro_epc, rusizi1_epc, rusizi2_epc) %>% 
+  mutate(
+    key = paste0(first_name, last_name, nid),
+    nid_epc = nid
+  ) %>% 
+  select(key, readyboard, comment, nid_epc) %>% 
+  left_join(complete_krr, epc_join, by = c("key" = "key")) %>%
+  mutate(
+    household_id = case_when(
+      nid_epc == "1195970047063046" ~ "411001060384",
+      nid_epc == "1198870126907080" ~ "411001060519",
+      nid_epc == "1198180147332076" ~ "411502040210",
+      TRUE ~ household_id
+    )
+  ) %>% 
+  distinct(household_id, .keep_all = TRUE) %>%
+  select(
+    household_id, readyboard, comment
+  )
+
+master <- full_join(complete_krr, epc_join) 
+
+dupes <- master %>%
+  filter(duplicated(key) | duplicated(key, fromLast = TRUE))
+
+master <- master %>%
+  distinct(key, .keep_all = TRUE)
+
+
+
+#Analysis-------
+
+
+
+master <- master %>%
+  filter(`Dropped from scope due to 15kv` == "No") %>% 
+  mutate(readyboard = ifelse(is.na(readyboard), 0, readyboard)) %>% 
+  mutate(
+    vulnerable = 1
+  ) %>% 
+  mutate(
+    lot = ifelse(villageid_key %in% rusizi1_dime_village$village_id, "Rusizi-1", 
+                 ifelse(villageid_key %in% rusizi2_dime_village$village_id, "Rusizi-2", district))
+  )
+
+
+master <- master %>% 
+  mutate(
+    surveyed = ifelse(household_id %in% complete_survey$household_id, 1, 0)
+  ) %>% 
+  mutate(
+    vulnerable = 1
+  ) 
+
+
+master_readyboard <- master %>%
+  group_by(villageid_key) %>%
+  filter(any(readyboard == 1, na.rm = TRUE)) %>%  # keep only villages with at least one readyboard
+  ungroup() %>%
+  group_by(lot) %>%
+  summarise(
+    n         = n(),                               # total rows in this lot after the filter
+    n_readyboard = sum(readyboard == 1, na.rm = TRUE),
+    village   = n_distinct(villageid_key),         # unique villages per lot
+    n_surveyed = sum(surveyed == 1, na.rm = TRUE), # count of complete == 1 per lot
+    n_surveyed_readyboard = sum(surveyed == 1 & readyboard == 1, na.rm = TRUE), 
+    .groups = "drop"
+  )
+
+analysis <- master %>% count(lot, readyboard, surveyed)
+
+
+
+
+#Rulindo number of readyboard recipients each village-----
+
+
+
+rulindo_readyboard_list <- master %>%
+  filter(district == "Rulindo",
+         villageid_key %in% rulindo_epc_6$villageid_key) %>%
+  group_by(villageid_key, village, cell, sector, district) %>%
+  summarise(readyboard_recipient = sum(readyboard == 1, na.rm = TRUE),
+            .groups = "drop")
+
+# total row
+total_row <- tibble(
+  villageid_key       = NA_character_,
+  village             = "Total",
+  cell                = NA_character_,
+  sector              = NA_character_,
+  district            = "Rulindo",
+  readyboard_recipient = sum(rulindo_readyboard_list$readyboard_recipient, na.rm = TRUE)
+)
+
+rulindo_readyboard_list_out <- bind_rows(rulindo_readyboard_list, total_row)
+
+write_xlsx(rulindo_readyboard_list_out,
+           path = file.path(data_path_2, "rulindo 6 villages readyboard recipient.xlsx"))
+
+#DIME files------
+
+
+
+# Read dime files------
+# 
+rulindo_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rulindo.xlsx"),
+                          sheet = "household list")
+rulindo_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rulindo.xlsx"),
+                                  sheet = "village list")
+
+rulindo_15 <- complete %>% 
+  filter(`Dropped from scope due to 15kv` == "Yes")
+
+rulindo_7_village <- rulindo_dime_village %>% 
+  filter(!village_id %in% rulindo_epc_6$villageid_key)%>% 
+  filter(!village_id %in% rulindo_15$villageid_key)
+
+rulindo_7_village_hh <- rulindo_dime %>% 
+  filter(!villageid_key %in% rulindo_epc_6$villageid_key)%>% 
+  filter(!villageid_key %in% rulindo_15$villageid_key)
+
+
+list <- list(
+  "village list" = rulindo_7_village,
+  "household list" = rulindo_7_village_hh
+)
+
+write_xlsx(list ,path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo 7 Villages with no readyboard.xlsx"))
+
+
+rutsiro_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rutsiro.xlsx"),
+                          sheet = "household list")
+rutsiro_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rutsiro.xlsx"),
+                                  sheet = "village list")
+
+
+karongi_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Karongi.xlsx"),
+                          sheet = "household list")
+karongi_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Karongi.xlsx"),
+                                  sheet = "village list")
+
+
+
+
+
+##Rusizi lot 1---------
+
+rusizi1_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                          sheet = "household list")
+rusizi1_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                                  sheet = "village list")
+
+##Rusizi lot 2-------
+
+
+rusizi2_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                          sheet = "household list")
+rusizi2_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                                  sheet = "village list")
+
+
+rusizi_dime_village <- rbind(rusizi1_dime_village, rusizi2_dime_village)
+
+rusizi_dime <- rbind(rusizi1_dime, rusizi2_dime)
+
+#Rutsiro left out-------
+
+
+
+rutsiro_left <- rutsiro_dime_village %>% 
+  filter(!village_id %in% rutsiro_epc$villageid_key)
+
+rutsiro_left_hh <- rutsiro_dime %>% 
+  filter(!villageid_key %in% rutsiro_epc$villageid_key)
+
+list <- list(
+  village = rutsiro_left,
+  vulnerable_household = rutsiro_left_hh
+)
+
+write_xlsx(list, path = file.path(data_path_2, "Readyboard EPC negotiation",  "Rutsiro", "Rutsiro 8 Villages with 0 Readyboard.xlsx"))
+
+
+#Rusizi left out-----
+
+rusizi_epc  <- rbind(rusizi1_epc_scope, rusizi2_epc_scope) %>% 
+  filter(readyboard == 1)
+
+rusizi_left <- rusizi_dime_village %>% 
+  filter(!village_id %in% rusizi_epc$villageid_key)
+
+rusizi_left_hh <- rusizi_dime %>% 
+  filter(!villageid_key %in% rusizi_epc$villageid_key)
+
+list <- list(
+  village = rusizi_left,
+  vulnerable_household = rusizi_left_hh
+)
+
+write_xlsx(list, path = file.path(data_path_2, "Readyboard EPC negotiation",  "Rusizi", "Rusizi 13 Villages with 0 Readyboard.xlsx"))
+
+
+#Karongi left out----
+
+karongi_left <- karongi_dime_village %>% 
+  filter(!village_id %in% karongi_epc$villageid_key)
+
+karongi_left_hh <- karongi_dime %>% 
+  filter(!villageid_key %in% karongi_epc$villageid_key)
+
+
+list <- list(
+  village = karongi_left,
+  vulnerable_household = karongi_left_hh
+)
+
+write_xlsx(list, path = file.path(data_path_2, "Readyboard EPC negotiation",  "Karongi", "Karongi 1 Villages with 0 Readyboard.xlsx"))
+
+#Rulindo left out----
+
+
+rulindo_left <- rulindo_dime_village %>% 
+  filter(!village_id %in% rulindo_epc_6$villageid_key) %>% 
+  filter(!village_id %in% rulindo_15$villageid_key)
+
+rulindo_left_hh <- rulindo_dime %>% 
+  filter(!villageid_key %in% rulindo_epc_6$villageid_key) %>% 
+  filter(!villageid_key %in% rulindo_15$villageid_key)
+
+
+
+list <- list(
+  village = rulindo_left,
+  vulnerable_household = rulindo_left_hh
+)
+
+write_xlsx(list, path = file.path(data_path_2, "Readyboard EPC negotiation",  "Rulindo", "Rulindo 7 Villages with 0 Readyboard.xlsx"))
+
+
+#Rusizi updated scope-----
+rwa_village <- st_read(dsn =  file.path(data_path_1, "rwa_villages", "Village.shp"))
+
+village_join <- rwa_village %>%
+  st_drop_geometry() %>% 
+  clean_names() %>%                                # makes column names snake_case
+  mutate(across(everything(), ~ str_to_title(.))) %>%  # converts all character cols to Title Case
+  select(village_id, name, cell, sector, district)     # keeps only the key variables
+
+rusizi_customer.1 <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Customers to be connected_RUSIZI LOT 1.xlsx"))
+rusizi_customer.2 <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Customers to be connected_RUSIZI LOT 2.xlsx"))
+
+rusizi_customer.1.updated <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", 
+                                                "Detailed customer list for EPC Rusizi.xlsx"), sheet = "EPC RUSIZI-LOT_1")
+rusizi_customer.2.updated <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi",
+                                                "Detailed customer list for EPC Rusizi.xlsx"), sheet = "EPC RUSIZI-LOT_2")
+
+rusizi_customer <- rbind(rusizi_customer.1.updated, rusizi_customer.2.updated) %>%
+  clean_names() %>%
+  mutate(district = "Rusizi") %>% 
+  mutate(across(everything(), ~ str_to_title(.))) %>%
+  distinct(village, sector, cell, district, .keep_all = TRUE) %>% 
+  left_join(village_join, by = c("village" = "name",
+                                 "cell"    = "cell",
+                                 "sector"  = "sector")) %>% 
+  mutate(
+    village_id = case_when(
+      # your existing fixes
+      village == "Sumayamana" ~ "36120405",
+      village == "Rugarama" & cell == "Karamereye" & sector == "Gashonga" ~ "36040605",
+      village == "Buzi"     & cell == "Gokomeye"   & sector == "Giheke"   ~ "36050201",
+      
+      # new Rusizi mappings
+      village == "Gakombe"   & cell == "Mushaka"   & sector == "Rwambogo"   ~ "36180301",
+      village == "Ntenyi"    & cell == "Rubugu"    & sector == "Rwambogo"   ~ "36180402",
+      village == "Gatare"    & cell == "Rubugu"    & sector == "Rwambogo"   ~ "36180401",
+      village == "Musigiti"  & cell == "Muhehwe"   & sector == "Rwambogo"   ~ "36180203",
+      village == "Rubamba"   & cell == "Ruganda"   & sector == "Rwambogo"   ~ "36180503",
+      village == "Rubamba"   & cell == "Ruganda"   & sector == "Muganza"    ~ "36180503",
+      village == "Bunamba"   & cell == "Rasano"    & sector == "Bweyeye"    ~ "36030501",
+      village == "Busasamana"& cell == "Shara"     & sector == "Gitambi"    ~ "36100301",
+      village == "Rwimisave" & cell == "Nyamuzi"   & sector == "Bweyeye"    ~ "36030404",
+      village == "Mayebe"    & cell == "Murwa"     & sector == "Bweyeye"    ~ "36030301",
+      village == "Makoko"    & cell == "Kiziho"    & sector == "Butare"     ~ "36150403",
+      village == "Cyamura"   & cell == "Mashyuza"  & sector == "Gitambi"    ~ "36150501",
+      village == "Karambo"   & cell == "Shangasha" & sector == "Gihundwe"   ~ "36060605",
+      village == "Gasharu"   & cell == "Shangasha" & sector == "Gihundwe"   ~ "36060602",
+      village == "Kamanura"  & cell == "Gatare"    & sector == "Nyakarenzo" ~ "36160401",
+      village == "Gatare"    & cell == "Rusayo"    & sector == "Gashonga"   ~ "36040301",
+      village == "Kinanira"  & cell == "Gatare"    & sector == "Nkungu"     ~ "36140404",
+      
+      TRUE ~ village_id
+    )
+  )
+
+# 
+# rusizi_customer_village <- rbind(rusizi_customer.1_village, rusizi_customer.2_village) %>% 
+#   filter(!is.na(village_id))
+# 
+# rusizi_customer_village_na<- rbind(rusizi_customer.1_village, rusizi_customer.2_village) %>% 
+#   filter(is.na(village_id))
+# 
+# write_xlsx(rusizi_customer_village_na, path = file.path(data_path_2, "rusizi_customer_na_village.xlsx"))
+
+# rusizi_scope.1 <- rusizi1_dime_village %>% 
+#   filter(!village_id %in% rusizi_customer.1_village$village_id)
+# 
+# rusizi_scope.2 <- rusizi2_dime_village %>% 
+#   filter(!village_id %in% rusizi_customer.2_village$village_id)
+
+
+treatment_rusizi <- treatment_raw %>% 
+  filter(district == "Rusizi")
+
+rusizi_out_scope <- treatment_rusizi %>% 
+  filter(!village_id %in% rusizi_customer$village_id)
+
+rusizi_out_scope <- rusizi_out_scope %>% 
+  select(
+    village_id, province, district, sector, cell, name, nep_revision, scope_2407, hh_head_06, customer, lot, treat
+  ) 
+
+
+rusizi_scope_surveyed <- complete %>% 
+  filter(villageid_key %in% rusizi_out_scope$village_id)  %>% 
+  group_by(villageid_key) %>% 
+  summarise(surveyed = sum(`Completed by Lattanzio` == "Yes")) 
+
+rusizi_out_scope <- left_join(rusizi_out_scope, rusizi_scope_surveyed, by = c("village_id" = "villageid_key")) 
+
+write_xlsx(rusizi_out_scope, path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Rusizi 30 villages not found in Scope.xlsx"))
+
+rusizi_table <- rusizi_out_scope %>% 
+  group_by(treat) %>% 
+  summarise(
+    n = n(),
+    surveyed = sum(surveyed)
+  ) %>% 
+  mutate(
+    treat_content = case_when(treat == "C" ~ "ControL",
+                              treat == "T1" ~ "Readyboard",
+                              treat == "T2" ~ "SHS",
+                              treat == "T3" ~ "Readyboard and SHS")
+  ) %>% 
+  select(treat, treat_content, everything())
+
+
+
+rusizi_pm.1  <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Rusizi PM.xlsx"), sheet = "Lot 1")
+rusizi_pm.2  <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Rusizi PM.xlsx"), sheet = "Lot 2")
+
+rusizi_pm <- bind_rows(rusizi_pm.1, rusizi_pm.2) %>% 
+  mutate(
+    across(c(District, Sector),
+           ~ na_if(str_squish(as.character(.)), ""))
+  ) %>%
+  fill(District, Sector, .direction = "down") %>% 
+  filter(District != "Total") %>% 
+  clean_names() %>% 
+  left_join(village_join, by = c("village" = "name",
+                                 "cellule" = "cell",
+                                 "sector"  = "sector")) 
+
+
+
+rusizi_pm_epc <- rusizi_pm %>% 
+  filter(!village_id %in% rusizi_customer$village_id)
+
+rusizi_pm_epc <- rusizi_customer %>% 
+  filter(!village_id %in% rusizi_pm$village_id)
+
+write_xlsx(rusizi_pm_epc, path = file.path(data_path_2, "Rusizi EPC scope villages not on PM list.xlsx"))
+rusizi_dime_village_check <- rusizi_dime_village %>% 
+  filter(!village_id %in% rusizi_pm$village_id)
+
+
+
+
+
+
+
+
+ 
