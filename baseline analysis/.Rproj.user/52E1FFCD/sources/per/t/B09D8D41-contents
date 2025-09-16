@@ -1,0 +1,591 @@
+##############
+#Author: Xiaoming Zhang
+#Date: 2.25.2025
+#Purpose: Baseline analysis presentaiton
+#############
+
+
+pacman::p_load(knitr, stargazer, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, RCT, purrr, lfe)
+library(googlesheets4)
+getwd()
+
+
+# Import Data ----
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+hfc_data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/data"
+)
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/baseline analysis/output"
+)
+
+data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/baseline analysis/data"
+)
+
+
+hfc_constr_raw <- read_xlsx(file.path(hfc_output_path, "hfc_constr_0728.xlsx"))
+
+hfc_constr.1 <- hfc_constr_raw %>% 
+  filter(consent == 1) %>%
+  filter(!is.na(A1_1)) %>%
+  distinct(hh_head_name, hh_id, A1_2, A1_3, .keep_all = TRUE) %>%
+  filter(village %in% village_181$villageid_key) %>%
+  group_by(hh_id) %>%
+  arrange(desc(hh_head_name %in% complete_status$hh_head_name)) %>% 
+  slice(1) %>%
+  ungroup()
+
+
+
+hfc_plot<- hfc_constr.1 %>% 
+  mutate(
+    asset_index = C3_1 + C3_2 + C3_3
+    + C3_4 + C3_5 + C3_6 + C3_7 + C3_8
+    + C3_9 + C3_10 +C3_11 + C3_12 + C3_13
+  ) %>% 
+  mutate(
+    wtp_12 = J4_2*12,
+    wtp_24 = J5_2*24
+  ) %>% 
+  mutate(across(c("J1_final", # wtp_fixed
+                  "J2_1",     # wtp_fixed_appliance
+                  "J3_1"     # wtp_fixed_low_reliability
+  ), ~ pmax(.x, 1000)))  %>% 
+  rename(
+    fixed_system = J1_final,
+    appliance = J2_1,
+    low_reliability = J3_1,
+    lightbulb = J6_1
+  ) %>%  mutate(
+    lightbulb = pmax(lightbulb, 100)
+  ) %>%   
+  mutate(
+    lightbulb_win = ifelse(lightbulb >= 2000, 2000, lightbulb),
+    appliance_win = ifelse(appliance >= 125000, 125000, appliance),
+    wtp_12_win = ifelse(wtp_12 >= 125000, 125000, wtp_12)
+  ) 
+
+
+
+
+
+
+#Appliances----
+mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system)
+appliance <- ggplot(hfc_plot, aes(x = appliance_win)) +
+  geom_histogram(aes(y = ..count.. / sum(..count..)),
+                 binwidth = 2500,       # Each bin covers 2,500
+                 boundary = 0,         # Ensures the first bin starts at 0
+                 fill = "lightblue",
+                 color = "black",
+                 alpha = 0.7) +
+  geom_vline(xintercept = 96000, 
+             color = "blue", 
+             linetype = "dashed", 
+             size = 1.5) +
+  labs(
+    x = "Grid WTP (RwF)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 28, face = "bold"),
+    axis.title.x = element_text(size = 26),
+    axis.title.y = element_text(size = 26),
+    axis.text.x = element_text(size = 24),
+    axis.text.y = element_text(size = 24)
+  )
+
+
+
+appliance
+
+sum(hfc_plot$appliance >= 96000)
+
+ggsave(file.path(output_path, "0729_analysis", "plot1_appliance.jpeg"), 
+       plot = appliance, 
+       device = "jpeg", 
+       width = 16, 
+       height = 8, 
+       dpi = 300,
+       scale = 0.5)
+
+
+
+
+#wtp_12----
+sum(hfc_plot$wtp_12*(mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system)) >= 96000)
+
+wtp_12 <- ggplot(hfc_plot, aes(x = wtp_12_win)) +
+  geom_histogram(aes(y = ..count.. / sum(..count..)),
+                 binwidth = 2500,       # Each bin covers 2,500
+                 boundary = 0,         # Ensures the first bin starts at 0
+                 fill = "lightblue",
+                 color = "black",
+                 alpha = 0.7) +
+  geom_vline(xintercept = 96000, 
+             color = "blue", 
+             linetype = "dashed", 
+             size = 1.5) +
+  labs(
+    x = "Grid WTP over 12 month (RwF)",
+    y = ""
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 28, face = "bold"),
+    axis.title.x = element_text(size = 26),
+    axis.title.y = element_text(size = 26),
+    axis.text.x = element_text(size = 24),
+    axis.text.y = element_text(size = 24)
+  )
+
+wtp_12
+
+ggsave(file.path(output_path, "0729_analysis", "plot2_wtp_12.jpeg"), 
+       plot = wtp_12, 
+       device = "jpeg", 
+       width = 16, 
+       height = 8, 
+       dpi = 300,
+       scale = 0.5)
+
+
+
+#lightbulb----
+
+
+lightbulb <- ggplot(hfc_plot, aes(x = lightbulb_win)) +
+  geom_histogram(aes(y = ..count.. / sum(..count..)),
+                 binwidth = 100,       # Each bin covers 2,500
+                 boundary = 0,         # Ensures the first bin starts at 0
+                 fill = "lightblue",
+                 color = "black",
+                 alpha = 0.7) +
+  geom_vline(xintercept = 300, 
+             color = "blue", 
+             linetype = "dashed", 
+             size = 1.5) +
+  labs(
+    x = "Stated Lighting Demand \n (RwF/month)",
+    y = "",
+    title = ""
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 28, face = "bold"),
+    axis.title.x = element_text(size = 26),
+    axis.title.y = element_text(size = 26),
+    axis.text.x = element_text(size = 24),
+    axis.text.y = element_text(size = 24)
+  )
+
+lightbulb
+
+ggsave(file.path(output_path, "0729_analysis", "plot3_lightbulb.jpeg"), 
+       plot = lightbulb, 
+       device = "jpeg", 
+       width = 16, 
+       height = 8, 
+       dpi = 300,
+       scale = 0.5)
+
+
+
+#Regression analysis----
+
+wtp_regress <- hfc_plot %>% 
+  mutate(hh = row_number()) %>% 
+  select(hh, appliance, low_reliability, lightbulb, village) %>% 
+  pivot_longer(
+    cols = c("appliance", "low_reliability"),
+    values_to = "wtp",
+    names_to = "grid"
+  ) %>% 
+  mutate(
+    grid  = ifelse(grid == "appliance", 1, 0)  ) %>% 
+  rename(
+    `energy demand` = lightbulb
+  ) 
+
+
+wtp_nov <- lm(log(wtp) ~ grid + log(`energy demand`) + grid * log(`energy demand`), data = wtp_regress)
+summary(wtp_nov)
+
+wtp_v <- felm(log(wtp) ~ grid + log(`energy demand`) + grid * log(`energy demand`)|village, data = wtp_regress)
+summary(wtp_v)
+
+regs <- list(
+ wtp_nov, wtp_v
+)
+
+table_tex <- capture.output(
+  stargazer( 
+    regs,
+    type = "latex", 
+    title = "Regression Results", 
+    omit.stat = c("rsq", "adj.rsq", "ser", "f"), # removes R2, Adj R2, Std. Error, F-stat
+    add.lines = list(
+      c("Observations", nobs(wtp_nov), nobs(wtp_v)),
+      c("Fixed Effects", "None", "Village FE")
+    )
+  )
+)
+
+# Write it to file
+writeLines(
+  table_tex,
+  file.path(output_path, "tables", "wtp_regression.tex")
+)
+
+#Scatter plot-----
+
+
+library(ggplot2)
+
+
+
+ggplot(
+  wtp_regress %>% 
+    mutate(grid = factor(grid, levels = c(1, 0), labels = c("Grid", "SHS"))),
+  aes(x = log(`energy demand`), y = log(wtp), color = grid)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "log(Stated Lighting Demand)",
+    y = "log(WTP)",
+    color = "System"
+  ) +
+  scale_color_manual(
+    values = c("Grid" = "steelblue", "SHS" = "darkorange")
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+
+#Edited new version for interpretable x and y axis
+library(scales)
+
+ggplot(
+  wtp_regress %>% 
+    mutate(grid = factor(grid, levels = c(1, 0), labels = c("Grid", "SHS"))),
+  aes(x = log(`energy demand`), y = log(wtp), color = grid)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "log(Stated Lighting Demand)",
+    y = "log(WTP)",
+    color = "System"
+  ) +
+  scale_x_continuous(
+    breaks = log(c(100, 500, 2500)), 
+    labels = c("100", "500", "2500")    # 3 nice bulb counts
+  ) +
+  scale_y_continuous(
+    breaks = log(c(500, 5000, 50000)), 
+    labels = comma(c(500, 5000, 50000))   # 3 nice WTP levels
+  ) +
+  scale_color_manual(values = c("Grid" = "steelblue", "SHS" = "darkorange")) +
+  theme_minimal(base_size = 14)
+
+
+ggplot(
+  wtp_regress %>% 
+    mutate(grid = factor(grid, levels = c(1, 0), labels = c("Grid", "SHS"))),
+  aes(x = log(`energy demand`), y = log(wtp), color = grid)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE, size = 1) +   # thicker lines
+  labs(
+    x = "log(Stated Lighting Demand)",
+    y = "log(WTP)",
+    color = "System"
+  ) +
+  scale_x_continuous(
+    breaks = log(c(100, 500, 2500)), 
+    labels = c("100", "500", "2500")    
+  ) +
+  scale_y_continuous(
+    breaks = log(c(500, 5000, 50000)), 
+    labels = scales::comma(c(500, 5000, 50000))
+  ) +
+  scale_color_manual(values = c("Grid" = "steelblue", "SHS" = "darkorange")) +
+  theme_minimal(base_size = 14)
+
+#Bar plot----
+
+#general well being----
+
+
+
+# Pivot the four variables of interest into long format
+well_long <- hfc_plot %>% 
+  select(B5_1, B5_5, B5_6, B5_8) %>% 
+  pivot_longer(
+    cols = everything(),
+    names_to = "var",
+    values_to = "wellbeing"
+  ) %>% 
+  mutate(
+    var = case_when(
+      var == "B5_1" ~ "Satisfaction with current economic status",
+      var == "B5_5" ~ "Satisfaction with energy use in phone charging",
+      var == "B5_6" ~ "Satisfaction with energy use in lighting",
+      var == "B5_8" ~ "Satisfaction with current energy status"
+    )
+  ) %>% 
+  filter(!is.na(wellbeing))
+
+# Calculate the mean for each variable
+mean_table <- well_long %>% 
+  group_by(var) %>% 
+  summarise(mean_val = mean(wellbeing, na.rm = TRUE))
+
+
+
+#Separate graphs-----
+
+
+
+# Get the distinct variable names from well_long
+var_list <- unique(well_long$var)
+
+
+
+
+for(v in var_list) {
+  # Filter the data for the current variable
+  data_v <- well_long %>% filter(var == v)
+  
+  # Compute the mean for the current variable
+  mean_v <- mean(data_v$wellbeing, na.rm = TRUE)
+  
+  # Create the plot with proportion on the y-axis, bins starting at 0, and x-axis breaks every 2
+  p <- ggplot(data_v, aes(x = wellbeing)) +
+    geom_histogram(aes(y = ..count.. / sum(..count..)),
+                   fill = "lightblue", color = "black", 
+                   binwidth = 1) +
+    geom_vline(xintercept = mean_v,
+               color = "red", linetype = "dashed", size = 1) +
+    annotate("text", x = mean_v, y = 0.65, label = round(mean_v, 2),
+             color = "red", hjust = -0.03, size = 8) +
+    scale_x_continuous(breaks = seq(1, 10, by = 2)) +
+    labs(
+      x = v,
+      y = ""
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 22, face = "bold", hjust = 0.5),
+      axis.text = element_text(size = 18)
+    )
+  
+  # Create a filename using the variable name (removing spaces)
+  filename <- paste0("plot_wellbeing_", gsub(" ", "_", v), ".jpeg")
+  
+  # Save the plot with the desired scale
+  ggsave(file.path(output_path, "0729_analysis", filename),
+         plot = p, device = "jpeg", 
+         width = 16, 
+         height = 8, 
+         dpi = 300,
+         scale = 0.5)
+}
+
+
+#Add least and most satisfied=======
+for (v in var_list) {
+  # Filter data for the current variable
+  data_v <- well_long %>%
+    dplyr::filter(var == v, !is.na(wellbeing))
+  
+  if (nrow(data_v) == 0L) next
+  
+  # Mean for the vertical line & label
+  mean_v <- mean(data_v$wellbeing, na.rm = TRUE)
+  
+  # Fixed Likert-style 1–10 range
+  xmin <- 1
+  xmax <- 10
+  x_ticks <- 1:10   # includes 2,4,6,8 as well
+  
+  # Compute y position for the mean label
+  counts <- table(factor(round(data_v$wellbeing), levels = xmin:xmax))
+  props  <- as.numeric(counts) / sum(counts)
+  y_max  <- ifelse(length(props) && max(props, na.rm = TRUE) > 0, max(props, na.rm = TRUE), 1)
+  y_lab  <- y_max * 0.9
+  
+  # Keep the text from hanging off the edge
+  hjust_val <- ifelse(mean_v > (xmin + xmax) / 2, 1.05, -0.05)
+  
+  p <- ggplot(data_v, aes(x = wellbeing)) +
+    geom_histogram(
+      aes(y = ..count.. / sum(..count..)),
+      fill = "lightblue", color = "black",
+      binwidth = 1, boundary = 0.5
+    ) +
+    geom_vline(xintercept = mean_v, color = "red", linetype = "dashed", size = 1) +
+    annotate("text",
+             x = mean_v, y = y_lab, label = round(mean_v, 2),
+             color = "red", hjust = hjust_val, size = 6
+    ) +
+    scale_x_continuous(
+      breaks = x_ticks,
+      limits = c(xmin - 0.5, xmax + 0.5)
+    ) +
+    labs(x = v, y = "") +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 22, face = "bold", hjust = 0.5),
+      axis.text  = element_text(size = 18)
+    )
+  
+  # Create a filename using the variable name (removing spaces)
+  filename <- paste0("plot_wellbeing_", gsub(" ", "_", v), ".jpeg")
+  
+  ggsave(
+    file.path(output_path, "0729_analysis", filename),
+    plot = p, device = "jpeg",
+    width = 16, height = 8, dpi = 300, scale = 0.5
+  )
+}
+
+
+
+for (v in var_list) {
+  # Filter data for the current variable
+  data_v <- well_long %>%
+    dplyr::filter(var == v, !is.na(wellbeing))
+  
+  if (nrow(data_v) == 0L) next
+  
+  # Mean for the vertical line & label
+  mean_v <- mean(data_v$wellbeing, na.rm = TRUE)
+  
+  # Fixed Likert-style 1–10 range
+  xmin <- 1
+  xmax <- 10
+  x_ticks <- 1:10
+  
+  # Compute y position for the mean label
+  counts <- table(factor(round(data_v$wellbeing), levels = xmin:xmax))
+  props  <- as.numeric(counts) / sum(counts)
+  y_max  <- ifelse(length(props) && max(props, na.rm = TRUE) > 0, max(props, na.rm = TRUE), 1)
+  y_lab  <- y_max * 0.9
+  
+  # Keep the text from hanging off the edge
+  hjust_val <- ifelse(mean_v > (xmin + xmax) / 2, 1.05, -0.05)
+  
+  p <- ggplot(data_v, aes(x = wellbeing)) +
+    geom_histogram(
+      aes(y = ..count.. / sum(..count..)),
+      fill = "lightblue", color = "black",
+      binwidth = 1, boundary = 0.5
+    ) +
+    geom_vline(xintercept = mean_v, color = "red", linetype = "dashed", size = 1) +
+    annotate("text",
+             x = mean_v, y = y_lab, label = round(mean_v, 2),
+             color = "red", hjust = hjust_val, size = 6
+    ) +
+    scale_x_continuous(
+      breaks = x_ticks,
+      limits = c(xmin - 0.5, xmax + 0.5),
+      labels = c("Least \nsatisfied", "2", "3", "4", "5", "6", "7", "8", "9", "Most \nsatisfied")
+    ) +
+    labs(x = v, y = "") +
+    theme_void() +
+    theme(
+      axis.title = element_text(size = 22, face = "bold", hjust = 0.5),
+      axis.text  = element_text(size = 16)  # slightly smaller for long labels
+    )
+  
+  # Create a filename using the variable name (removing spaces)
+  filename <- paste0("plot_wellbeing_", gsub(" ", "_", v), ".jpeg")
+  
+  ggsave(
+    file.path(output_path, "0729_analysis", filename),
+    plot = p, device = "jpeg",
+    width = 16, height = 8, dpi = 300, scale = 0.5
+  )
+}
+
+
+
+
+
+
+for (v in var_list) {
+  # Filter data for the current variable
+  data_v <- well_long %>%
+    dplyr::filter(var == v, !is.na(wellbeing))
+  
+  if (nrow(data_v) == 0L) next
+  
+  # Mean for the vertical line & label
+  mean_v <- mean(data_v$wellbeing, na.rm = TRUE)
+  
+  # Fixed Likert-style 1–10 range
+  xmin <- 1
+  xmax <- 10
+  
+  # Tick marks: only evens for x
+  x_ticks <- seq(2, 10, by = 2)
+  x_labels <- c("2", "4", "6", "8", "Most satisfied")  # last one special
+  
+  # Compute y position for the mean label
+  counts <- table(factor(round(data_v$wellbeing), levels = xmin:xmax))
+  props  <- as.numeric(counts) / sum(counts)
+  y_max  <- ifelse(length(props) && max(props, na.rm = TRUE) > 0, max(props, na.rm = TRUE), 1)
+  y_lab  <- y_max * 0.9
+  
+  # hjust for mean label
+  hjust_val <- ifelse(mean_v > (xmin + xmax) / 2, 1.05, -0.05)
+  
+  p <- ggplot(data_v, aes(x = wellbeing)) +
+    geom_histogram(
+      aes(y = ..count.. / sum(..count..)),
+      fill = "lightblue", color = "black",
+      binwidth = 1, boundary = 0.5
+    ) +
+    geom_vline(xintercept = mean_v, color = "red", linetype = "dashed", size = 1) +
+    annotate("text",
+             x = mean_v, y = y_lab, label = round(mean_v, 2),
+             color = "red", hjust = hjust_val, size = 6
+    ) +
+    scale_x_continuous(
+      breaks = x_ticks,
+      limits = c(xmin - 0.5, xmax + 0.5),
+      labels = x_labels
+    ) +
+    scale_y_continuous(
+      breaks = seq(0, 1, by = 0.2),   # only 0.2, 0.4, 0.6, 0.8, 1.0
+      limits = c(0, 0.6)
+    ) +
+    labs(x = v, y = "Proportion") +
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 22, face = "bold", hjust = 0.5),
+      axis.text  = element_text(size = 16),
+      panel.grid.major = element_line(color = "grey70", size = 1.2),
+      panel.grid.minor = element_blank()
+    )
+  
+  # Create a filename using the variable name (removing spaces)
+  filename <- paste0("plot_wellbeing_", gsub(" ", "_", v), ".jpeg")
+  
+  ggsave(
+    file.path(output_path, "0729_analysis", filename),
+    plot = p, device = "jpeg",
+    width = 16, height = 8, dpi = 300, scale = 0.5
+  )
+}
+

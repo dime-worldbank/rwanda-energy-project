@@ -1,0 +1,36 @@
+
+% Table created by stargazer v.5.2.3 by Marek Hlavac, Social Policy Institute. E-mail: marek.hlavac at gmail.com
+% Date and time: Mon, Sep 08, 2025 - 3:54:06 PM
+\begin{table}[!htbp] \centering 
+  \caption{Regression Results} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}}lcc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & \multicolumn{2}{c}{\textit{Dependent variable:}} \\ 
+\cline{2-3} 
+\\[-1.8ex] & \multicolumn{2}{c}{log(wtp)} \\ 
+\\[-1.8ex] & \textit{OLS} & \textit{felm} \\ 
+\\[-1.8ex] & (1) & (2)\\ 
+\hline \\[-1.8ex] 
+ grid & 0.487$^{***}$ & 0.487$^{***}$ \\ 
+  & (0.081) & (0.077) \\ 
+  & & \\ 
+ log(`energy demand`) & 0.219$^{***}$ & 0.164$^{***}$ \\ 
+  & (0.037) & (0.037) \\ 
+  & & \\ 
+ grid:log(`energy demand`) & 0.545$^{***}$ & 0.545$^{***}$ \\ 
+  & (0.052) & (0.050) \\ 
+  & & \\ 
+ Constant & 7.175$^{***}$ &  \\ 
+  & (0.057) &  \\ 
+  & & \\ 
+\hline \\[-1.8ex] 
+Observations & 3946 & 3946 \\ 
+Fixed Effects & None & Village FE \\ 
+Observations & 3,946 & 3,946 \\ 
+\hline 
+\hline \\[-1.8ex] 
+\textit{Note:}  & \multicolumn{2}{r}{$^{*}$p$<$0.1; $^{**}$p$<$0.05; $^{***}$p$<$0.01} \\ 
+\end{tabular} 
+\end{table} 

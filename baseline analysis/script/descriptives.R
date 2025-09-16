@@ -18,9 +18,14 @@ hfc_data_path <- file.path(
   "Rwanda Energy/EAQIP/datawork/HFC/data"
 )
 
+hfc_output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/output"
+)
+
 output_path <- file.path(
   dropbox,
-  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/output"
+  "Rwanda Energy/EAQIP/datawork/baseline analysis/output"
 )
 
 
@@ -31,21 +36,26 @@ screening_data_path <- file.path(
 
 data_path <- file.path(
   dropbox,
-  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/data"
+  "Rwanda Energy/EAQIP/datawork/baseline analysis/data"
 )
 
-hfc_constr <- read_xlsx(file.path(hfc_data_path, "hfc_constr.xlsx"))
+hfc_constr_raw <- read_xlsx(file.path(hfc_output_path, "hfc_constr_0728.xlsx"))
 
-hfc_constr <- hfc_constr %>% 
-  filter(finish == 1) %>% 
+
+data_path_2 <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households"
+)
+
+
+complete_status <- read_xlsx(path = file.path(data_path_2, "vulnerable households in sample villages.xlsx")) 
+
+hfc_constr <- hfc_constr_raw %>% 
+  # filter(finish == 1) %>% 
   filter(consent == 1) %>% 
   filter(!is.na(A1_1)) %>% 
   distinct(hh_head_name, hh_id, A1_2, A1_3, .keep_all = TRUE)
 
-write_xlsx(hfc_constr, path = file.path(screening_data_path, "hfc_constr.xlsx"))
-
-duration <- hfc_constr %>% 
-  select(ends_with("duration"))
 
 #1. Roster----
 
@@ -54,7 +64,7 @@ head_roster <- hfc_constr %>% select(starttime, endtime, submissiondate, enumera
                                    district, sector, cell, village, hh_id, consent,
                                    
                                    #household head roster
-                                   starts_with("A1"), hh_head_name, gender, gender_label, marital, head_age_calculate, education,education_label, high_edu,  high_edu_label,starts_with("A2"),
+                                   starts_with("A1"), hh_head_name, gender, gender_label, marital, marital_label, head_age_calculate, education, education_label, high_edu, high_edu_label, starts_with("A2"),
                                    starts_with("A3")
                                    )
                                    
@@ -198,7 +208,7 @@ member_roster <- member_roster %>%
   )
 
 # View the resulting long format data
-head(long_member_roster)
+head(member_roster)
 
 
 ##Head Salary----
@@ -239,13 +249,15 @@ head_primary <- head_salary %>%
       A2_5_label == "Half Year" ~ round(A2_4/(6*4),2),
       A2_5_label == "Year" ~ round(A2_4/(12*4),2)
     )
-  ) %>% 
+  ) %>%
   mutate(
     A2_4_week = ifelse(
       A2_4_week > quantile(A2_4_week, 0.99, na.rm = TRUE),
       quantile(A2_4_week, 0.99, na.rm = TRUE), A2_4_week
     ) 
-  )%>% 
+  )
+
+head_primary_summary <- head_primary%>% 
   summarise(
     mean = round(mean(A2_4_week, na.rm = TRUE),2),
     sd = round(sd(A2_4_week, na.rm = TRUE),2),
@@ -265,8 +277,8 @@ head_secondary <- head_salary %>%
   filter(A3_6_label != "Other") %>% 
   mutate(
     A3_5_week = case_when(
-      A3_6_label == "Hour" ~ A3_5 * primary_hour * primary_day,
-      A3_6_label == "Day"  ~ A3_5 * primary_week,
+      A3_6_label == "Hour" ~ A3_5 * secondary_hour * secondary_day,
+      A3_6_label == "Day"  ~ A3_5 * secondary_week,
       A3_6_label == "Week" ~ A3_5 ,
       A3_6_label == "2 Weeks" ~ round(A3_5/2,2),
       A3_6_label == "Month" ~ round(A3_5/4,2),
@@ -281,7 +293,9 @@ head_secondary <- head_salary %>%
       A3_5_week > quantile(A3_5_week, 0.99, na.rm = TRUE),
       quantile(A3_5_week, 0.99, na.rm = TRUE), A3_5_week
     ) 
-  )%>% 
+  )
+
+head_secondary_summary <- head_secondary %>% 
   summarise(
     mean = round(mean(A3_5_week, na.rm = TRUE),2),
     sd = round(sd(A3_5_week, na.rm = TRUE),2),
@@ -341,7 +355,9 @@ member_primary <- member_salary %>%
       A4_5_week > quantile(A4_5_week, 0.99, na.rm = TRUE),
       quantile(A4_5_week, 0.99, na.rm = TRUE), A4_5_week
     ) 
-  )%>% 
+  )
+
+member_primary_summary <- member_primary %>% 
   summarise(
     mean = round(mean(A4_5_week, na.rm = TRUE),2),
     sd = round(sd(A4_5_week, na.rm = TRUE),2),
@@ -361,8 +377,8 @@ member_secondary <- member_salary %>%
   filter(A5_6_label != "Other") %>% 
   mutate(
     A5_5_week = case_when(
-      A5_6_label == "Hour" ~ A5_5 * primary_hour * primary_day,
-      A5_6_label == "Day"  ~ A5_5 * primary_week,
+      A5_6_label == "Hour" ~ A5_5 * secondary_hour * secondary_day,
+      A5_6_label == "Day"  ~ A5_5 * secondary_week,
       A5_6_label == "Week" ~ A5_5 ,
       A5_6_label == "2 Weeks" ~ round(A5_5/2,2),
       A5_6_label == "Month" ~ round(A5_5/4,2),
@@ -377,7 +393,9 @@ member_secondary <- member_salary %>%
       A5_5_week > quantile(A5_5_week, 0.99, na.rm = TRUE),
       quantile(A5_5_week, 0.99, na.rm = TRUE), A5_5_week
     ) 
-  )%>% 
+  )
+
+member_secondary_summary <- member_secondary %>% 
   summarise(
     mean = round(mean(A5_5_week, na.rm = TRUE),2),
     sd = round(sd(A5_5_week, na.rm = TRUE),2),
@@ -393,16 +411,62 @@ member_secondary <- member_salary %>%
   )
 
 
-salary_summary <- bind_rows(head_primary, head_secondary, member_primary, member_secondary)
+salary_summary <- bind_rows(head_primary_summary, head_secondary_summary, member_primary_summary, member_secondary_summary)
+
+
+
+###Try to get the total for households-----
+
+# Step 1: Group member-level salary by hh_id
+member_primary_hh <- member_primary %>%
+  group_by(hh_id) %>%
+  summarise(member_primary = sum(A4_5_week, na.rm = TRUE), .groups = "drop")
+
+member_secondary_hh <- member_secondary %>%
+  group_by(hh_id) %>%
+  summarise(member_secondary = sum(A5_5_week, na.rm = TRUE), .groups = "drop")
+
+# Step 2: Head primary and secondary (already at hh_id level)
+head_primary_hh <- head_primary %>%
+  select(hh_id, head_primary = A2_4_week)
+
+head_secondary_hh <- head_secondary %>%
+  select(hh_id, head_secondary = A3_5_week)
+
+# Step 3: Combine all income components into one table
+household_income <- head_primary_hh %>%
+  full_join(head_secondary_hh, by = "hh_id") %>%
+  full_join(member_primary_hh, by = "hh_id") %>%
+  full_join(member_secondary_hh, by = "hh_id") %>%
+  mutate(across(-hh_id, ~ replace_na(.x, 0))) %>%
+  mutate(
+    total_weekly_income = head_primary + head_secondary + member_primary + member_secondary
+  )
+
+household_income_summary <- household_income %>%
+  summarise(
+    mean   = round(mean(total_weekly_income, na.rm = TRUE), 2),
+    sd     = round(sd(total_weekly_income, na.rm = TRUE), 2),
+    min    = min(total_weekly_income, na.rm = TRUE),
+    max    = max(total_weekly_income, na.rm = TRUE),
+    median = median(total_weekly_income, na.rm = TRUE)
+  ) %>%
+  mutate(
+    var_winsorized99 = "Total household salary (Rwf/week)"
+  ) %>%
+  select(var_winsorized99, everything())
+
+
+salary_summary <- bind_rows(
+  salary_summary,
+  household_income_summary
+)
+
 
 descriptives_sheet %>% 
   sheet_write(
     data = salary_summary, sheet = "salary_summary"
   )
-
-
-
-
 
 #2.Energy section-----
 
@@ -434,9 +498,9 @@ energy_other <- hfc_constr %>%
     H3_1_label == "Other/None"
   )
 
-# write_xlsx(energy_other, path = file.path(output_path, "energy_other_translate.xlsx"))
+write_xlsx(energy_other, path = file.path(output_path, "energy_other_translate.xlsx"))
 
-energy_other_translate <- read_xlsx(path = file.path(output_path, "energy_other_translate.xlsx"))
+energy_other_translate <- read_xlsx(path = file.path(output_path, "energy_other_categorized.xlsx"))
 
 energy_other_translate <- energy_other_translate %>%
   filter(hh_id %in% hfc_constr$hh_id) %>% 
@@ -612,6 +676,10 @@ descriptives_sheet %>%
 
 
 ##Lighting----
+
+
+
+
 primary_light_energy <- hfc_constr %>% 
   group_by(H7_1_label) %>% 
   summarise(
@@ -1445,8 +1513,15 @@ fuel_prep <- cookstove%>%
   ) 
 
 
+
+
+  
+
 descriptives_sheet %>% 
   sheet_write(data = fuel_prep, sheet = "Fuel prep time")
+
+
+
 
 
 

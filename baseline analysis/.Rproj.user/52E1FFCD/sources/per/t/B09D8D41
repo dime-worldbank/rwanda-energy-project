@@ -1,0 +1,28 @@
+{
+    "id": "B09D8D41",
+    "path": "~/GitHub/rwanda-energy-project/baseline analysis/script/3. Willingness to pay.R",
+    "project_path": "script/3. Willingness to pay.R",
+    "type": "r_source",
+    "hash": "585017036",
+    "contents": "",
+    "dirty": false,
+    "created": 1757444644435.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "323,0",
+        "scrollLine": "287",
+        "docOutlineVisible": "0",
+        "docOutlineSize": "222"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1757456205,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1757456205715,
+    "read_only": false,
+    "read_only_alternatives": []
+}
