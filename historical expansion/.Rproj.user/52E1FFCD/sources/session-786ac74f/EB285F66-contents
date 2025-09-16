@@ -1,0 +1,159 @@
+#######################################
+#Purpose: First stage on electrified
+#Author: XIAOMING ZHANG
+#Date: September 10th 2025
+######################################################
+pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
+
+getwd()
+
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+)
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+)
+
+
+#Read files-----
+
+
+expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
+
+
+expansion_join_drop4 <- expansion_join %>% 
+  filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
+  anti_join(earp_existing_mv, by = c("village_id" = "Village_ID")) %>% 
+  filter(electrified_year > 2013)
+
+# Run regressions for electrification status in 2011, 2014, 2017, 2020
+electrified_2011 <- felm(electrified_2011 ~ `EARP` | cell_id | 0 | sector_id,
+                         data = expansion_join_drop4)
+summary(electrified_2011)
+
+electrified_2014 <- felm(electrified_2014 ~ `EARP` | cell_id | 0 | sector_id,
+                         data = expansion_join_drop4)
+summary(electrified_2014)
+
+electrified_2017 <- felm(electrified_2017 ~ `EARP` | cell_id | 0 | sector_id,
+                         data = expansion_join_drop4)
+summary(electrified_2017)
+
+
+electrified_2020 <- felm(electrified_2020 ~ `EARP` | cell_id | 0 | sector_id,
+                         data = expansion_join_drop4)
+summary(electrified_2020)
+
+
+# Collect results
+regs <- list(
+  "2011" = electrified_2011,
+  "2014" = electrified_2014,
+  "2017" = electrified_2017,
+  "2020" = electrified_2020
+)
+
+# Stargazer output
+stargazer(
+  regs,
+  output = file.path(output_path, "electrified.tex"),
+  title  = "Regression Results: Electrification by Year"
+)
+
+
+# Function to compute mean for a given variable when earp == 0
+compute_mean <- function(df, var, na.rm = TRUE) {
+  stopifnot(var %in% names(df))
+  x <- df[[var]]
+  if (!is.numeric(x)) x <- as.numeric(x)
+  mean(x, na.rm = na.rm)
+}
+
+
+mean_vals <- c(
+  compute_mean(expansion_join_drop4,   "electrified_2011"),
+  compute_mean(expansion_join_drop4,   "electrified_2014"),
+  compute_mean(expansion_join_drop4,   "electrified_2017"),
+  compute_mean(expansion_join_drop4,   "electrified_2020")
+  
+)
+
+# Format as LaTeX line
+latex_mean_line <- paste(
+  "Mean &",
+  paste(sprintf("%.3f", mean_vals), collapse = " & "),
+  "\\"
+)
+
+print(latex_mean_line)
+
+
+
+#Graph----
+
+
+years <- 2014:2022
+
+coef_df <- map_dfr(years, function(y) {
+  dep <- paste0("electrified_", y)
+  if (!dep %in% names(expansion_join_drop4)) return(NULL)
+  
+  f <- as.formula(paste0(dep, " ~ EARP"))
+  m <- lm(f, data = expansion_join_drop4)
+  
+  cf <- coef(m)
+  intercept <- unname(cf["(Intercept)"])
+  beta_earp <- unname(cf["EARP"])
+  
+  tibble(
+    year = y,
+    intercept = intercept,
+    beta_earp = beta_earp,
+    pred_EARP0 = intercept,              # baseline
+    pred_EARP1 = intercept + beta_earp   # baseline + effect of EARP
+  )
+})
+
+# reshape for plotting
+plot_df <- coef_df %>%
+  select(year, pred_EARP0, pred_EARP1) %>%
+  pivot_longer(c(pred_EARP0, pred_EARP1),
+               names_to = "group", values_to = "value") %>%
+  mutate(group = recode(group,
+                        pred_EARP0 = "EARP = 0",
+                        pred_EARP1 = "EARP = 1"))
+
+
+p <- ggplot(plot_df, aes(x = year, y = value, color = group)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_text(aes(label = round(value, 3)),
+            vjust = -0.8,
+            size = 4) +
+  scale_x_continuous(breaks = years) +
+  labs(x = "Electrified Year", y = "Probility of eletrification", color = NULL,
+       title = "") +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.title = element_text(size = 16, face = "bold"),
+    axis.text  = element_text(size = 14),
+    legend.text = element_text(size = 14),
+    legend.position = "top",
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA)
+  )
+
+p
+
+# Save to output path
+ggsave(
+  filename = file.path(output_path, "linear_model_predictions.png"),
+  plot = p,
+  width = 10, height = 6, dpi = 300, bg = "white"
+)
+

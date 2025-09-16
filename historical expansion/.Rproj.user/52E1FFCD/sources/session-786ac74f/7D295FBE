@@ -1,0 +1,29 @@
+{
+    "id": "7D295FBE",
+    "path": "~/GitHub/rwanda-energy-project/historical expansion/script/2.EARP.R",
+    "project_path": "script/2.EARP.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1758035380368.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "562,23",
+        "scrollLine": "536",
+        "docOutlineVisible": "1",
+        "docOutlineSize": "222"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1757715559,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1758043266314,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,326 @@
+#############################################################
+#Purpose: Getting the main data ready
+#Author:Xiaoming Zhang
+#Date: September 10th 2025
+###################################################################
+
+
+
+
+pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
+
+getwd()
+
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+data_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+)
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+)
+
+rwa_villages <- st_read(dsn = file.path(data_path, "rwa_villages", "Village.shp"))
+rwa_villages <- st_make_valid(rwa_villages)
+
+rwa_district <- st_read(dsn = file.path(data_path, "rwa_district", "District.shp"))
+rwa_cell <- st_read(dsn = file.path(data_path, "rwa_cell", "Cell.shp"))
+
+
+rwa_cell_output <- rwa_cell %>% 
+  st_drop_geometry() %>% 
+  select(District, Sector, Name) %>% 
+  rename(Cell = Name)
+
+write_xlsx(rwa_cell_output, path = file.path(output_path, "Rwanda Cells.xlsx"))
+rwa_villages <- st_read(dsn = file.path(data_path, "rwa_villages", "Village.shp"))
+rwa_villages <- st_make_valid(rwa_villages)
+
+
+#Earp MV----
+earp_planned_mv <- st_read(dsn = file.path(data_path, "shapefiles", "earp_plannedMV.shp"))
+
+earp_planned_mv <- st_transform(earp_planned_mv, crs = st_crs(rwa_villages))
+
+
+village_mv_earp <- st_intersection(rwa_villages, earp_planned_mv)
+
+village_mv_earp <- village_mv_earp %>%
+  mutate(length_m = st_length(.)) %>%
+  group_by(Village_ID) %>%
+  summarise(
+    mv_length = sum(length_m, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    earp_mv       = if_else(mv_length > units::set_units(0, "m"), 1, 0),
+    earp_mv_300   = if_else(mv_length >= units::set_units(300, "m"), 1, 0)
+  ) %>% 
+  rename(
+    village_id = Village_ID
+  ) %>% 
+  st_drop_geometry()
+
+
+
+#Earp LV----
+
+earp_planned_lv <- st_read(dsn = file.path(data_path, "shapefiles", "earp_plannedLV.shp"))
+
+earp_planned_lv <- st_transform(earp_planned_lv, crs = st_crs(rwa_villages))
+
+
+village_lv_earp <- st_intersection(rwa_villages, earp_planned_lv)
+
+village_lv_earp <- village_lv_earp %>% 
+  mutate(length_m = st_length(.)) %>%
+  group_by(Village_ID) %>%
+  summarise(
+    lv_length = sum(length_m, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    earp_lv       = if_else(lv_length > units::set_units(0, "m"), 1, 0),
+    earp_lv_300   = if_else(lv_length>= units::set_units(300, "m"), 1, 0)
+  ) %>% 
+  rename(
+    village_id = Village_ID
+  ) %>% 
+  st_drop_geometry()
+
+
+#mv_2011----
+
+mv_2011 <- st_read(dsn = file.path( data_path, "Existing Electrical Network_2011", "Existing_MVLine.shp"))
+
+mv_2011 <- st_transform(mv_2011, crs = st_crs(rwa_district))
+
+
+mv_2011 <- st_intersection(mv_2011, rwa_villages)
+
+mv_2011 <- mv_2011 %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    mv_2011 = 1
+  )
+
+#earp_existing_mv----
+
+earp_existing_mv <- st_read(dsn = file.path(data_path, "shapefiles", "earp_existingMV.shp"))
+
+earp_existing_mv <- st_transform(earp_existing_mv, crs = st_crs(rwa_villages))
+
+earp_existing_mv <- st_intersection(earp_existing_mv, rwa_villages)
+
+earp_existing_mv <- earp_existing_mv %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    earp_existing_mv = 1
+  )
+
+#mv_2022----
+
+
+mv_2022 <- st_read(dsn = file.path( data_path, "Existing Electrical Network_2022", "Existing_MVLine.shp"))
+
+mv_2022 <- st_transform(mv_2022, crs = st_crs(rwa_villages))
+
+mv_2022 <- st_intersection(mv_2022, rwa_villages)
+
+mv_2022 <- mv_2022 %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    mv_2022 = 1
+  )
+
+
+
+#lv_2022----
+
+
+
+lv_2022 <- st_read(dsn = file.path( data_path, "Existing Electrical Network_2022", "Existing_LVLine.shp"))
+
+lv_2022 <- st_transform(lv_2022, crs = st_crs(rwa_villages))
+
+lv_2022 <- st_intersection(lv_2022, rwa_villages)
+
+lv_2022 <- lv_2022 %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    lv_2022 = 1
+  )
+
+#Infrastructure:Cell Office----
+
+infra <- st_read(dsn = file.path(data_path, "shapefiles", "infrastructure.shp"))
+
+infra <- st_transform(infra , crs = st_crs(rwa_villages))
+
+
+##Cell_office----
+
+cell_office_sf <- infra %>% 
+  filter(Infra_Type == "Cell_Office")
+
+cell_office <- st_intersection(cell_office_sf, rwa_villages)
+
+cell_office <- cell_office %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    cell_office = 1
+  ) %>% 
+  st_drop_geometry() %>% 
+  select(Village_ID, cell_office)
+
+
+##Primary_school-----
+
+primary_school_sf <- infra %>% 
+  filter(Infra_Type == "Primary_School")
+
+primary_school <- st_intersection(primary_school_sf, rwa_villages)
+
+primary_school <- primary_school %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    primary_school = 1
+  ) %>% 
+  st_drop_geometry() %>% 
+  select(Village_ID, primary_school)
+
+
+##Health center------
+
+health_center_sf <- infra %>% 
+  filter(Infra_Type == "Health_Centre")
+
+health_center <- st_intersection(health_center_sf, rwa_villages)
+
+health_center <- health_center %>% 
+  distinct(Village_ID) %>% 
+  mutate(
+    health_center = 1
+  ) %>% 
+  st_drop_geometry() %>% 
+  select(Village_ID, health_center)
+
+
+
+
+#Utility electrification ----
+
+utility <- read_xlsx(path = file.path(data_path, "usage_id_0416.xlsx"))
+
+
+electrification_status_year_long <- utility %>% 
+  filter(!is.na(meter_installed_year)) %>% 
+  group_by(village_id) %>%
+  summarise(
+    electrified_year = min(meter_installed_year, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+year_range <- 2011:2022  # adjust to your range
+village_years <- expand_grid(
+  village_id = unique(electrification_status_year$village_id),
+  year = year_range
+)
+
+# Step 3: Join with electrification year and assign 1 if year >= electrified_year
+electrified_long <- village_years %>%
+  left_join(electrification_status_year, by = "village_id") %>%
+  mutate(
+    electrified = ifelse(year >= electrified_year, 1, 0)
+  ) %>%
+  select(village_id, year, electrified)
+
+
+electrification_status_year <- electrified_long %>%
+  pivot_wider(
+    names_from = year,
+    values_from = electrified,
+    names_prefix = "electrified_"
+  )  %>% 
+  left_join(electrification_status_year_long)
+
+utility_long  <- utility %>% 
+  pivot_longer(
+    cols = matches("^\\d{4}_usage$"),
+    names_to = "year",
+    names_pattern = "(\\d{4})_usage",
+    values_to = "usage"
+  ) %>% 
+  group_by(village_id, year) %>% 
+  summarise(usage = sum(usage, na.rm = TRUE), .groups = "drop") %>% 
+  select(village_id, year, usage) %>% 
+  mutate(year = as.numeric(year))
+
+
+
+#nep status----
+
+nep <- read_xlsx(path = file.path(data_path, "FINAL_LIST_OF_REVISED_NEP_VILLAGES_JULY_2023-PUBLISHED (3).xlsx"))
+
+nep <- nep %>% 
+  mutate(village_id = as.character(Code_vil_1)) %>% 
+  rename(nep = `NEP Revision July 2023`) %>% 
+  select(
+    Province, District, Sector, Cellule, Village, village_id, nep
+  )
+
+#JOIN together----
+
+expansion_join <- left_join(nep, electrification_status_year, by = c("village_id"))
+
+expansion_join <- left_join(expansion_join, village_lv_earp, by = c("village_id"))
+
+expansion_join <- left_join(expansion_join, village_mv_earp, by = c("village_id" ))
+
+expansion_join <- left_join(expansion_join, mv_2022, by =  c("village_id" = "Village_ID"))
+
+expansion_join <- left_join(expansion_join, lv_2022, by =  c("village_id" = "Village_ID"))
+
+expansion_join <- left_join(expansion_join, cell_office, by = c("village_id" = "Village_ID"))
+
+expansion_join <- left_join(expansion_join, health_center, by = c("village_id" = "Village_ID"))
+
+expansion_join <- left_join(expansion_join, primary_school, by = c("village_id" = "Village_ID"))
+
+expansion_join <- left_join(expansion_join, earp_existing_mv, by = c("village_id" = "Village_ID"))
+
+expansion_join <- expansion_join %>% 
+  mutate(
+    mv_length = as.numeric(mv_length),
+    lv_length = as.numeric(lv_length)
+  ) %>% 
+  mutate(
+    mv_length = mv_length/1000,
+    lv_length = lv_length/1000
+  ) %>% 
+  mutate(across(
+    -all_of(c("Province", "District", "Sector", "Cellule", "Village", "village_id", "nep")), 
+    ~ replace_na(.x, 0)
+  )) 
+
+
+expansion_join <- expansion_join %>% 
+  mutate(
+    nep_grid = ifelse(nep %in% c("GE", "Fill In"), 1, 0),
+    cell_id = substr(village_id, 1, 6),
+    sector_id = substr(village_id, 1, 4),
+    district_id = substr(village_id, 1, 2),
+  )
+
+expansion_join <- expansion_join %>% 
+  mutate(
+    `EARP`  = ifelse(earp_lv == 1 | earp_mv == 1, 1, 0)
+  )
+
+
+write_xlsx(expansion_join, path = file.path(output_path, "expansion_join.xlsx"))
+write_xlsx(electrification_status_year, path = file.path(output_path, "electrification_status_year.xlsx"))
