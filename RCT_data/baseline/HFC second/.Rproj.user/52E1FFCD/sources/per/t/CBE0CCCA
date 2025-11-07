@@ -1,0 +1,26 @@
+{
+    "id": "CBE0CCCA",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/HFC second/scripts/6.hfc_enum.R",
+    "project_path": "scripts/6.hfc_enum.R",
+    "type": "r_source",
+    "hash": "1570824061",
+    "contents": "",
+    "dirty": false,
+    "created": 1754318002282.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "133,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1754344040,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1754344040461,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,24 @@
+{
+    "id": "F1116959",
+    "path": "~/GitHub/rwanda-energy-project/RCT_data/baseline/scripts/Rusizi meter.R",
+    "project_path": "scripts/Rusizi meter.R",
+    "type": "r_source",
+    "hash": "2297685342",
+    "contents": "",
+    "dirty": false,
+    "created": 1757601771830.0,
+    "source_on_save": false,
+    "relative_order": 6,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1727809821,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1727809821,
+    "read_only": false,
+    "read_only_alternatives": []
+}
