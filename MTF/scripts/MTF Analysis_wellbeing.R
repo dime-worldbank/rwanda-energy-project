@@ -1,0 +1,12 @@
+library(tidyverse)
+library(dplyr)
+library(here)
+library(stringr)
+library(haven)
+library(lmtest)
+library(fixest)
+library(kableExtra)
+library(stargazer)
+library(modelsummary)
+
+getwd()

@@ -26,6 +26,30 @@ output_path <- file.path(
 expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
 
 
+#Infrastructure results-----
+
+
+### DATA VALIDATION 1: 2011 ELECTRIFICATION STATUS IS PREDICTED BY electrific
+### SAMPLE ADJUSTMENT: RESTRICT SAMPLE TO electrified as of 2013 = 0, electrific = F (NEW!!!, remove it),
+###                      NO MV LINES, ....
+### PREDICTION: RESTRICTING TO CELLS THAT ARE EITHER (a) NOT ALL NOT EARP AND NOT ALL EARP IN SAMPLE
+###               RUN fegls LOGIT WITH CELL FE ON EACH INFRA TYPE
+###               --> PREDICTIONS OF EARP PROBABILITY AS FUNCTION OF CELL AND INFRA TYPE
+###               --> "PRED_EARP" = predict(feglsoutput)
+### IDENTIFICATION TEST: regression of 2011 establishment census outcomes on EARP + PRED_EARP | CELL FE yields balance wrt EARP
+### ESTIMATION: event studies of EARP * 2014 + EARP * 2017 + EARP * 2020 + PRED_EARP * 2014 + PRED_EARP * 2017 + PRED_EARP * 2020 | CELLxYEAR FE + VILLAGE FE
+
+
+
+
+
+
+
+
+
+
+
+#Electrified first stage---------
 expansion_join_drop4 <- expansion_join %>% 
   filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
   anti_join(earp_existing_mv, by = c("village_id" = "Village_ID")) %>% 
@@ -58,37 +82,54 @@ regs <- list(
   "2020" = electrified_2020
 )
 
-# Stargazer output
-stargazer(
-  regs,
-  output = file.path(output_path, "electrified.tex"),
-  title  = "Regression Results: Electrification by Year"
-)
-
 
 # Function to compute mean for a given variable when earp == 0
-compute_mean <- function(df, var, earp_var = "`EARP`") {
-  earp_col <- gsub("^`|`$", "", earp_var) # remove backticks
-  mean(df[[var]][df[[earp_col]] == 0], na.rm = TRUE)
+compute_mean <- function(df, var, na.rm = TRUE) {
+  stopifnot(var %in% names(df))
+  x <- df[[var]]
+  if (!is.numeric(x)) x <- as.numeric(x)
+  mean(x, na.rm = na.rm)
 }
 
-mean_vals <- c(
-  compute_mean(expansion_join_drop4,   "electrified_2011"),
-  compute_mean(expansion_join_drop4,   "electrified_2014"),
-  compute_mean(expansion_join_drop4,   "electrified_2017"),
-  compute_mean(expansion_join_drop4,   "electrified_2020")
-  
-)
 
-# Format as LaTeX line
-latex_mean_line <- paste(
-  "Mean &",
-  paste(sprintf("%.3f", mean_vals), collapse = " & "),
-  "\\"
-)
 
-print(latex_mean_line)
 
+# assumes regs, output_path, expansion_join_drop4, and compute_mean() exist
+tf <- tempfile(fileext=".tex"); stargazer(regs, type="latex", out=tf, keep="^EARP$", keep.stat="n",
+                                          omit.stat=c("rsq","adj.rsq","ser","f","ll","aic","bic"), header=FALSE)
+
+
+sl <- readLines(tf); ei <- grep("^\\s*EARP\\s*&", sl); earp <- sl[ei]; se <- sl[ei+1]
+
+# reformat Observations with commas (stargazer prints without)
+Ns <- vapply(regs, function(m) tryCatch(stats::nobs(m), error=function(e) NA), numeric(1))
+
+obs <- paste("Observations &", paste(format(Ns, big.mark=","), collapse=" & "), "\\\\")
+
+mean_line <- paste("Mean &", paste(sprintf("%.3f", c(
+  compute_mean(expansion_join_drop4,"electrified_2011"),
+  compute_mean(expansion_join_drop4,"electrified_2014"),
+  compute_mean(expansion_join_drop4,"electrified_2017"),
+  compute_mean(expansion_join_drop4,"electrified_2020"))), collapse=" & "), "\\\\")
+
+writeLines(c(
+  "\\begin{table}[!htbp] \\centering",
+  "  \\caption{Regression Results: Electrification by Year}",
+  "  \\label{}",
+  "\\begin{tabular}{@{\\extracolsep{5pt}}lcccc}",
+  "\\\\[-1.8ex]\\hline","\\hline \\\\[-1.8ex]",
+  " & \\multicolumn{4}{c}{\\textit{Dependent variable:}} \\\\",
+  "\\cline{2-5}",
+  "\\\\[-1.8ex] & electrified\\_2011 & electrified\\_2014 & electrified\\_2017 & electrified\\_2020 \\\\",
+  "\\\\[-1.8ex] & (1) & (2) & (3) & (4)\\\\",
+  "\\hline \\\\[-1.8ex]",
+  earp, se, "  & & & & \\\\",
+  "\\hline \\\\[-1.8ex]",
+  obs, "FE: Cell ID & X & X & X & X \\\\", mean_line,
+  "\\hline","\\hline \\\\[-1.8ex]",
+  "\\textit{Note:}  & \\multicolumn{4}{r}{$^{*}$p$<0.1; $^{**}$p$<0.05; $^{***}$p$<0.01} \\\\",
+  "\\end{tabular}","\\end{table}"
+), file.path(output_path,"first_stage.tex"))
 
 
 #Graph----

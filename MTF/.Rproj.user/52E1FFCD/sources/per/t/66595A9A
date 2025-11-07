@@ -1,0 +1,27 @@
+{
+    "id": "66595A9A",
+    "path": "~/GitHub/rwanda-energy-project/MTF/scripts/MTF Analysis.R",
+    "project_path": "scripts/MTF Analysis.R",
+    "type": "r_source",
+    "hash": "3632267935",
+    "contents": "",
+    "dirty": false,
+    "created": 1753911908626.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "262,0",
+        "scrollLine": "260",
+        "docOutlineVisible": "1"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1754681037,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1754681037266,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,83 @@
+---
+title: "Power Calculation for Off-grid and Grid"
+author: "Xiaoming Zhang"
+date: "2023-10-04"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
+#library
+library(tidyverse)
+library(here)
+library(readxl)
+
+getwd()
+```
+
+# Wellbeing
+
+
+Standard deviation and minimum detectable effect come from the Lee et al. paper. Specifically the wellbeing measurement is in panel D: primary non-economic outpus- **D2 normalized life satisfaction**.
+
+Because the **D2 normalized life satisfaction** question was not gathered in baseline, standard deviation of the population was estimated as 1 in the paper. The mdf was obtained using regression results for pooled (round1 & round2) treatment effects on key outcomes (D2 in this case), and taking the mean of ITT and TOT groups.
+
+
+# Formula used for power calculation
+
+![Clustered sampling power calculation of sample size](here("data","power_calculation.jpg"))
+
+## Grid power calculation
+
+The grid calculation uses the number of villages involved in the EPC scope from data shared by Fatou on 10/4/2023. 
+
+#### Codes for calculation
+
+```{r, warning=FALSE}
+rho <- 0.5
+z <- 2.80 #alpha =  0.05, beta = 0.8
+
+signma <- 1 #paper assumed normal distribution because the wellbeing question was not asked baseline
+signma_sqr <- signma^2
+
+mdf <- 0.17  
+mdf_sqr <- mdf^2
+
+m1 <- 162 + 179 + 117 + 280 #number using villages in newest EPC scope
+
+n1 <- ((4 * z * signma_sqr) / mdf_sqr) * (1 + rho * (m1 - 1))
+```
+
+The sample hosuehold size needed to achieve minimum detectable effect for gird randomization is `round(n1, 0)`
+
+
+
+
+## Off-Grid power calculation
+
+The offgrid calculation uses the number of first priority villages in the off-grid priority list shared by Florien
+
+#### Codes for calculation
+
+```{r, warning=FALSE}
+rho <- 0.5
+z <- 2.80
+
+signma <- 1
+signma_sqr <- signma^2
+
+mdf <- 0.17
+mdf_sqr <- mdf^2
+
+m2 <- 621 # using numbers of first and second priority villages in the four districts
+
+n2 <- ((4 * z * signma_sqr) / mdf_sqr) * (1 + rho * (m2 - 1))
+
+```
+
+The sample household size needed to achieve minimum detectable effect for off-grid randomization is `round(n2, 0)`
+
+
+

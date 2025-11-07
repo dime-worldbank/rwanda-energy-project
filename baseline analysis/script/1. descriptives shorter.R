@@ -19,7 +19,7 @@ hfc_data_path <- file.path(
 )
 
 hfc_output_path <- file.path(
-  dropbox,
+  dropbox, 
   "Rwanda Energy/EAQIP/datawork/HFC/output"
 )
 
@@ -348,6 +348,11 @@ head_primary <- head_salary %>%
     )
   )
 
+# head_primary_join <- head_primary %>% 
+#   select(hh_id, A2_4_week)
+# 
+# hfc_constr <- left_join(hfc_constr, head_primary_join)
+
 head_primary_summary <- head_primary%>% 
   summarise(
     mean = round(mean(A2_4_week, na.rm = TRUE),2),
@@ -387,6 +392,15 @@ head_secondary <- head_salary %>%
       A3_6_label == "Year" ~ round(A3_5_winsor / (12 * 4), 2)
     )
   )
+
+
+
+
+
+# head_secondary_join <- head_secondary %>% 
+#   select(hh_id, A3_5_week)
+# 
+# hfc_constr <- left_join(hfc_constr, head_secondary_join)
 
 head_secondary_summary <- head_secondary %>%
   summarise(
@@ -454,6 +468,7 @@ member_primary <- member_salary %>%
     )
   )
 
+
 member_primary_summary <- member_primary %>%
   summarise(
     mean   = round(mean(A4_5_week, na.rm = TRUE), 2),
@@ -493,6 +508,12 @@ member_secondary <- member_salary %>%
     )
   )
 
+# member_secondary_join <- member_secondary %>% 
+#   select(hh_id, A5_5_week) %>% 
+#   group_by(hh_id) %>% 
+#   summarise(A5_5_week = sum(A5_5_week, na.rm = TRUE))
+# 
+# hfc_constr <- left_join(hfc_constr, member_secondary_join)
 
 member_secondary_summary <- member_secondary %>%
   summarise(
@@ -507,9 +528,21 @@ member_secondary_summary <- member_secondary %>%
   ) %>%
   select(var_winsorized95, everything())
 
+# week_var <- c(
+#   "A2_4_week" ,
+#   "A3_5_week" ,
+#   "A4_5_week" ,
+#   "A5_5_week"
+# )
+# 
+# hfc_constr <- hfc_constr %>% 
+#   mutate(
+#     across(all_of(week_var), ~ replace(.x, is.na(.x), 0))
+#   )
 
-
-
+# 
+# check <- hfc_constr %>% 
+#   select(all_of(week_var))
 salary_summary <- bind_rows(head_primary_summary, head_secondary_summary, member_primary_summary, member_secondary_summary)
 
 
@@ -546,7 +579,7 @@ household_income_join <- household_income %>%
   select(total_weekly_income, hh_id) %>% 
   mutate(total_monthly_income = total_weekly_income*4)
 
-hfc_constr <- left_join(hfc_constr, household_income_join)
+# hfc_constr <- left_join(hfc_constr, household_income_join)
 
 household_income_summary <- household_income %>%
   summarise(
@@ -573,8 +606,14 @@ salary_summary <- bind_rows(
 ## Savings-----
 
 savings_var <- c(
-  "E1_5", "E2_3", "E3_3", "E4_2"
+  "E1_5", #amount of savings in mobile 
+  "E2_3",# amount of savings in formal
+  "E3_3",#amount of savings in informal
+  "E4_2" #Amount borrowed 
 )
+
+
+
 savings <- hfc_constr %>% 
   select(hh_id, formal_savings, formal_savings_label, informal_savings, informal_savings_label, "E1_5", "E2_3", "E3_3", "E4_2", "E1_1", "E4_1")
 
@@ -586,7 +625,15 @@ savings_check <- savings %>%
       (E4_1 == 0 & !is.na(E4_2))
   )
 
+hfc_constr <- hfc_constr %>% 
+  mutate(across(
+    all_of(savings_var),
+    ~ replace(.x, is.na(.x), 0)
+  ))
 
+
+check <- hfc_constr %>% 
+  select(all_of(savings_var))
 savings <- savings %>% 
   mutate(across(
     all_of(savings_var),
@@ -649,7 +696,7 @@ savings_summary <- savings %>%
 total_savings <- savings %>% 
   select(hh_id, total_savings)
 
-hfc_constr <- left_join(hfc_constr, total_savings)
+# hfc_constr <- left_join(hfc_constr, total_savings)
 
 
 ##Mobile roster----
@@ -1056,6 +1103,55 @@ primary_light_energy <- hfc_constr %>%
     percentage = round((n / sum(n)) * 100, 2)  # 2 decimal places
   )
 
+
+library(dplyr)
+library(ggplot2)
+
+# Create grouped dataset
+plot_df <- primary_light_energy %>%
+  mutate(
+    category = case_when(
+      primary_lighting_energy == "Dry cell batteries/Electric Torch" ~ "Torch",
+      primary_lighting_energy == "Biomass(Charcoal/Wood）" ~ "Biomass",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  group_by(category) %>%
+  summarise(
+    n = sum(n),
+    percentage = round(sum(percentage), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n))
+
+# Plot
+primary_lighting_plot <- ggplot(plot_df, aes(x = reorder(category, -percentage), y = percentage)) +
+  geom_col(fill = "steelblue", width = 0.3) +
+  geom_text(aes(label = paste0(percentage, "%")),
+            vjust = -0.3, size = 4) +
+  labs(
+    title = "Primary Lighting Energy Source",
+    x = "",
+    y = "Percentage of Households"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text( hjust = 0.5),
+    axis.text = element_text(color = "black"),
+    axis.title.y = element_text(margin = margin(r = 10))
+  )
+
+primary_lighting_plot 
+
+ggsave(
+  file.path(output_path, "figures", "primary_lighting_bar.png"),   # file name
+  plot = primary_lighting_plot,                      # which plot to save
+  width = 6,                                         # width in inches
+  height = 4,                                        # height in inches
+  dpi = 300,                                         # high quality
+  scale = 0.6                                        # scale down by 60%
+)
+
 light_hour <- hfc_constr %>%
   select(H8_1, H8_2) %>%
   mutate(across(
@@ -1218,6 +1314,8 @@ wtp_var <- c(
   "wtp_24",
   "J6_1")
 
+sum(hfc_constr$J5_2 > 2500)
+
 wtp <- wtp %>% 
   mutate(across(
     wtp_var, 
@@ -1262,7 +1360,7 @@ wtp_summary <- wtp %>%
     var_winsorized99 = var
   )
 
-View(wtp_summary)‘
+View(wtp_summary)
 
 
 
@@ -1344,11 +1442,56 @@ fuel_prep <- cookstove%>%
   ) 
 
 
+#Write final hfc_constr----
+
+
+write_xlsx(hfc_constr, path = file.path(output_path, "hfc_constr_files",   paste0("hfc_constr_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")))
 
 
 
 
 
-
-
-
+# 
+# 
+# #7. Map of location---------
+# 
+# #Distance to the household and the surveyed poles
+# 
+# baseline_data <- file.path(dropbox,  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/data")
+# rwa_villages <- st_read(dsn = file.path(baseline_data, "rwa_villages", "Village.shp"))
+# rwa_villages <- st_make_valid(rwa_villages)
+# rwa_villages <- st_transform(rwa_villages, crs = 4326)
+# 
+# rwa_district <- st_read(dsn = file.path(baseline_data, "rwa_district", "District.shp"))
+# rwa_district <- st_make_valid(rwa_district)
+# rwa_district <- st_transform(rwa_district, crs = 4326)
+# 
+# sample_villages <- rwa_villages %>%
+#   mutate(District = str_to_title(District)) %>% 
+#   filter(District %in% c("Karongi", "Rutsiro", "Rulindo", "Rusizi"))
+# 
+# hfc_sf <- st_as_sf(hfc_constr, coords = c("coordinate.Longitude", "coordinate.Latitude"), crs = 4326)
+# hfc_sf <- st_make_valid(hfc_sf)
+# 
+# hfc_sf_kml <- hfc_sf %>%
+#   janitor::clean_names()  # optional, ensures safe field names
+# 
+# 
+# # Write to KML
+# st_write(hfc_sf, dsn = file.path(output_path, "hfc_points.kml"), driver = "KML", delete_dsn = TRUE)
+# 
+# 
+# 
+# p_map <- ggplot(data = sample_villages) +
+#   geom_sf(fill = NA, color = "lightgrey") +  
+#   geom_sf(data = rwa_district, fill = NA, color = "black") +
+#   geom_sf(data = hfc_sf, color = "red", size = 0.1) +
+#   theme_void()
+# 
+# # Save to your figures folder
+# ggsave(
+#   filename = file.path(output_path,  "figures", "sample_villages_map.png"),
+#   plot = p_map,
+#   width = 8, height = 6, dpi = 300
+# )
+# 

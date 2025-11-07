@@ -1,0 +1,450 @@
+#######################################
+#Purpose: elec15_17 as a control for analysis
+#Author: XIAOMING ZHANG
+#Date: September 10th 2025
+######################################################
+
+library(knitr)
+library(kableExtra)
+
+
+#Balance table--------
+
+balance_table <- function(data, treatment_vars, cluster, fe = NULL,
+                          outcomes = c("num_establishment", "total_employee"),
+                          extract_var = "elec15_17") {
+  
+  cluster_var <- enquo(cluster)
+  cluster_name <- quo_name(cluster_var)
+  
+  rhs_string <- paste(treatment_vars, collapse = " + ")
+  fe_string  <- if (!is.null(fe)) paste(fe, collapse = " + ") else "0"
+  
+  # helper function for significance stars
+  starify <- function(p) {
+    if (p < 0.001) return("***")
+    else if (p >= 0.001 & p < 0.01) return("**")
+    else if (p >= 0.01 & p < 0.05) return("*")
+    else if (p >= 0.05 & p < 0.1) return(".")
+    else return("")
+  }
+  
+  results <- list()
+  
+  for (outcome in outcomes) {
+    
+    # summary stats
+    summ_stats <- data %>%
+      group_by(.data[[extract_var]]) %>%
+      summarise(
+        mean = mean(.data[[outcome]]),
+        sd   = sd(.data[[outcome]]),
+        n    = n(),
+        .groups = "drop"
+      )
+    
+    # regression
+    fml <- as.formula(paste0(outcome, " ~ ", rhs_string, " | ", fe_string, " | 0 | ", cluster_name))
+    reg <- felm(fml, data = data)
+    reg_summary <- summary(reg)
+    
+    coef_row <- reg_summary$coefficients[extract_var, ]
+    diff_est <- coef_row["Estimate"]
+    diff_se  <- coef_row["Cluster s.e."]
+    p_value  <- coef_row["Pr(>|t|)"]
+    stars    <- starify(p_value)
+    
+    results[[length(results) + 1]] <- tibble(
+      outcome = outcome,
+      control = sprintf("%.2f (%.2f)",
+                        summ_stats$mean[summ_stats[[extract_var]] == 0],
+                        summ_stats$sd[summ_stats[[extract_var]] == 0]),
+      treated = sprintf("%.2f (%.2f)",
+                        summ_stats$mean[summ_stats[[extract_var]] == 1],
+                        summ_stats$sd[summ_stats[[extract_var]] == 1]),
+      N_control = summ_stats$n[summ_stats[[extract_var]] == 0],
+      N_treated = summ_stats$n[summ_stats[[extract_var]] == 1],
+      diff = sprintf("%.2f (%.2f)%s", diff_est, diff_se, stars),
+      p_value = sprintf("%.4f", p_value)
+    )
+  }
+  
+  bind_rows(results)
+}
+
+
+
+balance_cell_elec15_17 <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id")
+)
+
+balance_infra_elec15_17 <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market")
+)
+
+balance_imidugudu_elec15_17 <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+balance_consumer_elec15_17 <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+
+
+# === Combine and Export to LaTeX (elec15_17) ===
+
+
+combined_diff <- balance_cell_elec15_17 %>%
+  select(outcome, N_control, N_treated, control, treated, diff_cell = diff) %>%
+  left_join(balance_infra_elec15_17 %>%
+              select(outcome, diff_infra = diff), by = "outcome") %>%
+  left_join(balance_imidugudu_elec15_17 %>%
+              select(outcome, diff_imidugudu = diff), by = "outcome") %>%
+  left_join(balance_consumer_elec15_17 %>%
+              select(outcome, diff_consumer = diff), by = "outcome") %>%
+  rename(
+    `Control (Mean (SD))` = control,
+    `Treated (Mean (SD))` = treated,
+    `Diff (Cell FE)` = diff_cell,
+    `Diff (Infra FE)` = diff_infra,
+    `Diff (Infra + Imidugudu FE)` = diff_imidugudu,
+    `Diff (Infra + Imidugudu FE + Consumer)` = diff_consumer
+  )
+
+# Create LaTeX table
+kable_output_elec15_17 <- combined_diff %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    align = "lcccccc",
+    caption = "Electrified 2015–2017 on 2011 EC Outcomes (Balance Table)",
+    label = "tab:balance_elec15_17_fe"
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position", "scale_down"),
+    full_width = FALSE
+  )
+
+# Save LaTeX to file
+writeLines(
+  as.character(kable_output_elec15_17),
+  file.path(output_path, "balance_table", "balance_table_elec15_17_p.tex")
+)
+
+# 
+# 
+# 
+# #ImBalance table--------
+# 
+# elec15_17_median <- elec15_17_did_all %>% 
+#   filter(elec15_17 == 1) %>% 
+#   left_join(utility_long_2020)
+# 
+# elec15_17_did_median <- elec15_17_median %>% 
+#   mutate(usage_2020_median = if_else(usage_2020 > median(elec15_17_median$usage_2020), 1, 0)) 
+# 
+# 
+# balance_none_elec15_17 <- balance_table(
+#   data = elec15_17_did_median %>% filter(year == 2011),
+#   treatment = usage_2020_median,
+#   cluster = cell_id
+# )
+# 
+# balance_cellid_elec15_17 <- balance_table(
+#   data = elec15_17_did_median %>% filter(year == 2011),
+#   treatment = usage_2020_median,
+#   cluster = cell_id,
+#   fe = c("cell_id")
+# )
+# 
+# balance_allfe_elec15_17 <- balance_table(
+#   data = elec15_17_did_median %>% filter(year == 2011),
+#   treatment = usage_2020_median,
+#   cluster = cell_id,
+#   fe = c("cell_id", "cell_office", "health_center",
+#          "primary_school", "secondary_school",  "sector_district_office",
+#          "industry", "market")
+# )
+# # === Combine and Export to LaTeX (elec15_17) ===
+# 
+# combined_diff_elec15_17 <- balance_none_elec15_17 %>%
+#   select(outcome, N_control, N_treated,control, treated, diff_none = diff) %>%
+#   left_join(balance_cellid_elec15_17 %>% select(outcome, diff_cellid = diff), by = "outcome") %>%
+#   left_join(balance_allfe_elec15_17 %>% select(outcome, diff_allfe = diff), by = "outcome") %>%
+#   rename(
+#     `Control (Mean (SD))` = control,
+#     `Treated (Mean (SD))` = treated,
+#     `Diff (No FE)` = diff_none,
+#     `Diff (Cell FE)` = diff_cellid,
+#     `Diff (All FE)` = diff_allfe
+#   )
+# 
+# kable_output_elec15_17 <- combined_diff_elec15_17 %>%
+#   kable(
+#     format = "latex",
+#     booktabs = TRUE,
+#     align = "lccccc",
+#     caption = "Above vs below median 2020 usage among electrified 2012-2014 villages",
+#     label = "tab:balance_elec15_17_fe"
+#   ) %>%
+#   kable_styling(latex_options = c("hold_position", "scale_down"), full_width = FALSE)
+# 
+# # Save to file
+# writeLines(as.character(kable_output_elec15_17),
+#            file.path(output_path, "balance_table", "balance_table_elec15_17_usage.tex"))
+# 
+
+
+
+#Private sector-------
+
+
+join_drop15_17 <- expansion_join_drop15_17 %>% 
+  select(elec15_17, village_id, cell_id, sector_id, cell_office, health_center, primary_school, secondary_school, 
+         sector_district_office, market, industry, residential_consumer, non_residential_consumer, imidugudu)
+
+
+elec15_17_p <- elec15_17_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(9,7,3,19), 1, 0)) %>%
+  filter(private_sector == 1) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop15_17, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    p_2_2011 = ifelse(year == 2011, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  mutate(
+    total_employee = pmin(total_employee, 100),
+    num_establishment = pmin(num_establishment, 10)
+  )  %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  )
+
+
+
+
+
+balance_none_p <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = cell_id
+)
+
+
+balance_cellid_p <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = cell_id,
+  fe = c("cell_id")
+)
+
+balance_allfe_p <- balance_table(
+  data = elec15_17_p %>% filter(year == 2011),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = cell_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+# === Combine and format for LaTeX ===
+
+combined_diff_p <- balance_none_p %>%
+  select(outcome, N_control, N_treated, control, treated, diff_none = diff) %>%
+  left_join(balance_cellid_p %>% select(outcome, diff_cellid = diff), by = "outcome") %>%
+  left_join(balance_allfe_p %>% select(outcome, diff_allfe = diff), by = "outcome") %>%
+  rename(
+    `Control (Mean (SD))` = control,
+    `Treated (Mean (SD))` = treated,
+    `Diff (No FE)` = diff_none,
+    `Diff (Cell FE)` = diff_cellid,
+    `Diff (All FE)` = diff_allfe
+  )
+
+# === Export to LaTeX ===
+kable_output <- combined_diff_p %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    align = "lcccccc", # adjust if you add/remove columns
+    caption = "elec15-17 on 2011 establishment census private sector output",
+    label = "tab:balance_fe_compare"
+  ) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"), full_width = FALSE)
+
+# Save to file
+writeLines(kable_output,
+           file.path(output_path, "balance_table", "balance_table_elec15_17_p.tex"))
+
+
+#Public sector------
+
+
+elec15_17_pu <- elec15_17_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(9,7,3,19), 1, 0)) %>%
+  filter(private_sector == 0) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop15_17, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    p_1_2011 = ifelse(year == 2011, 1, 0),
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )%>% 
+  mutate(
+    total_employee = pmin(total_employee, 100),
+    num_establishment = pmin(num_establishment, 10)
+  )  %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  )
+
+
+
+balance_none_pu <- balance_table(
+  data = elec15_17_pu %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = cell_id
+)
+
+
+balance_cellid_pu <- balance_table(
+  data = elec15_17_pu %>% filter(year == 2011),
+  treatment = c("elec15_17"),
+  cluster = cell_id,
+  fe = c("cell_id")
+)
+
+balance_allfe_pu <- balance_table(
+  data = elec15_17_pu %>% filter(year == 2011),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = cell_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+# === Combine and format for LaTeX ===
+
+combined_diff_pu <- balance_none_pu %>%
+  select(outcome, N_control, N_treated, control, treated, diff_none = diff) %>%
+  left_join(balance_cellid_pu %>% select(outcome, diff_cellid = diff), by = "outcome") %>%
+  left_join(balance_allfe_pu %>% select(outcome, diff_allfe = diff), by = "outcome") %>%
+  rename(
+    `Control (Mean (SD))` = control,
+    `Treated (Mean (SD))` = treated,
+    `Diff (No FE)` = diff_none,
+    `Diff (Cell FE)` = diff_cellid,
+    `Diff (All FE)` = diff_allfe
+  )
+
+# === Export to LaTeX ===
+kable_output <- combined_diff_pu %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    align = "lcccccc", # adjust if you add/remove columns
+    caption = "elec15-17 on 2011 establishment census public sector output",
+    label = "tab:balance_fe_compare"
+  ) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"), full_width = FALSE)
+
+# Save to file
+writeLines(kable_output,
+           file.path(output_path, "balance_table", "balance_table_elec15_17_pu.tex"))
+
+
+
+
+
+
+
+
+#Combined------
+
+# Tag each set (all, private, public) before combining
+combined_diff <- combined_diff %>%
+  mutate(outcome = paste0(outcome, "_all"))
+
+combined_diff_p <- combined_diff_p %>%
+  mutate(outcome = paste0(outcome, "_private"))
+
+combined_diff_pu <- combined_diff_pu %>%
+  mutate(outcome = paste0(outcome, "_public"))
+
+# Stack them
+combined_all_private_public <- bind_rows(
+  combined_diff,
+  combined_diff_p,
+  combined_diff_pu
+)
+
+# Export to LaTeX
+kable_output <- combined_all_private_public %>%
+  kable(
+    format = "latex",
+    booktabs = TRUE,
+    align = "lcccccc",
+    caption = "Elec15-17 on 2011 establishment census",
+    label = "tab:balance_all_private_public"
+  ) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"), full_width = FALSE)
+
+writeLines(
+  kable_output,
+  file.path(output_path, "balance_table", "balance_table_elec15_17_all.tex")
+)
+
