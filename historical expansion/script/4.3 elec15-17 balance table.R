@@ -10,6 +10,9 @@ library(kableExtra)
 
 #Balance table--------
 
+
+
+
 balance_table <- function(data, treatment_vars, cluster, fe = NULL,
                           outcomes = c("num_establishment", "total_employee"),
                           extract_var = "elec15_17") {
@@ -23,9 +26,9 @@ balance_table <- function(data, treatment_vars, cluster, fe = NULL,
   # helper function for significance stars
   starify <- function(p) {
     if (p < 0.001) return("***")
-    else if (p >= 0.001 & p < 0.01) return("**")
-    else if (p >= 0.01 & p < 0.05) return("*")
-    else if (p >= 0.05 & p < 0.1) return(".")
+    else if (p < 0.01) return("**")
+    else if (p < 0.05) return("*")
+    else if (p < 0.1) return(".")
     else return("")
   }
   
@@ -33,17 +36,17 @@ balance_table <- function(data, treatment_vars, cluster, fe = NULL,
   
   for (outcome in outcomes) {
     
-    # summary stats
+    # ---- Summary statistics by treatment ----
     summ_stats <- data %>%
       group_by(.data[[extract_var]]) %>%
       summarise(
-        mean = mean(.data[[outcome]]),
-        sd   = sd(.data[[outcome]]),
+        mean = mean(.data[[outcome]], na.rm = TRUE),
+        sd   = sd(.data[[outcome]], na.rm = TRUE),
         n    = n(),
         .groups = "drop"
       )
     
-    # regression
+    # ---- Run regression ----
     fml <- as.formula(paste0(outcome, " ~ ", rhs_string, " | ", fe_string, " | 0 | ", cluster_name))
     reg <- felm(fml, data = data)
     reg_summary <- summary(reg)
@@ -54,16 +57,17 @@ balance_table <- function(data, treatment_vars, cluster, fe = NULL,
     p_value  <- coef_row["Pr(>|t|)"]
     stars    <- starify(p_value)
     
+    # ---- Store results ----
     results[[length(results) + 1]] <- tibble(
       outcome = outcome,
-      control = sprintf("%.2f (%.2f)",
-                        summ_stats$mean[summ_stats[[extract_var]] == 0],
-                        summ_stats$sd[summ_stats[[extract_var]] == 0]),
-      treated = sprintf("%.2f (%.2f)",
-                        summ_stats$mean[summ_stats[[extract_var]] == 1],
-                        summ_stats$sd[summ_stats[[extract_var]] == 1]),
-      N_control = summ_stats$n[summ_stats[[extract_var]] == 0],
-      N_treated = summ_stats$n[summ_stats[[extract_var]] == 1],
+      control_stats = sprintf("%.2f (%.2f), N=%d",
+                              summ_stats$mean[summ_stats[[extract_var]] == 0],
+                              summ_stats$sd[summ_stats[[extract_var]] == 0],
+                              summ_stats$n[summ_stats[[extract_var]] == 0]),
+      treated_stats = sprintf("%.2f (%.2f), N=%d",
+                              summ_stats$mean[summ_stats[[extract_var]] == 1],
+                              summ_stats$sd[summ_stats[[extract_var]] == 1],
+                              summ_stats$n[summ_stats[[extract_var]] == 1]),
       diff = sprintf("%.2f (%.2f)%s", diff_est, diff_se, stars),
       p_value = sprintf("%.4f", p_value)
     )
@@ -74,39 +78,314 @@ balance_table <- function(data, treatment_vars, cluster, fe = NULL,
 
 
 
+#All balance table-----
+
+
 balance_cell_elec15_17 <- balance_table(
-  data = elec15_17_p %>% filter(year == 2011),
+  data = elec15_17_p %>% filter(year == 2014),
   treatment = c("elec15_17"),
   cluster = sector_id,
   fe = c("cell_id")
 )
 
-balance_infra_elec15_17 <- balance_table(
-  data = elec15_17_p %>% filter(year == 2011),
-  treatment = c("elec15_17"),
-  cluster = sector_id,
-  fe = c("cell_id", "cell_office", "health_center",
-         "primary_school", "secondary_school",  "sector_district_office",
-         "industry", "market")
-)
-
-balance_imidugudu_elec15_17 <- balance_table(
-  data = elec15_17_p %>% filter(year == 2011),
-  treatment = c("elec15_17"),
-  cluster = sector_id,
-  fe = c("cell_id", "cell_office", "health_center",
-         "primary_school", "secondary_school",  "sector_district_office",
-         "industry", "market", "imidugudu")
-)
-
 balance_consumer_elec15_17 <- balance_table(
-  data = elec15_17_p %>% filter(year == 2011),
+  data = elec15_17_p %>% filter(year == 2014),
   treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
   cluster = sector_id,
   fe = c("cell_id", "cell_office", "health_center",
          "primary_school", "secondary_school",  "sector_district_office",
          "industry", "market", "imidugudu")
 )
+
+
+
+
+balance_cell_elec15_17.3 <- balance_table(
+  data = elec15_17_p.3 %>% filter(year == 2014),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id")
+)
+
+balance_consumer_elec15_17.3 <- balance_table(
+  data = elec15_17_p.3 %>% filter(year == 2014),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+
+
+
+
+balance_cell_elec15_17.7 <- balance_table(
+  data = elec15_17_p.7 %>% filter(year == 2014),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id")
+)
+
+balance_consumer_elec15_17.7 <- balance_table(
+  data = elec15_17_p.7 %>% filter(year == 2014),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+
+
+
+balance_cell_elec15_17.9 <- balance_table(
+  data = elec15_17_p.9 %>% filter(year == 2014),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id")
+)
+
+balance_consumer_elec15_17.9 <- balance_table(
+  data = elec15_17_p.9 %>% filter(year == 2014),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+
+
+
+balance_cell_elec15_17.19 <- balance_table(
+  data = elec15_17_p.19 %>% filter(year == 2014),
+  treatment = c("elec15_17"),
+  cluster = sector_id,
+  fe = c("cell_id")
+)
+
+balance_consumer_elec15_17.19 <- balance_table(
+  data = elec15_17_p.19 %>% filter(year == 2014),
+  treatment = c("elec15_17", "log1_residential_consumer", "log1_non_residential_consumer"),
+  cluster = sector_id,
+  fe = c("cell_id", "cell_office", "health_center",
+         "primary_school", "secondary_school",  "sector_district_office",
+         "industry", "market", "imidugudu")
+)
+
+
+
+
+
+
+# 1️⃣ Combine all "cell FE" balance tables
+balance_cell_all <- bind_rows(
+  balance_cell_elec15_17      %>% mutate(sector = "All sectors"),
+  balance_cell_elec15_17.3    %>% mutate(sector = "Manufacture (.3)"),
+  balance_cell_elec15_17.7    %>% mutate(sector = "Wholesale (.7)"),
+  balance_cell_elec15_17.9    %>% mutate(sector = "Food and Accomm (.9)"),
+  balance_cell_elec15_17.19   %>% mutate(sector = "Other Services (.19)")
+)
+
+
+# 2️⃣ Combine all "cell + targeting FE" balance tables
+balance_consumer_all <- bind_rows(
+  balance_consumer_elec15_17      %>% mutate(sector = "All sectors"),
+  balance_consumer_elec15_17.3    %>% mutate(sector = "Manufacture (.3)"),
+  balance_consumer_elec15_17.7    %>% mutate(sector = "Wholesale (.7)"),
+  balance_consumer_elec15_17.9    %>% mutate(sector = "Food and Accomm (.9)"),
+  balance_consumer_elec15_17.19   %>% mutate(sector = "Other Services (.19)")
+)
+
+
+
+# Step 1. Extract only relevant columns
+balance_cell_extract <- balance_cell_all %>%
+  select(sector, outcome, control_stats, treated_stats, diff, p_value) %>%
+  rename(
+    diff_cellFE = diff,
+    p_cellFE = p_value
+  )
+
+balance_consumer_extract <- balance_consumer_all %>%
+  select(sector, outcome, control_stats, treated_stats, diff, p_value) %>%
+  rename(
+    diff_allFE = diff,
+    p_allFE = p_value
+  )
+
+# Step 2. Merge both on sector + outcome (include p-values)
+balance_final <- left_join(
+  balance_cell_extract %>%
+    select(sector, outcome, control_stats, treated_stats, diff_cellFE, p_cellFE),
+  balance_consumer_extract %>%
+    select(sector, outcome, diff_allFE, p_allFE),
+  by = c("sector", "outcome")
+)
+
+# Step 3. Arrange columns
+balance_final <- balance_final %>%
+  relocate(sector, outcome,
+           control_stats, treated_stats,
+           diff_cellFE, p_cellFE,
+           diff_allFE, p_allFE) %>%
+  mutate(
+    outcome = case_when(
+      outcome == "num_establishment" ~ "number of establishments",
+      outcome == "total_employee" ~ "number of employees",
+      TRUE ~ outcome
+    )
+  )
+
+# Step 4. Check output
+
+
+View(balance_final)
+
+
+
+# ---- Expand balance_final ----
+extract_stats <- function(x) {
+  mean <- str_extract(x, "^[0-9\\.\\-]+")
+  sd   <- str_extract(x, "(?<=\\().*?(?=\\))")
+  n    <- str_extract(x, "(?<=N=)\\d+")
+  tibble(mean, sd, n)
+}
+
+# ---- Expand balance_final ----
+expanded <- balance_final %>%
+  rowwise() %>%
+  mutate(
+    control_mean = extract_stats(control_stats)$mean,
+    control_sd   = extract_stats(control_stats)$sd,
+    control_n    = extract_stats(control_stats)$n,
+    treated_mean = extract_stats(treated_stats)$mean,
+    treated_sd   = extract_stats(treated_stats)$sd,
+    treated_n    = extract_stats(treated_stats)$n,
+    diff_cell_est = str_extract(diff_cellFE, "^[0-9\\.\\-]+"),
+    diff_cell_se  = str_extract(diff_cellFE, "(?<=\\().*?(?=\\))"),
+    diff_all_est  = str_extract(diff_allFE, "^[0-9\\.\\-]+"),
+    diff_all_se   = str_extract(diff_allFE, "(?<=\\().*?(?=\\))"),
+    p_cell        = as.numeric(p_cellFE),
+    p_all         = as.numeric(p_allFE)
+  ) %>%
+  ungroup()
+
+# Ns (assumed common)
+N_control <- expanded$control_n[1]
+N_treated <- expanded$treated_n[1]
+
+
+# --- Build LaTeX from scratch (reset the accumulator!) ---
+latex_lines <- c(
+  "\\begin{tabular}{llllll}",
+  "\\toprule\\toprule",
+  "Sector & Outcome & Control & Treated & Diff (Cell FE) & Diff (All FE) \\\\",
+  "& &(SD) & (SD)& (SE) & (SE) \\\\",
+  
+  sprintf(" &  & N=%s & N=%s & p-value &  p-value \\\\", expanded$control_n[1], expanded$treated_n[1]),
+  "\\midrule"
+)
+
+for (i in seq_len(nrow(expanded))) {
+  r <- expanded[i, ]
+  
+  # only show sector name on the first line of each pair
+  sector_label <- ifelse(i %% 2 == 1, r$sector, "")
+  
+  # main row with means and diff estimates
+  latex_lines <- c(
+    latex_lines,
+    sprintf("%s & %s & %s & %s & %s & %s \\\\",
+            sector_label, r$outcome,
+            r$control_mean, r$treated_mean,
+            r$diff_cell_est, r$diff_all_est),
+    sprintf(" &  & (%s) & (%s) & (%s) & (%s) \\\\",
+            r$control_sd, r$treated_sd, r$diff_cell_se, r$diff_all_se)
+  )
+  
+  
+  # p-values row for every outcome
+  latex_lines <- c(
+    latex_lines,
+    sprintf(" &  &  &  & %.4f & %.4f \\\\",
+            as.numeric(r$p_cell), as.numeric(r$p_all)),
+    "& & & &  &  \\\\"
+    
+  )
+  
+  # # midrule after each pair (num_establishments + total_employee)
+  # if (i %% 2 == 0) {
+  #   latex_lines <- c(latex_lines, "\\midrule")
+  # }
+}
+
+
+# FE footer + close the environment (only once!)
+
+
+
+controls_note <- paste(
+  "Controls included:",
+  '"log1\\_residential\\_consumer", "log1\\_non\\_residential\\_consumer",',
+  '"cell\\_office", "health\\_center", "primary\\_school", "secondary\\_school",',
+  '"sector\\_district\\_office", "industry", "market", "imidugudu".'
+)
+
+latex_lines_final <- c(
+  latex_lines,
+  "\\midrule\\midrule",
+  "Cell FE &  &  &  & X & X \\\\",
+  "Control &  &  &  &  & X \\\\",
+  "\\midrule",
+  "Note: & \\multicolumn{5}{p{12cm}}{Standard errors clustered at the sector level (cluster = sector id).} \\\\",
+  "Controls included: & \\multicolumn{5}{p{12cm}}{log1(residential consumer), log1(non residential consumer), cell office, health center, primary school, secondary school, sector district office, industry, market, imidugudu.} \\\\",
+  "\\bottomrule\\bottomrule",
+  "\\end{tabular}"
+)
+
+cat(paste(latex_lines_final, collapse = "\n"))
+
+
+# ---- Write to file or print ----
+writeLines(latex_lines_final, file.path(output_path, "balance table (2014).tex"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

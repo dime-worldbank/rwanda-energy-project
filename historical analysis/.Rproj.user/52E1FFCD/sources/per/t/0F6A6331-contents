@@ -1,0 +1,308 @@
+###############################
+#Author: Xiaoming Zhang
+#Last Modified: 5.31.2024
+#Purpose: Join with Rwa_long
+####################################
+
+
+#Load libraries----
+
+# install.packages("pacman")
+
+library("pacman")
+
+pacman::p_load(fixest, tidyverse, here, readxl, writexl, janitor, haven, stringr, modelsummary)
+
+#Read dataset-----
+
+rwa_long <- read_xlsx(path = here("data", "rwa_long.xlsx"))
+
+village_level_2011 <- read_xlsx(path = here("outputs", "village_level_2011.xlsx"))
+village_level_2014 <- read_xlsx(path = here("outputs", "village_level_2014.xlsx"))
+village_level_2017 <- read_xlsx(path = here("outputs", "village_level_2017.xlsx"))
+village_level_2020 <- read_xlsx(path = here("outputs", "village_level_2020.xlsx"))
+
+#Descriptive statistics----
+
+install.packages("summarytools")
+install.packages("dataMaid")
+install.packages("rmarkdown")
+library(summarytools)
+library(dataMaid)
+library(rmarkdown)
+
+##2011----
+
+descriptive_2011 <- ec_2011_clean %>% 
+  select(
+   year_start, total_employee, 
+   total_male,total_female, 
+   employed_capital_group, 
+   num_branch, total_workers_allbranch,
+   establishment_type, manager_gender, owner_gender,
+   working_place, working_status,
+   sector,
+   ownership,
+   legal_status,
+   s163, isic_fl_ent, isic_level1, isic_minicom
+   ) %>% 
+  mutate(
+    year_start = ifelse(year_start == 9999, NA, year_start),
+
+  ) 
+
+
+descriptive_2014 <- ec_2014_clean %>% 
+  select(
+    year_start, total_employee, 
+    total_male,total_female, 
+    employed_capital_group, 
+    num_branch, 
+    establishment_type, manager_gender, owner_gender,
+    working_place, working_status,
+    sector,
+    ownership,
+    legal_status,
+    isic1q6b, q7b, isic1q7b, isic_com
+  ) %>% 
+  mutate(
+    year_start = ifelse(year_start == 9999, NA, year_start),
+    num_branch = ifelse(num_branch == 88888, NA, num_branch )
+  ) 
+
+
+
+descriptive_2017 <- ec_2017_clean %>%
+  select(
+    year_start, total_employee,
+    # total_male,total_female,
+    employed_capital_group,
+    num_branch,
+    establishment_type, manager_gender, owner_gender,
+    working_place, working_status,
+    sector,
+    ownership,
+    legal_status,
+    q6_1, q17_4
+  ) %>%
+  mutate(
+    year_start = ifelse(year_start == 9999, NA, year_start)
+  )
+
+
+descriptive_2020 <- ec_2020_clean %>% 
+  select(
+    year_start, total_employee, 
+    total_male,total_female, 
+    employed_capital_group, 
+    num_branch,
+    establishment_type, manager_gender, owner_gender,
+    working_place, working_status,
+    sector,
+    ownership,
+    legal_status, q6_1, q17_1
+  ) %>% 
+  mutate(
+    year_start = ifelse(year_start == 9999, NA, year_start)
+  ) 
+
+write_dta(descriptive_2011, path = here("data", "descriptive_2011.dta"))
+write_dta(descriptive_2014, path = here("data", "descriptive_2014.dta"))
+write_dta(descriptive_2017, path = here("data", "descriptive_2017.dta"))
+write_dta(descriptive_2020, path = here("data", "descriptive_2020.dta"))
+
+
+
+
+
+#Event Study----
+##Select important dataset-----
+
+key_2011 <- ec_2011_clean %>% 
+  select(village_id, total_employee, employed_capital_group, establishment_id) %>% 
+  mutate(
+    year = 2011,
+    establishment_id = as.character(establishment_id)
+    )
+
+
+key_2014 <- ec_2014_clean %>%
+  select(village_id, total_employee, employed_capital_group, establishment_id) %>%
+  mutate(
+    year = 2014,
+    establishment_id = as.character(establishment_id)
+    )
+
+key_2017 <- ec_2017_clean %>%
+  select(village_id, total_employee, employed_capital_group, establishment_id) %>%
+  mutate(
+    year = 2017,
+    establishment_id = as.character(establishment_id)
+         )
+
+key_2020 <- ec_2020_clean %>% 
+  select(village_id, total_employee, employed_capital_group, establishment_id) %>% 
+  mutate(
+    year = 2020,
+    establishment_id = as.character(establishment_id)
+    )
+
+
+##Join all----
+
+
+key_all <- bind_rows(key_2011, key_2014, key_2017, key_2020) 
+
+key_all <- key_all %>% 
+  mutate(
+    village_id = as.character(village_id),
+    employed_capital_group = ifelse(employed_capital_group == 5 |employed_capital_group == 6 | employed_capital_group == 9, 0, employed_capital_group)
+    ) %>% 
+  filter(village_id %in% rwa_long$village_id)
+
+rwa_regress_join <- full_join(rwa_long, key_all, by = c("village_id", "year"))
+
+
+rwa_regress <- rwa_regress_join %>% 
+  filter(! district %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
+  mutate(
+    elec12_14 = ifelse((year_first <= 2014 & year_first >= 2012), 1, 0),
+    elec15_17 = ifelse((year_first <= 2017 & year_first >= 2015), 1, 0),
+    elec18_20 = ifelse((year_first <= 2020 & year_first >= 2018), 1, 0),
+    never_elec = ifelse((year_first == 2300|is.na(year_first)), 1, 0)
+  )  %>% 
+  filter(
+    year == 2011 | year == 2014 | year == 2017 |year == 2020
+  ) %>% 
+  mutate(
+    total_employee = ifelse(is.na(total_employee), 0, total_employee),
+  ) %>% 
+  mutate(
+    distr_year = paste0(Distr_ID, "_", year),
+    sector_year = paste0(Sector_ID, "_", year)
+  ) %>% 
+  clean_names()
+ 
+
+
+
+#Regression number of employees----
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(total_employee ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(total_employee ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(total_employee ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+
+
+
+
+
+#Regression capital level----
+
+sum(is.na(rwa_regress$employed_capital_group))
+
+rwa_regress <- rwa_regress %>% 
+  mutate(employed_capital_group = ifelse(is.na(employed_capital_group), 0, employed_capital_group))
+
+##12_14----
+elec12_14 <- rwa_regress %>% 
+  filter(elec12_14 == 1 | never_elec == 1) %>% 
+  mutate(
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  )
+table(elec12_14$year)
+
+village_fe <- feols(employed_capital_group ~ p0_2014*elec12_14 + p1_2017*elec12_14 + p2_2020*elec12_14|village_id + year, data = elec12_14)
+district_fe <- feols(employed_capital_group ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + distr_year, data = elec12_14)
+sector_fe <- feols(employed_capital_group ~ p0_2014*elec12_14 + p1_2017*elec12_14 +p2_2020*elec12_14|village_id + sector_year, data = elec12_14)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+##15_17----
+elec15_17 <- rwa_regress %>% 
+  filter(elec15_17 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_2_2011 = ifelse(year == 2011 , 1, 0),
+    p0_2017 = ifelse(year == 2017, 1, 0),
+    p1_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+
+village_fe <- feols(employed_capital_group ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +year, data = elec15_17)
+district_fe <- feols(employed_capital_group ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +distr_year, data = elec15_17)
+sector_fe <- feols(employed_capital_group ~ p_2_2011*elec15_17 + p0_2017*elec15_17 + p1_2020*elec15_17|village_id +sector_year, data = elec15_17)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+
+##18_20----
+elec18_20 <- rwa_regress %>% 
+  filter(elec18_20 == 1 | never_elec == 1) %>% 
+  mutate(
+    p_3_2011 = ifelse(year == 2011 , 1, 0),
+    p_2_2014 = ifelse(year == 2014, 1, 0),
+    p0_2020 = ifelse(year == 2020, 1, 0)
+  )
+
+village_fe <- feols(employed_capital_group ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +year, data = elec18_20)
+district_fe <- feols(employed_capital_group ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +distr_year, data = elec18_20)
+sector_fe <- feols(employed_capital_group ~ p_3_2011*elec18_20 + p_2_2014*elec18_20 + p0_2020*elec18_20|village_id +sector_year, data = elec18_20)
+
+etable(village_fe, district_fe, sector_fe)
+
+
+
+
+
+

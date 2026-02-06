@@ -1,0 +1,26 @@
+{
+    "id": "03CB44B2",
+    "path": "~/GitHub/rwanda-energy-project/March mission/scripts/graph.R",
+    "project_path": "scripts/graph.R",
+    "type": "r_source",
+    "hash": "2136441059",
+    "contents": "",
+    "dirty": false,
+    "created": 1770404293661.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "1,15",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1727809820,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1727809820,
+    "read_only": false,
+    "read_only_alternatives": []
+}

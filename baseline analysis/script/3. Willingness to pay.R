@@ -68,7 +68,10 @@ hfc_plot<- hfc_constr.1 %>%
   mutate(
     lightbulb_win = ifelse(lightbulb >= 2000, 2000, lightbulb),
     appliance_win = ifelse(appliance >= 125000, 125000, appliance),
-    wtp_12_win = ifelse(wtp_12 >= 125000, 125000, wtp_12)
+    wtp_12_win = ifelse(wtp_12 >= 125000, 125000, wtp_12),
+    wtp_12_win_g = wtp_12 * mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system),
+    wtp_12_win_g = ifelse(wtp_12_win_g >= 125000, 125000, wtp_12_win_g),
+    
   ) 
 
 
@@ -78,11 +81,13 @@ hfc_plot<- hfc_constr.1 %>%
 
 #Appliances----
 mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system)
+
+
 appliance <- ggplot(hfc_plot, aes(x = appliance_win)) +
   geom_histogram(aes(y = ..count.. / sum(..count..)),
                  binwidth = 2500,       # Each bin covers 2,500
                  boundary = 0,         # Ensures the first bin starts at 0
-                 fill = "lightblue",
+                 fill = "grey70",
                  color = "black",
                  alpha = 0.7) +
   geom_vline(xintercept = 96000, 
@@ -93,13 +98,17 @@ appliance <- ggplot(hfc_plot, aes(x = appliance_win)) +
     x = "Grid WTP (RwF)",
     y = ""
   ) +
+  scale_y_continuous(labels = function(x) format(x, nsmall = 2)) +  # two decimals
   theme_minimal() +
   theme(
-    plot.title = element_text(size = 28, face = "bold"),
+    panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
     axis.title.x = element_text(size = 26),
     axis.title.y = element_text(size = 26),
     axis.text.x = element_text(size = 24),
-    axis.text.y = element_text(size = 24)
+    axis.text.y = element_text(size = 24),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
+    
   )
 
 
@@ -114,19 +123,19 @@ ggsave(file.path(output_path, "figures", "plot1_appliance.jpeg"),
        width = 16, 
        height = 8, 
        dpi = 300,
-       scale = 0.5)
+       scale = 0.7)
 
 
 
 
 #wtp_12----
-sum(hfc_plot$wtp_12*(mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system)) >= 96000)
+sum(hfc_plot$wtp_24*(mean(hfc_plot$appliance)/ mean(hfc_plot$fixed_system)) >= 96000)
 
-wtp_12 <- ggplot(hfc_plot, aes(x = wtp_12_win)) +
+wtp_12 <- ggplot(hfc_plot, aes(x = wtp_12_win_g)) +
   geom_histogram(aes(y = ..count.. / sum(..count..)),
                  binwidth = 2500,       # Each bin covers 2,500
                  boundary = 0,         # Ensures the first bin starts at 0
-                 fill = "lightblue",
+                 fill = "grey70",
                  color = "black",
                  alpha = 0.7) +
   geom_vline(xintercept = 96000, 
@@ -139,11 +148,13 @@ wtp_12 <- ggplot(hfc_plot, aes(x = wtp_12_win)) +
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(size = 28, face = "bold"),
+    panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
     axis.title.x = element_text(size = 26),
     axis.title.y = element_text(size = 26),
     axis.text.x = element_text(size = 24),
-    axis.text.y = element_text(size = 24)
+    axis.text.y = element_text(size = 24),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
   )
 
 wtp_12
@@ -154,7 +165,7 @@ ggsave(file.path(output_path, "figures", "plot2_wtp_12.jpeg"),
        width = 16, 
        height = 8, 
        dpi = 300,
-       scale = 0.5)
+       scale = 0.7)
 
 
 
@@ -165,7 +176,7 @@ lightbulb <- ggplot(hfc_plot, aes(x = lightbulb_win)) +
   geom_histogram(aes(y = ..count.. / sum(..count..)),
                  binwidth = 100,       # Each bin covers 2,500
                  boundary = 0,         # Ensures the first bin starts at 0
-                 fill = "lightblue",
+                 fill = "grey70",
                  color = "black",
                  alpha = 0.7) +
   geom_vline(xintercept = 300, 
@@ -179,12 +190,15 @@ lightbulb <- ggplot(hfc_plot, aes(x = lightbulb_win)) +
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(size = 28, face = "bold"),
+    panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
+    panel.grid.minor.y = element_blank(),
     axis.title.x = element_text(size = 26),
     axis.title.y = element_text(size = 26),
     axis.text.x = element_text(size = 24),
-    axis.text.y = element_text(size = 24)
+    axis.text.y = element_text(size = 24),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
   )
+
 
 lightbulb
 
@@ -194,7 +208,7 @@ ggsave(file.path(output_path, "figures", "plot3_lightbulb.jpeg"),
        width = 16, 
        height = 8, 
        dpi = 300,
-       scale = 0.5)
+       scale = 0.7)
 
 
 
@@ -357,7 +371,7 @@ ggsave(
 
 
 # Pivot the four variables of interest into long format
-well_long <- hfc_plot %>% 
+well_long <- hfc_constr %>% 
   select(B5_1, B5_5, B5_6, B5_8) %>% 
   pivot_longer(
     cols = everything(),
@@ -372,6 +386,7 @@ well_long <- hfc_plot %>%
       var == "B5_8" ~ "Satisfaction with current energy status"
     )
   ) %>% 
+  mutate ( wellbeing = ifelse(wellbeing <0, NA, wellbeing)) %>% 
   filter(!is.na(wellbeing))
 
 # Calculate the mean for each variable
@@ -463,7 +478,7 @@ for (v in var_list) {
   p <- ggplot(data_v, aes(x = wellbeing)) +
     geom_histogram(
       aes(y = ..count.. / sum(..count..)),
-      fill = "lightblue", color = "black",
+      fill = "grey70", color = "black",
       binwidth = 1, boundary = 0.5
     ) +
     geom_vline(xintercept = mean_v, color = "red", linetype = "dashed", size = 1) +
@@ -474,13 +489,20 @@ for (v in var_list) {
     scale_x_continuous(
       breaks = x_ticks,
       limits = c(xmin - 0.5, xmax + 0.5),
-      labels = c("Least \nsatisfied", "2", "3", "4", "5", "6", "7", "8", "9", "Most \nsatisfied")
+      labels = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10")
     ) +
     labs(x = v, y = "") +
     theme_void() +
     theme(
-      axis.title = element_text(size = 22, face = "bold", hjust = 0.5),
-      axis.text  = element_text(size = 16)  # slightly smaller for long labels
+      axis.title = element_text(size = 22, hjust = 0.5),
+      axis.text  = element_text(size = 16), # slightly smaller for long labels
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      plot.caption = element_text( color = "gray30", hjust = 0),
+      panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
+      panel.grid.minor.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
     )
   
   # Create a filename using the variable name (removing spaces)

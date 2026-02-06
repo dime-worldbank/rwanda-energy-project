@@ -1,0 +1,28 @@
+{
+    "id": "01BC0B9F",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1762787627415.0,
+    "source_on_save": false,
+    "relative_order": 10,
+    "properties": {
+        "id": "673f9669d751454997c5ead5ef73c15b",
+        "name": "hfc_constr$B5_8",
+        "title": "hfc_constr$B5_8",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1488243335296,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1762787627415,
+    "read_only": false,
+    "read_only_alternatives": []
+}

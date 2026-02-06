@@ -54,9 +54,9 @@ plot_df <- primary_light_energy %>%
 library(scales)  # for label_percent
 
 primary_lighting_plot <- ggplot(plot_df, aes(x = reorder(category, -percentage), y = percentage)) +
-  geom_col(fill = "grey70", color = "black",width = 0.5) +
+  geom_col(fill = "grey70", color = "black",width = 0.8) +
   geom_text(aes(label = sprintf("%.1f%%", percentage * 100)),
-            vjust = -0.3, size = 4) +
+            vjust = -0.3) +
   labs(
     title = "",
     x = "% of Households Using Primary Lighting Source",
@@ -74,10 +74,12 @@ primary_lighting_plot <- ggplot(plot_df, aes(x = reorder(category, -percentage),
     axis.title.y = element_text(margin = margin(r = 10)),
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
-    plot.caption = element_text(size = 10, color = "gray30", hjust = 0),
+    # plot.caption = element_text(size = 10, color = "gray30", hjust = 0),
     panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
     panel.grid.minor.y = element_blank(),
-    panel.grid.major.x = element_blank()
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
+    
   )
 
 primary_lighting_plot
@@ -139,26 +141,29 @@ plot_df <- mobile_plot %>%
 
 
 mobile_charge_plot <- ggplot(plot_df, aes(x = category, y = mean_rwf)) +
-  geom_col(fill = "grey70", color = "black", width = 0.5) +
+  geom_col(fill = "grey70", color = "black", width = 0.8) +
   geom_text(aes(label = paste0(round(mean_rwf, 0), " RwF")),
-            vjust = -0.3, size = 4) +
+            vjust = -0.3) +
   labs(
     x = "",
     y = "RwF per month",
     caption = ""
   ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  # ← adds 10% space on top
+  
   theme_minimal(base_size = 12) +
   theme(
     plot.title = element_blank(),
     axis.text = element_text(color = "black"),
-    axis.text.x = element_text(size = 14, color = "black"),  # ← increased x-axis label size
+    # axis.text.x = element_text(size = 14, color = "black"),  # ← increased x-axis label size
     axis.title.y = element_text(margin = margin(r = 10)),
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
-    plot.caption = element_text(size = 10, color = "gray30", hjust = 0),
+    # plot.caption = element_text(size = 10, color = "gray30", hjust = 0),
     panel.grid.major.y = element_line(color = "gray80", linetype = "dashed"),
     panel.grid.minor.y = element_blank(),
-    panel.grid.major.x = element_blank()
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
   )
 
 mobile_charge_plot
@@ -169,7 +174,7 @@ ggsave(
   width = 8,                                         # width in inches
   height = 8,                                        # height in inches
   dpi = 300,                                         # high quality
-  scale = 0.5                                     # scale down by 60%
+  scale = 0.5                                  # scale down by 60%
 )
 
 

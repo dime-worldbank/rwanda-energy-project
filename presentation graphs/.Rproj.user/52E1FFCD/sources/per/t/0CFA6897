@@ -12,7 +12,7 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "32,0",
+        "cursorPosition": "36,7",
         "scrollLine": "0",
         "docOutlineVisible": "1"
     },
@@ -21,7 +21,7 @@
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1731000964513,
+    "last_content_update": 1731000964,
     "read_only": false,
     "read_only_alternatives": []
 }

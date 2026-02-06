@@ -357,7 +357,7 @@ p <- ggplot() +
     ),
     # Infrastructure legend (everything else)
     shape = guide_legend(
-      title = "Admin Centres & Others",
+      title = "Infrastructures",
       order = 2,
       override.aes = list(size = 3, alpha = 0.9)
     )
@@ -369,19 +369,24 @@ p <- ggplot() +
     plot.background = element_rect(fill = "white", color = NA),
     panel.background = element_rect(fill = "white", color = NA)
   ) +
+  theme_void() +
   coord_sf() +
-  labs(
-    title = "Infrastructure and Grid Network Map",
-    subtitle = "Rwanda villages with EARP MV/LV grid lines and key infrastructure",
-    caption = "Data: EDCL / DIME Rwanda EAQIP project"
-  ) +
+  # labs(
+  #   title = "Infrastructure and Grid Network Map",
+  #   subtitle = "Rwanda villages with EARP MV/LV grid lines and key infrastructure",
+  #   caption = "Data: EDCL / DIME Rwanda EAQIP project"
+  # ) +
   theme(
     plot.title = element_text(face = "bold", size = 14),
     plot.subtitle = element_text(size = 11),
-    legend.position = "right",
+    legend.position = c(0.1, 0.8),         # move legend into white region
     legend.title = element_text(face = "bold"),
-    legend.text = element_text(size = 8)
-  ) + theme_void()
+    legend.text = element_text(size = 8),
+    panel.background = element_rect(fill = "white", color = NA),  # white map background
+    plot.background = element_rect(fill = "white", color = NA),    # white figure background
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
+    
+  )
 
 p
 
@@ -389,7 +394,8 @@ p
 ggsave(
   filename = file.path(output_path, "plot","infrastructure_grid_network_map.png"),
   plot = p,
-  width = 10, height = 8, dpi = 400
+  width = 10, height = 8, dpi = 400,
+  scale = 0.8
 )
 
 
@@ -428,7 +434,7 @@ rulindo_villages <- rwa_villages %>%
   left_join(expansion_join %>%  select(village_id, electrified_year), by = c("Village_ID" = "village_id")) %>% 
   mutate(
     electrified_wave = case_when(
-      electrified_year == 9999 ~ "Never electrified (reference group)",
+      electrified_year == 9999 ~ "Never electrified",
       electrified_year <= 2011 ~ "Electrified before 2011",
       electrified_year %in% 2012:2014 ~ "Electrified 2012–2014",
       electrified_year %in% 2015:2017 ~ "Electrified 2015–2017",
@@ -532,20 +538,19 @@ p_rulindo <- ggplot() +
     color = guide_legend(order = 2, override.aes = list(size = 2)),
     shape = guide_legend(order = 3, override.aes = list(size = 3))
   ) +
-  
-  coord_sf() +
-  labs(
-    title = "Rulindo District: Electrification and Infrastructure Map"  ) +
   theme_void() +
+  coord_sf(expand = FALSE, clip = "off") +   # allow drawing outside map panel
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 11),
-    legend.position = "right",
-    legend.title = element_text(face = "bold"),
-    legend.text = element_text(size = 8),
-    panel.background = element_rect(fill = "white"),
-    plot.background = element_rect(fill = "white", color = NA)
-  )
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    legend.position = c(1, 0.73),         # move legend into white region
+    # legend.justification = c("left", "top"), # anchor the legend
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
+    
+  ) 
 
 p_rulindo
 
@@ -555,10 +560,10 @@ ggsave(
   filename = file.path(output_path, "plot", "rulindo_earp_map.png"),
   plot = p_rulindo,
   width = 10,       # in inches
-  height = 8,       # in inches
+  height = 10,       # in inches
   units = "in",
   dpi = 400,        # high resolution for publication
-  scale = 1.2,      # slightly enlarges text/lines for clarity
+  scale = 0.8,      # slightly enlarges text/lines for clarity
   bg = "white"      # ensures white background instead of transparent
 )
 
@@ -618,7 +623,7 @@ p_rulindo <- ggplot() +
   scale_fill_manual(
     name = "Electrification Wave",
     values = c(
-      "Never electrified (reference group)" = "#E0E0E0",
+      "Never electrified" = "#E0E0E0",
       "Electrified before 2011" = "#B2DF8A",
       "Electrified 2012–2014" = "#33A02C",
       "Electrified 2015–2017" = "#1F78B4",
@@ -659,23 +664,19 @@ p_rulindo <- ggplot() +
     shape = guide_legend(order = 3, override.aes = list(size = 3))
   ) +
   
-  coord_sf() +
-  labs(
-    title = "Rulindo District: Electrification and Infrastructure Map",
-    subtitle = "Village shading by electrification wave"
-  ) +
   theme_void() +
+  coord_sf(expand = FALSE, clip = "off") +   # allow drawing outside map panel
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 11),
-    legend.position = "right",
-    legend.title = element_text(face = "bold"),
-    legend.text = element_text(size = 8),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    legend.position = c(1, 0.73),         # move legend into white region
+    # legend.justification = c("left", "top"), # anchor the legend
     legend.background = element_blank(),
-    legend.key = element_rect(fill = NA, color = "black"), 
-    panel.background = element_rect(fill = "white"),
-    plot.background = element_rect(fill = "white", color = NA)
-  )
+    legend.key = element_blank(),
+    plot.margin = margin(t = 30, r = 10, b = 10, l = 10)  # add space on top (t)
+    
+  ) 
 
 
 p_rulindo
@@ -686,6 +687,6 @@ p_rulindo
 ggsave(
   filename = file.path(output_path, "plot", "rulindo_electrification_year_map.png"),
   plot     = p_rulindo,
-  width = 10, height = 8, units = "in",
-  dpi = 400, scale = 1.2, bg = "white"
+  width = 10, height = 10, units = "in",
+  dpi = 400, scale = 0.8, bg = "white"
 )

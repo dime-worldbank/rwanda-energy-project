@@ -588,25 +588,24 @@ plot_df.3 <- bind_rows(est_df.3, emp_df.3) %>%
     ),
     label = paste0(round(estimate, 2), stars),
     time_since = case_when(
-      period_label == "electrified_0_2_years" ~ "[0, 2]",
-      period_label == "electrified_3_5_years" ~ "[3, 5]",
-      period_label == "electrified_6_8_years" ~ "[6, 8]",
-      period_label == "4_6_years_before_electrification" ~ "[-6, -4]",
+      period_label == "electrified_0_2_years" ~ "0 to 2",
+      period_label == "electrified_3_5_years" ~ "3 to 5",
+      period_label == "electrified_6_8_years" ~ "6 to 8",
+      period_label == "4_6_years_before_electrification" ~ "-6 to -4",
       
     )
   ) %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
   mutate(
     time_since = factor(time_since, levels = c(
-      "[-6, -4]",
-      "[-3, -1]",
-      "[0, 2]",
-      "[3, 5]",
-      "[6, 8]"
+      "-6 to -4",
+      "-3 to -1",
+      "0 to 2",
+      "3 to 5",
+      "6 to 8"
     ))
   )
-
 ## --- 4. plot: Establishments ------------------------------------------
 
 plot_est.3 <- plot_df.3 %>%
@@ -826,22 +825,22 @@ plot_df.7 <- bind_rows(est_df.7, emp_df.7) %>%
     ),
     label = paste0(round(estimate, 2), stars),
     time_since = case_when(
-      period_label == "electrified_0_2_years" ~ "[0, 2]",
-      period_label == "electrified_3_5_years" ~ "[3, 5]",
-      period_label == "electrified_6_8_years" ~ "[6, 8]",
-      period_label == "4_6_years_before_electrification" ~ "[-6, -4]",
+      period_label == "electrified_0_2_years" ~ "0 to 2",
+      period_label == "electrified_3_5_years" ~ "3 to 5",
+      period_label == "electrified_6_8_years" ~ "6 to 8",
+      period_label == "4_6_years_before_electrification" ~ "-6 to -4",
       
     )
   ) %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
   mutate(
     time_since = factor(time_since, levels = c(
-      "[-6, -4]",
-      "[-3, -1]",
-      "[0, 2]",
-      "[3, 5]",
-      "[6, 8]"
+      "-6 to -4",
+      "-3 to -1",
+      "0 to 2",
+      "3 to 5",
+      "6 to 8"
     ))
   )
 
@@ -1108,25 +1107,24 @@ plot_df.9 <- bind_rows(est_df.9, emp_df.9) %>%
     ),
     label = paste0(round(estimate, 2), stars),
     time_since = case_when(
-      period_label == "electrified_0_2_years" ~ "[0, 2]",
-      period_label == "electrified_3_5_years" ~ "[3, 5]",
-      period_label == "electrified_6_8_years" ~ "[6, 8]",
-      period_label == "4_6_years_before_electrification" ~ "[-6, -4]",
+      period_label == "electrified_0_2_years" ~ "0 to 2",
+      period_label == "electrified_3_5_years" ~ "3 to 5",
+      period_label == "electrified_6_8_years" ~ "6 to 8",
+      period_label == "4_6_years_before_electrification" ~ "-6 to -4",
       
     )
   ) %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
   mutate(
     time_since = factor(time_since, levels = c(
-      "[-6, -4]",
-      "[-3, -1]",
-      "[0, 2]",
-      "[3, 5]",
-      "[6, 8]"
+      "-6 to -4",
+      "-3 to -1",
+      "0 to 2",
+      "3 to 5",
+      "6 to 8"
     ))
   )
-
 
 
 
@@ -1351,22 +1349,22 @@ plot_df.19 <- bind_rows(est_df.19, emp_df.19) %>%
     ),
     label = paste0(round(estimate, 2), stars),
     time_since = case_when(
-      period_label == "electrified_0_2_years" ~ "[0, 2]",
-      period_label == "electrified_3_5_years" ~ "[3, 5]",
-      period_label == "electrified_6_8_years" ~ "[6, 8]",
-      period_label == "4_6_years_before_electrification" ~ "[-6, -4]",
+      period_label == "electrified_0_2_years" ~ "0 to 2",
+      period_label == "electrified_3_5_years" ~ "3 to 5",
+      period_label == "electrified_6_8_years" ~ "6 to 8",
+      period_label == "4_6_years_before_electrification" ~ "-6 to -4",
       
     )
   ) %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
-  add_row(time_since = "[-3, -1]", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Establishments", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
+  add_row(time_since = "-3 to -1", outcome = "Employees", estimate = 0, conf.low = NA, conf.high = NA, label = "0") %>% 
   mutate(
     time_since = factor(time_since, levels = c(
-      "[-6, -4]",
-      "[-3, -1]",
-      "[0, 2]",
-      "[3, 5]",
-      "[6, 8]"
+      "-6 to -4",
+      "-3 to -1",
+      "0 to 2",
+      "3 to 5",
+      "6 to 8"
     ))
   )
 
@@ -1560,7 +1558,7 @@ writeLines(c(
   "\\hline \\\\[-1.8ex]",
   " & \\multicolumn{10}{c}{\\textit{Dependent variable:}} \\\\",
   "\\cline{2-11}",
-  "\\\\[-1.8ex] & \\multicolumn{2}{c}{Private Sector} & \\multicolumn{2}{c}{Manufacturing} & \\multicolumn{2}{c}{Wholesale} & \\multicolumn{2}{c}{Food \\\\& Accom.} & \\multicolumn{2}{c}{Barbershop} \\\\",
+  "\\\\[-1.8ex] & \\multicolumn{2}{c}{Private Sector} & \\multicolumn{2}{c}{Manufacturing} & \\multicolumn{2}{c}{Wholesale} & \\multicolumn{2}{c}{Food and Accom.} & \\multicolumn{2}{c}{Barbershop} \\\\",
   "\\\\[-1.8ex] & num\\_establishment & total\\_employee & num\\_establishment & total\\_employee & num\\_establishment & total\\_employee & num\\_establishment & total\\_employee & num\\_establishment & total\\_employee \\\\",
   " & (1) & (2) & (3) & (4) & (5) & (6) & (7) & (8) & (9) & (10) \\\\",
   "\\hline \\\\[-1.8ex]",

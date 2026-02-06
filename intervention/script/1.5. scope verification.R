@@ -85,62 +85,34 @@ rusizi_village <- scope_village %>%
 
 ##Lot 1=======
 
-rusizi1_customer <- st_read(dsn = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "shp", "REV1_RUSIZI_LOT_1_CUSTOMMERS.shp") )
+rusizi1_village_edcl <- read_xls(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Villages_in_implementedScope_Rusizi_Lot1b.xls"))
 
-rusizi1_customer <- st_transform(rusizi1_customer, crs = st_crs(rwa_village))
-rusizi1_customer <- st_intersection(rusizi1_customer, rwa_village)
-
-rusizi_dime <- scope_village %>% 
-  filter(
-    district == "Rusizi"
-  )
-
-
-rusizi1_customer_village <- rusizi1_customer %>% 
-  group_by(Village_ID) %>% 
-  summarise( n = n()) 
 
 
 
 ##Lot 2-------
-
-rusizi2_customer <- st_read(dsn = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "shp", "Rusizi_LOT_2_Custommers_REV2.shp") )
-
-rusizi2_customer <- st_transform(rusizi2_customer, crs = st_crs(rwa_village))
-rusizi2_customer <- st_intersection(rusizi2_customer, rwa_village)
+rusizi2_village_edcl <- read_xls(path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Villages_in_implementedScope_Rusizi_Lot2b.xls"))
 
 
-rusizi2_customer_village <- rusizi2_customer %>% 
-  group_by(Village_ID) %>% 
-  summarise( n = n()) 
+rusizi_village_edcl <- rbind(rusizi1_village_edcl, rusizi2_village_edcl) %>% 
+  clean_names()
 
 
 
 
-rusizi_customer_village <- rbind(rusizi1_customer_village, rusizi2_customer_village)
-
-
-
-rusizi_in_scope <- rusizi_village %>% 
-  filter(village_id %in% rusizi_customer_village$Village_ID) %>% 
-  select(village_id, province, district, lot, sector, cell, name, scope_2407, ubudehe_1, treat)
-
-rusizi_discrepency <- rusizi_village %>% 
-  filter(!village_id %in% rusizi_customer_village$Village_ID) %>% 
+rusizi_scope_dropped <- rusizi_village %>% 
+  filter(!village_id %in% rusizi_village_edcl$village_id) %>% 
   select(village_id, province, district, lot, sector, cell, name, scope_2407, ubudehe_1, treat)
 
 
 rusizi_epc_discrepency <- rusizi_readyboard_village %>% 
-  filter(!villageid_key %in% rusizi_customer_village$Village_ID)
+  filter(!villageid_key %in% rusizi_village_edcl$village_id)
   
 
 
 write_xlsx(
   list(
-    "Scope village keeped" = rusizi_in_scope,
-
-    "Scope village dropped" = rusizi_discrepency,
-    
+    "Scope village dropped" = rusizi_scope_dropped,
     "EPC not in GIS list" = rusizi_epc_discrepency
   ),
   path = file.path(

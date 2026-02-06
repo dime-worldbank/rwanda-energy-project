@@ -1,0 +1,29 @@
+{
+    "id": "891E5C6D",
+    "path": "~/GitHub/rwanda-energy-project/historical expansion/script/0. Main dataset.R",
+    "project_path": "script/0. Main dataset.R",
+    "type": "r_source",
+    "hash": "3855813439",
+    "contents": "",
+    "dirty": false,
+    "created": 1769635367580.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "655,47",
+        "scrollLine": "0",
+        "docOutlineVisible": "1",
+        "docOutlineSize": "222"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1769641265,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1769641266025,
+    "read_only": false,
+    "read_only_alternatives": []
+}

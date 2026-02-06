@@ -1,0 +1,27 @@
+{
+    "id": "480A607F",
+    "path": "~/GitHub/rwanda-energy-project/ntl/script/viirs.R",
+    "project_path": "script/viirs.R",
+    "type": "r_source",
+    "hash": "516510851",
+    "contents": "",
+    "dirty": false,
+    "created": 1770405775792.0,
+    "source_on_save": false,
+    "relative_order": 8,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "95,21",
+        "scrollLine": "71"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1770413468,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1770413468257,
+    "read_only": false,
+    "read_only_alternatives": []
+}

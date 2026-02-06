@@ -36,8 +36,9 @@ expansion_join_drop12_14 <- expansion_join%>%
     log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
     log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
     any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
-    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
-  )
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0),
+    consumer = residential_consumer + non_residential_consumer
+  ) 
 
 
 
@@ -182,7 +183,7 @@ elec12_14_did_isic <- elec12_14_did_isic %>%
 
 join_drop12_14 <- expansion_join_drop12_14 %>% 
   select(`elec12_14`, pred_elec12_14,village_id, cell_id, sector_id, cell_office, health_center, primary_school, secondary_school, 
-         sector_district_office, market, industry, residential_consumer,  non_residential_consumer, imidugudu)
+         sector_district_office, market, industry, residential_consumer,  non_residential_consumer, imidugudu, consumer)
 
 elec12_14_p <- elec12_14_did_isic %>%
   mutate(private_sector = ifelse(isic %in% c(9,7,3,19), 1, 0)) %>%
@@ -220,9 +221,6 @@ elec12_14_p <- elec12_14_did_isic %>%
     log1_total_employee = log(total_employee + 1)
   )
 
-
-
-#Regressions--------
 ##Levels---------
 
 # 1. Run all regressions (4 specs × 2 outcomes)
@@ -1089,3 +1087,172 @@ writeLines(c(
   "}%",
   "\\end{table}"
 ), file.path(output_path, "regressions", "elec12_14_ancova_combined.tex"))
+
+
+
+
+
+#Other sector-------
+
+
+
+elec12_14_p.3 <- elec12_14_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(3), 1, 0)) %>%
+  filter(private_sector == 1) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop12_14, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year), 
+    p_1_2011 = ifelse(year == 2011, 1, 0),
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  ) %>% 
+  mutate(
+    log1_num_establishment = log(num_establishment + 1),
+    log1_total_employee = log(total_employee + 1)
+  )
+
+
+
+
+
+
+
+
+
+elec12_14_p.7 <- elec12_14_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(7), 1, 0)) %>%
+  filter(private_sector == 1) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop12_14, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year), 
+    p_1_2011 = ifelse(year == 2011, 1, 0),
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  ) %>% 
+  mutate(
+    log1_num_establishment = log(num_establishment + 1),
+    log1_total_employee = log(total_employee + 1)
+  )
+
+
+
+
+
+
+
+elec12_14_p.9 <- elec12_14_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(9), 1, 0)) %>%
+  filter(private_sector == 1) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop12_14, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year), 
+    p_1_2011 = ifelse(year == 2011, 1, 0),
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  ) %>% 
+  mutate(
+    log1_num_establishment = log(num_establishment + 1),
+    log1_total_employee = log(total_employee + 1)
+  )
+
+
+
+
+elec12_14_p.19 <- elec12_14_did_isic %>%
+  mutate(private_sector = ifelse(isic %in% c(19), 1, 0)) %>%
+  filter(private_sector == 1) %>%
+  group_by(year, village_id) %>%
+  summarise(num_establishment = sum(num_establishment, na.rm = TRUE),
+            total_employee = sum(total_employee, na.rm = TRUE), .groups="drop") %>%
+  mutate(total_employee = pmin(total_employee, 100)) %>% 
+  left_join(join_drop12_14, by = c("village_id") )  %>%
+  mutate(
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year), 
+    p_1_2011 = ifelse(year == 2011, 1, 0),
+    p0_2014 = ifelse(year == 2014, 1, 0),
+    p1_2017 = ifelse(year == 2017, 1, 0),
+    p2_2020 = ifelse(year == 2020, 1, 0)
+  ) %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  ) %>% 
+  mutate(
+    log1_num_establishment = log(num_establishment + 1),
+    log1_total_employee = log(total_employee + 1)
+  )

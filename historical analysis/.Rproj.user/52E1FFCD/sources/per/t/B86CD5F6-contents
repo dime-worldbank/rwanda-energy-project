@@ -1,0 +1,1812 @@
+###############################
+#Author: Xiaoming Zhang
+#Last Modified: 5.31.2024
+#Purpose: Cleaning of the establishment census
+####################################
+
+
+#Load libraries----
+
+pacman::p_load(fixest, tidyverse, here, readxl, writexl, janitor, haven, stringr)
+
+
+#Read Data------
+
+rwa_long <- read_xlsx(path = here("data", "rwa_long.xlsx"))
+ec_2011 <- read_dta(file = here("data","EC2011_Dataset.dta"))
+ec_2014 <- read_dta(file = here("data","EC2014.dta"))
+ec_2017 <- read_dta(file = here("data","EC17.dta"))
+ec_2020 <- read_dta(file = here("data","EC2020.dta"))
+
+#2011-----
+
+##Cleaning---- 
+
+ec_2011 <- ec_2011 %>% 
+  mutate(village_id = ID1*10000000 + ID2*1000000 + ID3*10000 + ID4*100 +ID5) %>% 
+  select(village_id, everything())
+
+
+ec_2011_clean <- ec_2011 %>% 
+  rename(
+   establishment_type = S15,
+   num_branch = S16A,
+   econ_activity = S16B,
+   total_workers_allbranch = S163B,
+   manager_gender = ID10,#How is it different from the other gender?
+   working_place = S03,
+   working_status = S04,
+   sector = S05,
+   ownership = S06,
+   year_start = S07,
+   employed_capital = S13,
+   legal_status = S09,
+   owner_manager = S92,
+   owner_gender = S91,
+  
+   registered_ssf = S10A, #registered at social security fund
+   registered_rra = S10B, 
+   registered_rdb = S10C,
+   registered_rca = S10F, #Rwanda cooperative Agency
+   registered_distr = S10D,
+   registered_sector = S10E,
+   registered_psf = PSF, #registered at private sector fund
+   registered_other = S10G,
+   tax_vat = S11A,
+   tax_tpr = S11B,
+   tax_income = S11C,
+   regular_account = S12,#Does the establishment maintain regular operational account
+   
+   #employee education
+   rw_noqual = R_NQ,
+   rw_primary = R_PR,
+   rw_secondary = R_SEC,
+   rw_university = R_UNI,
+   
+   nr_noqual = NR_NQ,
+   nr_primary = NR_PR,
+   nr_secondary = NR_SEC,
+   nr_university = NR_UNI,
+   
+   rw_male = R_M,
+   rw_female = R_F,
+   nr_male = NR_M, #None Rwanda male
+   nr_female = NR_F, #None Rwanda female
+   
+   rw_total = R_T,
+   nr_total = NR_T
+  ) %>% 
+  clean_names() %>% 
+  mutate(
+    establishment_id = as.character(unique_id)
+    )%>% 
+  mutate(
+    across(c(starts_with("nr"), starts_with("rw")), ~ifelse(is.na(.), 0, .))
+  ) %>% 
+  mutate(
+    total_employee = rw_total + nr_total,
+    total_male = rw_male + nr_male,
+    total_female = rw_female + nr_female,
+    employed_capital_group = capital_employed_groups,
+    owner_manager = ifelse(owner_manager == 1, 1, 0)
+  ) %>% 
+  clean_names() %>% 
+  mutate(
+    total_manager = ifelse(owner_manager == 1, 0, 1),
+    total_owner = 1
+  ) %>% 
+  mutate(
+    establishment_type = ifelse(establishment_type == 8 | establishment_type == 9, NA, establishment_type),
+    employed_capital_group = ifelse(employed_capital_group == 5|employed_capital_group == 6, NA, employed_capital_group),
+    total_manager = ifelse(is.na(total_manager), 0, total_manager),
+    isic_level1 = ifelse(isic_level1 == 9999, NA, isic_level1),
+    manager_gender = ifelse(manager_gender == 9, NA, owner_gender),
+    ownership = ifelse(ownership == 99, NA, ownership),
+    legal_status = ifelse(legal_status == 9, NA, legal_status)
+  )
+
+
+
+##Village level aggregation----
+
+village_level_2011 <- ec_2011_clean %>% 
+  group_by(village_id) %>% 
+  summarise(
+    num_establishment = n(),
+    total_employee = sum(total_employee, na.rm = TRUE),
+    total_manager = sum(total_manager, na.rm = TRUE),
+    total_owner = sum(total_owner, na.rm = TRUE),
+
+    # manager_gender = ID10,#How is it different from the other gender?
+    male_manager = sum(manager_gender == 1, na.rm = TRUE),
+    female_manager = sum(manager_gender == 2, na.rm = TRUE),
+    
+    # year_start = S07,
+    min_year_start = min(year_start, na.rm = TRUE),
+    max_year_start = max(year_start, na.rm = TRUE),
+    
+    
+    # sector = S05,
+    sector_household = sum(sector == 1, na.rm = TRUE),
+    sector_private = sum(sector == 2, na.rm = TRUE),
+    sector_public = sum(sector == 3, na.rm = TRUE),
+    sector_mixed = sum(sector == 4, na.rm = TRUE),
+    sector_coop = sum(sector == 5, na.rm = TRUE),
+    sector_private_education = sum(sector == 6, na.rm = TRUE),
+    sector_private_health = sum(sector == 7, na.rm = TRUE),
+    sector_non_profit = sum(sector == 8, na.rm = TRUE),
+    sector_io = sum(sector == 9, na.rm = TRUE),
+    
+    employed_capital_1 = sum(capital_employed_groups == 1, na.rm = TRUE),#less than 500,000
+    employed_capital_2 = sum(capital_employed_groups == 2, na.rm = TRUE),#500,000 - 15 million
+    employed_capital_3 = sum(capital_employed_groups == 3, na.rm = TRUE),#More than 15 million to 75 million
+    employed_capital_4 = sum(capital_employed_groups == 4, na.rm = TRUE),#More than 75 million
+    
+    # establishment_type = S15,
+    head_office = sum(establishment_type == 1, na.rm = TRUE),
+    single_unit = sum(establishment_type == 2, na.rm = TRUE),
+    branch_of_national = sum(establishment_type == 3, na.rm = TRUE), #Branch of national enterprise
+    branch_of_intl = sum(establishment_type == 4, na.rm = TRUE),#Branch of international enterprise
+    
+    # working_place = S03,
+    within_market = sum(working_place == 1, na.rm = TRUE),
+    outside_market = sum(working_place == 2, na.rm = TRUE),
+    
+    # working_status = S04,
+    status_working = sum(working_status == 1, na.rm = TRUE),
+    status_temp_closed = sum(working_status == 2, na.rm = TRUE),
+    status_perm_closed = sum(working_status == 3, na.rm = TRUE),
+    status_refuse = sum(working_status == 4, na.rm = TRUE),
+    
+    
+    # ownership = S06,
+    ownership_rw = sum(ownership == 1, na.rm = TRUE),
+    ownership_foreign = sum(ownership != 1 & ownership != 99, na.rm = TRUE),
+    
+    
+    #legal_status = S09,
+    
+    sole_proprietorship = sum(legal_status == 1, na.rm = TRUE),
+    lim_share = sum(legal_status == 2, na.rm = TRUE),
+    lim_guarantee = sum(legal_status == 3, na.rm = TRUE),
+    lim_share_guarantee = sum(legal_status == 4, na.rm = TRUE),
+    unlimited = sum(legal_status == 5, na.rm = TRUE),
+
+    
+    owner_manager = sum(owner_manager, na.rm = TRUE),
+    owner_male = sum(owner_gender == 1, na.rm = TRUE),
+    owner_female = sum(owner_gender == 2, na.rm = TRUE),
+    
+    registered_ssf = sum(registered_ssf == 1, na.rm = TRUE), #registered at social security fund
+    registered_rra = sum(registered_rra == 1, na.rm = TRUE), 
+    registered_rdb = sum(registered_rdb == 1, na.rm = TRUE),
+    registered_rca = sum(registered_rca == 1, na.rm = TRUE), #Rwanda cooperative Agency
+    registered_distr = sum( registered_distr == 1, na.rm = TRUE),
+    registered_sector = sum(registered_sector == 1, na.rm = TRUE),
+    registered_psf = sum(registered_psf == 1, na.rm = TRUE), #registered at private sector fund
+    tax_vat = sum(tax_vat == 1, na.rm = TRUE),
+    tax_tpr = sum(tax_tpr == 1, na.rm = TRUE),
+    tax_income = sum(tax_income == 1, na.rm = TRUE),
+    regular_account = sum(regular_account == 1, na.rm = TRUE),#Does the establishment maintain regular operational account
+    
+    rw_noqual = sum(rw_noqual, na.rm = TRUE),
+    rw_primary = sum(rw_primary, na.rm = TRUE),
+    rw_secondary = sum(rw_secondary, na.rm = TRUE),
+    rw_university = sum(rw_university, na.rm = TRUE),
+    
+    nr_noqual = sum(nr_noqual, na.rm = TRUE),
+    nr_primary = sum(nr_primary, na.rm = TRUE),
+    nr_secondary = sum(nr_secondary, na.rm = TRUE),
+    nr_university = sum(nr_university, na.rm = TRUE),
+    
+    rw_male = sum(rw_male, na.rm = TRUE),
+    rw_female = sum(rw_female, na.rm = TRUE),
+    nr_male = sum(nr_male, na.rm = TRUE), #None Rwanda male
+    nr_female = sum(nr_female, na.rm = TRUE), #None Rwanda female
+    
+    rw_total = sum(rw_total, na.rm = TRUE),
+    nr_total = sum(nr_total, na.rm = TRUE)
+  )
+
+write_xlsx(village_level_2011, path = here("outputs", "2011", "village_level_2011.xlsx"))
+
+##Grouping 2011----
+
+
+capital_group <- ec_2011_clean %>%
+  group_by(village_id, employed_capital_group) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+sector_group <- ec_2011_clean %>% 
+  group_by(village_id, sector) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+establishment_group <- ec_2011_clean %>% 
+  group_by(village_id, establishment_type) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+manager_gender_group <- ec_2011_clean %>% 
+  group_by(village_id, manager_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+owner_gender_group <- ec_2011_clean %>% 
+  group_by(village_id, owner_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_place_group <- ec_2011_clean %>% 
+  group_by(village_id,working_place) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_status_group <- ec_2011_clean %>% 
+  group_by(village_id,working_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+ownership_group <- ec_2011_clean %>% 
+  group_by(village_id, ownership) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+legal_status_group <- ec_2011_clean %>% 
+  group_by(village_id, legal_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_2011_level1 <- ec_2011_clean %>% 
+  mutate(across(everything(), ~ifelse(. == 9999, NA, .))) %>% 
+  group_by(village_id, isic_level1) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_2011_minicom <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+    
+  
+
+list_2011 <- list(
+  "capital_group" = capital_group,
+  "sector_group" = sector_group,
+  "establishment_group" = establishment_group,
+  "manager_gender" = manager_gender_group,
+  "owner_gender" = owner_gender_group,
+  "working_place" = working_place_group,
+  "working_status" = working_status_group,
+  "ownership" = ownership_group,
+  "legal_status" = legal_status_group,
+  "isic_level1" = isic_level1,
+  "isic_minicom" = isic_minicom)
+
+write_xlsx(list_2011, path = here("outputs","2011", "group_long_2011.xlsx"))
+
+
+##ISIC groups-----
+
+
+isic_sector <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, sector) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_capital <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, employed_capital_group) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_establishment <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, establishment_type) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_manager_gender <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, manager_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_owner_gender <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, owner_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_place <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, working_place) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_status <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, working_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_ownership <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, ownership) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_legal_status <- ec_2011_clean %>% 
+  group_by(village_id, isic_level1, legal_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+list_isic_2011 <- list(
+  "capital_group" = isic_capital,
+  "sector_group" = isic_sector,
+  "establishment_group" = isic_establishment,
+  "manager_gender" = isic_manager_gender,
+  "owner_gender" = isic_owner_gender,
+  "working_place" = isic_working_place,
+  "working_status" = isic_working_status,
+  "ownership" = isic_ownership,
+  "legal_status" = isic_legal_status)
+
+
+write_xlsx(list_isic_2011, path = here("outputs","2011", "group_long_2011(isic_level1).xlsx"))
+
+##ISIC minicom----
+
+
+
+isic_sector <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, sector) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_capital <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, employed_capital_group) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_establishment <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, establishment_type) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_manager_gender <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, manager_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_owner_gender <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, owner_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_place <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, working_place) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_status <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, working_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_ownership <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, ownership) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_legal_status <- ec_2011_clean %>% 
+  group_by(village_id, isic_minicom, legal_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+list_isic_2011 <- list(
+  "capital_group" = isic_capital,
+  "sector_group" = isic_sector,
+  "establishment_group" = isic_establishment,
+  "manager_gender" = isic_manager_gender,
+  "owner_gender" = isic_owner_gender,
+  "working_place" = isic_working_place,
+  "working_status" = isic_working_status,
+  "ownership" = isic_ownership,
+  "legal_status" = isic_legal_status)
+
+
+write_xlsx(list_isic_2011, path = here("outputs","2011", "group_long_2011(isic_minicom).xlsx"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#2014----
+
+##Cleaning----
+ec_2014_clean <- ec_2014 %>% 
+  rename(
+    establishment_type = Q18,
+    num_branch = Q19,
+    econ_activity = Q6A,
+    total_workers_allbranch = Q20,
+    manager_gender = Q4B,#How is it different from the other gender?
+    working_place = Q2,
+    working_status = Q3,
+    sector = Q8,
+    private_sector = Q9,
+    mixed_sector = Q10,
+    ownership = SO,
+    year_start = Q5B,
+    turn_over = Q23,
+    employed_capital = Q24,
+    revenue = Q25,
+    contribution = Q26,
+    legal_status = Q12,
+    owner_manager = Q14,
+    owner_gender = SO2,
+    
+    registered_ssf = Q27F, #registered at social security fund
+    registered_rra = Q27H, 
+    registered_rdb = Q27G,
+    registered_rca = Q27C, #Rwanda cooperative Agency
+    registered_distr = Q27B,
+    registered_sector = Q27A,
+    registered_psf = Q27D, #registered at private sector fund
+    registered_other = Q27IA,
+    registered_rgb = Q27E, #registered rwanda governance board(RGB)
+    tax_vat = Q29A,
+    tax_tpr = A29B,
+    tax_income = Q29C,
+    tax_excise_duties = Q29D,
+    tax_import_duties = Q29E,
+    tax_trading_license = Q29F,
+    tax_rental_income = Q29G,
+    tax_flat = Q29H,
+    regular_account = Q17,#Does the establishment maintain regular operational account
+    
+    #employee status
+    
+    paid_workers = paid,
+    unpaid_workers = Nosal,
+    paid_male = paid_male,
+    unpaid_male = Unpaid_male,
+    paid_female = paid_female,
+    unpaid_female = Unpaid_female,
+    
+    rw_male = Q21A2,
+    rw_female = Q21A3,
+    nr_male = Q21B2, #None Rwanda male
+    nr_female = Q21B3, #None Rwanda female
+    
+    rw_total = Q21A1,
+    nr_total = Q21B1,
+    total_employee = Q21C1,
+    total_male = Q21C2,
+    total_female = Q21C3,
+    
+    owner_male = Q22A2,
+    owner_female = Q22A3
+  ) %>% 
+  rename(establishment_id =key) %>% 
+  mutate(
+    employed_capital_group = employed_capital,
+    total_employee = ifelse(is.na(total_employee), 0, total_employee),
+    owner_manager = ifelse(owner_manager == 1, 1, 0)
+  ) %>% 
+  clean_names()%>% 
+  mutate(
+    total_manager = ifelse(owner_manager == 1, 0, 1),
+    total_owner = 1
+  ) %>% 
+  mutate(
+    total_manager = ifelse(is.na(total_manager), 0, total_manager),
+    owner_gender = ifelse(owner_gender == 9, NA, owner_gender),
+    ownership = ifelse(owner_gender == 99, NA, ownership),
+    legal_status = ifelse(legal_status == 9, NA, legal_status),
+    isic_level1_secondary = ifelse(isic1q7b == 88888, NA, isic1q7b),
+    isic_com = ifelse(isic_com == 99, NA, isic_com),
+    isic_level1_main = isic1q6b
+  )
+
+
+##Village level aggregation----
+village_level_2014 <- ec_2014_clean %>% 
+  group_by(village_id) %>% 
+  summarise(
+    num_establishment = n(),
+    total_employee = sum(total_employee, na.rm = TRUE),
+    total_owner = sum(total_owner, na.rm = TRUE),
+
+    # establishment_type = Q18,
+    head_office = sum(establishment_type == 1, na.rm = TRUE),
+    single_unit = sum(establishment_type == 2, na.rm = TRUE),
+    branch_office = sum(establishment_type == 3, na.rm = TRUE), #Branch of national enterprise
+    branch_sub = sum(establishment_type == 4, na.rm = TRUE),#Branch of international enterprise
+    
+    # econ_activity = Q6A,
+    # isic = ISIC_COM,#ISIC LEVEL 1 ACTIVITY
+    
+
+    # manager_gender = Q4A,#How is it different from the other gender?
+    male_manager = sum(manager_gender == 1, na.rm = TRUE),
+    female_manager = sum(manager_gender == 2, na.rm = TRUE),
+    
+    
+    # working_place = Q2,
+    within_market = sum(working_place == 1, na.rm = TRUE),
+    outside_market = sum(working_place == 2, na.rm = TRUE),
+    industrial_zone = sum(working_place == 3, na.rm = TRUE), 
+   
+    # working_status = Q3,
+    status_working = sum(working_status == 1, na.rm = TRUE),
+    status_perm_closed = sum(working_status == 3, na.rm = TRUE),#CLOSED PERMENANTLY
+
+    # sector = Q8,
+    # private_sector = Q9,
+    # mixed_sector = Q10,,
+    sector_private = sum(sector == 1, na.rm = TRUE),
+    sector_public = sum(sector == 3, na.rm = TRUE),
+    sector_mixed = sum(sector == 2, na.rm = TRUE),
+    sector_ngo_rw = sum(sector == 4, na.rm = TRUE),
+    sector_ngo_nr = sum(sector == 5, na.rm = TRUE),
+    
+
+    # ownership = SO,
+    ownership_rw = sum(ownership == 1, na.rm = TRUE),
+    ownership_other = sum(ownership != 1 & ownership != 99, na.rm = TRUE),
+    
+    # year_start = Q5A,
+    min_year_start = min(year_start, na.rm = TRUE),
+    max_year_start = max(year_start, na.rm = TRUE),
+    
+    # turnover
+    turn_over_1 = sum(turn_over == 1, na.rm = TRUE),#les than 300.000
+    turn_over_2 = sum(turn_over == 2, na.rm = TRUE),#300.000 - 12million
+    turn_over_3 = sum(turn_over == 3, na.rm = TRUE),#12-20 million
+    turn_over_4 = sum(turn_over == 4, na.rm = TRUE),#more than 20 - 50 million
+    turn_over_5 = sum(turn_over == 5, na.rm = TRUE),#more than 50 million
+    
+    # employed_capital = Q24,
+    employed_capital_1 = sum(employed_capital == 1, na.rm = TRUE),#less than 500,000
+    employed_capital_2 = sum(employed_capital == 2, na.rm = TRUE),#500,000 - 15 million
+    employed_capital_3 = sum(employed_capital == 3, na.rm = TRUE),#More than 15 million to 75 million
+    employed_capital_4 = sum(employed_capital == 4, na.rm = TRUE),#More than 75 million
+
+    # revenue = Q25,
+    revenue_1 = sum(revenue == 1, na.rm = TRUE),
+    revenue_2 = sum(revenue == 2, na.rm = TRUE),
+    revenue_3 = sum(revenue == 3, na.rm = TRUE),
+    revenue_4 = sum(revenue == 4, na.rm = TRUE),
+    revenue_5 = sum(revenue == 5, na.rm = TRUE),
+    
+    # contribution = Q26,
+    contribution_1 = sum(contribution == 1, na.rm = TRUE),#less than 500,000
+    contribution_2 = sum(contribution == 2, na.rm = TRUE),#500,000 - 15million
+    contribution_3 = sum(contribution == 3, na.rm = TRUE),#more than 15 million to 75 illion
+    contribution_4 = sum(contribution == 4, na.rm = TRUE),#more than 75 million
+    # isic_first_level = ISIC1Q7B,#And what is this?
+    
+    # legal_status = Q12,
+    
+    sole_proprietorship = sum(legal_status == 1, na.rm = TRUE),
+    lim_share = sum(legal_status == 2, na.rm = TRUE),
+    lim_guarantee = sum(legal_status == 3, na.rm = TRUE),
+    lim_share_guarantee = sum(legal_status == 4, na.rm = TRUE),
+    unlimited = sum(legal_status == 5, na.rm = TRUE),
+    
+    # owner_manager = Q14,
+    # owner_gender = SO2,
+    owner_manager = sum(owner_manager == 1, na.rm = TRUE),
+    owner_male = sum(owner_gender == 1, na.rm = TRUE),
+    owner_female = sum(owner_gender == 2, na.rm = TRUE),
+    
+    # 
+    registered_ssf = sum(registered_ssf == 1, na.rm = TRUE), #registered at social security fund
+    registered_rra = sum(registered_rra == 1, na.rm = TRUE), 
+    registered_rdb = sum(registered_rdb == 1, na.rm = TRUE),
+    registered_rca = sum(registered_rca == 1, na.rm = TRUE), #Rwanda cooperative Agency
+    registered_distr = sum( registered_distr == 1, na.rm = TRUE),
+    registered_sector = sum(registered_sector == 1, na.rm = TRUE),
+    registered_psf = sum(registered_psf == 1, na.rm = TRUE), #registered at private sector fund
+    registered_rgb = sum(registered_rgb == 1, na.rm = TRUE),
+    tax_vat = sum(tax_vat == 1, na.rm = TRUE),
+    tax_tpr = sum(tax_tpr == 1, na.rm = TRUE),
+    tax_income = sum(tax_income == 1, na.rm = TRUE),
+    regular_account = sum(regular_account == 1, na.rm = TRUE),#Does the establishment maintain regular operational account
+    
+    
+    # employee status
+    
+    paid_workers = sum(paid_workers, na.rm = TRUE),
+    unpaid_workers = sum(unpaid_workers, na.rm = TRUE),
+    paid_male = sum(paid_male, na.rm = TRUE),
+    unpaid_male = sum(unpaid_male, na.rm = TRUE),
+    paid_female = sum(paid_female, na.rm = TRUE),
+    unpaid_female = sum(unpaid_female, na.rm = TRUE),
+    
+    rw_male = sum(rw_male, na.rm = TRUE),
+    rw_female = sum(rw_female, na.rm = TRUE),
+    nr_male = sum(nr_male, na.rm = TRUE), #None Rwanda male
+    nr_female = sum(nr_female, na.rm = TRUE), #None Rwanda female
+    
+    rw_total = sum(rw_total, na.rm = TRUE),
+    nr_total = sum(nr_total, na.rm = TRUE),
+    total_male = sum(total_male, na.rm = TRUE),
+    total_female = sum(total_female, na.rm = TRUE),
+  )
+
+
+write_xlsx(village_level_2014, path = here("outputs", "2014", "village_level_2014.xlsx"))
+
+##Grouping 2014----
+
+capital_group <- ec_2014_clean %>%
+  group_by(village_id, employed_capital_group) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+sector_group <- ec_2014_clean %>% 
+  group_by(village_id, sector) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+establishment_group <- ec_2014_clean %>% 
+  group_by(village_id, establishment_type) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+manager_gender_group <- ec_2014_clean %>% 
+  group_by(village_id, manager_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+owner_gender_group <- ec_2014_clean %>% 
+  group_by(village_id, owner_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_place_group <- ec_2014_clean %>% 
+  group_by(village_id,working_place) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_status_group <- ec_2014_clean %>% 
+  group_by(village_id,working_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+ownership_group <- ec_2014_clean %>% 
+  group_by(village_id, ownership) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+legal_status_group <- ec_2014_clean %>% 
+  group_by(village_id, legal_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+isic_level1_main <- ec_2014_clean %>% 
+  group_by(village_id, isic1q6b) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_level1_secondary <- ec_2014_clean %>%
+  group_by(village_id, isic_level1_secondary) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_com <- ec_2014_clean %>% 
+  group_by(village_id, isic_com) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+list_2014 <- list(
+  "capital_group" = capital_group,
+  "sector_group" = sector_group,
+  "establishment_group" = establishment_group,
+  "manager_gender" = manager_gender_group,
+  "owner_gender" = owner_gender_group,
+  "working_place" = working_place_group,
+  "working_status" = working_status_group,
+  "ownership" = ownership_group,
+  "legal_status" = legal_status_group,
+  "isic_level1_main" = isic_level1_main,
+  "isic_level1_secondary" = isic_level1_secondary,
+  "isic_com" = isic_com)
+
+write_xlsx(list_2014, path = here("outputs","2014", "group_long_2014.xlsx"))
+
+
+
+##ISIC groups----
+
+
+isic_sector <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, sector) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_capital <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, employed_capital_group) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_establishment <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, establishment_type) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_manager_gender <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, manager_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_owner_gender <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, owner_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_place <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, working_place) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_status <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, working_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_ownership <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, ownership) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_legal_status <- ec_2014_clean %>% 
+  group_by(village_id, isic_level1_main, legal_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+list_isic_2014 <- list(
+  "capital_group" = isic_capital,
+  "sector_group" = isic_sector,
+  "establishment_group" = isic_establishment,
+  "manager_gender" = isic_manager_gender,
+  "owner_gender" = isic_owner_gender,
+  "working_place" = isic_working_place,
+  "working_status" = isic_working_status,
+  "ownership" = isic_ownership,
+  "legal_status" = isic_legal_status)
+
+
+write_xlsx(list_isic_2014, path = here("outputs","2014", "group_long_2014(isic).xlsx"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#2017----
+
+##Cleaning----
+ec_2017_clean <- ec_2017 %>% 
+  rename(
+    establishment_type = q16,
+    num_branch = q17_2,
+    manager_gender = q4_2,#How is it different from the other gender?
+    working_place = q2,
+    working_status = q3,
+    sector = q7,
+    mixed_sector = q8,
+    ownership = q9,
+    year_start = q5_2,
+    turn_over = q20,
+    employed_capital = q21,
+    legal_status = q10,
+    owner_manager = q12,
+    owner_gender = q13,
+    
+    registered_ssf = q22f, #registered at social security fund
+    registered_rra = q22h, 
+    registered_rdb = q22g,
+    registered_rca = q22c, #Rwanda cooperative Agency
+    registered_distr = q22b,
+    registered_sector = q22a,
+    registered_psf = q22d, #registered at private sector fund
+    registered_other = q22j,
+    registered_rgb = q22e, #registered rwanda governance board(RGB)
+    tax_vat = q24a,
+    tax_tpr = q24b,
+    tax_income = q24c,
+    tax_excise_duties = q24d,
+    tax_import_duties = q24e,
+    tax_trading_license = q24f,
+    tax_rental_income = q24g,
+    tax_flat = q24h,
+    regular_account = q15_1,#Does the establishment maintain regular operational account
+    
+    total_employee = Total_workers
+  ) %>% 
+  clean_names() %>% 
+  mutate(
+    employed_capital_group = employed_capital,
+    total_employee = ifelse(is.na(total_employee), 0, total_employee),
+    owner_manager = ifelse(owner_manager == 1, 1, 0)
+  ) %>% 
+  mutate(
+    total_owner = 1,
+    total_manager = ifelse(owner_manager == 1, 0 , 1)
+  ) %>% 
+  mutate(
+    total_manager = ifelse(is.na(total_manager), 0, total_manager),
+    employed_capital_group = ifelse(employed_capital_group == 9, NA, employed_capital_group),
+    manager_gender = ifelse(manager_gender == 9, NA, manager_gender),
+    owner_gender = ifelse(owner_gender == 9, NA, owner_gender),
+    ownership = ifelse(ownership == 9, NA, ownership),
+    isic_1_digit = q6_1,
+    year_start = ifelse(year_start == 9999, NA, year_start)
+  )
+
+
+
+##Village level aggregate----
+
+village_level_2017 <- ec_2017_clean %>% 
+  group_by(village_id) %>% 
+  summarise(
+    num_establishment = n(),
+    total_employee = sum(total_employee, na.rm = TRUE),
+    total_owner = sum(total_owner, na.rm = TRUE),
+    total_manager = sum(total_manager, na.rm = TRUE),
+    
+    # establishment_type = Q16,
+    head_office = sum(establishment_type == 1, na.rm = TRUE),
+    single_unit  = sum(establishment_type == 2, na.rm = TRUE),
+    branch_office = sum(establishment_type == 3, na.rm = TRUE), #Branch of national enterprise
+    branch_sub = sum(establishment_type == 4, na.rm = TRUE),#Branch of international enterprise
+  
+    
+    # manager_gender = Q4A,#How is it different from the other gender?
+    male_manager = sum(manager_gender == 1, na.rm = TRUE),
+    female_manager = sum(manager_gender == 2, na.rm = TRUE),
+    
+    
+    #     working_place = Q2,
+    within_market = sum(working_place == 1, na.rm = TRUE),
+    outside_market = sum(working_place == 2, na.rm = TRUE),
+    industrial_zone = sum(working_place == 3, na.rm = TRUE),
+    ICPCs = sum(working_place == 4, na.rm = TRUE), 
+    
+    
+    #     working_status = Q3,
+    status_working = sum(working_status == 1, na.rm = TRUE),
+    status_temp_closed = sum(working_status == 2, na.rm = TRUE),
+    
+    #sector = Q8,
+    # private_sector = Q9,
+    # mixed_sector = Q10,,
+    sector_private = sum(sector == 1, na.rm = TRUE),
+    sector_cooperative = sum(sector == 2, na.rm = TRUE),
+    sector_public = sum(sector == 3, na.rm = TRUE),
+    sector_public_private = sum(sector == 4, na.rm = TRUE),
+    sector_ngo_rw = sum(sector == 5, na.rm = TRUE),
+    sector_ngo_nr = sum(sector == 6, na.rm = TRUE),
+    
+    
+    #     ownership = SO,
+    ownership_rw = sum(ownership == 1, na.rm = TRUE),
+    ownership_other = sum(ownership != 1, na.rm = TRUE),
+    
+    # year_start = Q5A,
+    min_year_start = min(year_start, na.rm = TRUE),
+    max_year_start = max(year_start, na.rm = TRUE),
+    
+    #turnover q20
+    turn_over_1 = sum(turn_over == 1, na.rm = TRUE),#les than 300.000
+    turn_over_2 = sum(turn_over == 2, na.rm = TRUE),#300.000 - 12million
+    turn_over_3 = sum(turn_over == 3, na.rm = TRUE),#12-20 million
+    turn_over_4 = sum(turn_over == 4, na.rm = TRUE),#more than 20 - 50 million
+    turn_over_5 = sum(turn_over == 5, na.rm = TRUE),#more than 50 million
+    
+    #    employed_capital = Q24,
+    employed_capital_1 = sum(employed_capital == 1, na.rm = TRUE),#less than 500,000
+    employed_capital_2 = sum(employed_capital == 2, na.rm = TRUE),#500,000 - 15 million
+    employed_capital_3 = sum(employed_capital == 3, na.rm = TRUE),#More than 15 million to 75 million
+    employed_capital_4 = sum(employed_capital == 4, na.rm = TRUE),#More than 75 million
+    
+    
+    # legal_status = Q12,
+    
+    sole_proprietorship = sum(legal_status == 1, na.rm = TRUE),
+    lim_share = sum(legal_status == 2, na.rm = TRUE),
+    lim_guarantee = sum(legal_status == 3, na.rm = TRUE),
+    lim_share_guarantee = sum(legal_status == 4, na.rm = TRUE),
+    unlimited = sum(legal_status == 5, na.rm = TRUE),
+    
+    # owner_manager = Q14,
+    # owner_gender = SO2,
+    owner_manager = sum(owner_manager == 1, na.rm = TRUE),
+    owner_male = sum(owner_gender == 1, na.rm = TRUE),
+    owner_female = sum(owner_gender == 2, na.rm = TRUE),
+    
+    # 
+    registered_ssf = sum(registered_ssf == 1, na.rm = TRUE), #registered at social security fund
+    registered_rra = sum(registered_rra == 1, na.rm = TRUE), 
+    registered_rdb = sum(registered_rdb == 1, na.rm = TRUE),
+    registered_rca = sum(registered_rca == 1, na.rm = TRUE), #Rwanda cooperative Agency
+    registered_distr = sum( registered_distr == 1, na.rm = TRUE),
+    registered_sector = sum(registered_sector == 1, na.rm = TRUE),
+    registered_psf = sum(registered_psf == 1, na.rm = TRUE), #registered at private sector fund
+    registered_rgb = sum(registered_rgb == 1, na.rm = TRUE),
+    tax_vat = sum(tax_vat == 1, na.rm = TRUE),
+    tax_tpr = sum(tax_tpr == 1, na.rm = TRUE),
+    tax_income = sum(tax_income == 1, na.rm = TRUE),
+    regular_account = sum(regular_account == 1, na.rm = TRUE),#Does the establishment maintain regular operational account
+    
+  )
+
+
+write_xlsx(village_level_2017, path = here("outputs","2017", "village_level_2017.xlsx"))
+
+
+
+
+##Grouping 2017----
+
+capital_group <- ec_2017_clean %>%
+  group_by(village_id, employed_capital_group) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+sector_group <- ec_2017_clean %>% 
+  group_by(village_id, sector) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+establishment_group <- ec_2017_clean %>% 
+  group_by(village_id, establishment_type) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+manager_gender_group <- ec_2017_clean %>% 
+  group_by(village_id, manager_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+owner_gender_group <- ec_2017_clean %>% 
+  group_by(village_id, owner_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_place_group <- ec_2017_clean %>% 
+  group_by(village_id,working_place) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_status_group <- ec_2017_clean %>% 
+  group_by(village_id,working_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+ownership_group <- ec_2017_clean %>% 
+  group_by(village_id, ownership) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+legal_status_group <- ec_2017_clean %>% 
+  group_by(village_id, legal_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+isic_1_digit <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+list_2017 <- list(
+  "capital_group" = capital_group,
+  "sector_group" = sector_group,
+  "establishment_group" = establishment_group,
+  "manager_gender" = manager_gender_group,
+  "owner_gender" = owner_gender_group,
+  "working_place" = working_place_group,
+  "working_status" = working_status_group,
+  "ownership" = ownership_group,
+  "legal_status" = legal_status_group,
+  "isic_1_digit" = isic_1_digit)
+
+write_xlsx(list_2017, path = here("outputs","2017", "group_long_2017.xlsx"))
+
+
+##ISIC groups----
+
+
+isic_sector <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, sector) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_capital <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, employed_capital_group) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_establishment <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, establishment_type) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_manager_gender <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, manager_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_owner_gender <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, owner_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_place <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, working_place) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_status <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, working_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_ownership <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, ownership) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_legal_status <- ec_2017_clean %>% 
+  group_by(village_id, isic_1_digit, legal_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+list_isic_2017 <- list(
+  "capital_group" = isic_capital,
+  "sector_group" = isic_sector,
+  "establishment_group" = isic_establishment,
+  "manager_gender" = isic_manager_gender,
+  "owner_gender" = isic_owner_gender,
+  "working_place" = isic_working_place,
+  "working_status" = isic_working_status,
+  "ownership" = isic_ownership,
+  "legal_status" = isic_legal_status)
+
+
+write_xlsx(list_isic_2017, path = here("outputs","2017", "group_long_2017(isic).xlsx"))
+
+
+
+
+
+
+
+
+
+
+#2020----
+##Cleaning----
+ec_2020_clean <- ec_2020 %>% 
+  rename(
+    establishment_type = q16,
+    num_branch = q17_2,
+    manager_gender = q4_2,#How is it different from the other gender?
+    working_place = q2,
+    working_status = q3,
+    sector = q7,
+    mixed_sector = q8,
+    ownership = q9,
+    year_start = q5_2,
+    turn_over = q20,
+    employed_capital = q21,
+    legal_status = q10,
+    owner_manager = q12,
+    owner_gender = q13,
+    
+    registered_ssf = q22f, #registered at social security fund
+    registered_rra = q22h, 
+    registered_rdb = q22g,
+    registered_rca = q22c, #Rwanda cooperative Agency
+    registered_distr = q22b,
+    registered_sector = q22a,
+    registered_psf = q22d, #registered at private sector fund
+    registered_other = q22j,
+    registered_rgb = q22e, #registered rwanda governance board(RGB)
+    tax_vat = q24a,
+    tax_tpr = q24b,
+    tax_income = q24c,
+    tax_excise_duties = q24d,
+    tax_import_duties = q24e,
+    tax_trading_license = q24f,
+    tax_rental_income = q24g,
+    tax_flat = q24h,
+    regular_account = q15_1,#Does the establishment maintain regular operational account
+    
+    #employee status
+    
+    paid_workers = q19_30,
+    unpaid_workers = q19_31,
+
+    rw_male = q18_1,
+    rw_female = q18_2,
+    nr_male = q18_4, #None Rwanda male
+    nr_female = q18_5, #None Rwanda female
+    
+    rw_total = q18_3,
+    nr_total = q18_6,
+    total_employee = q18_9,
+    total_male = q18_7,
+    total_female = q18_8,
+    
+  ) %>% 
+  mutate(
+    across(c(starts_with("q18"), starts_with("q19")), ~ifelse(is.na(.), 0, .) )
+  ) %>% 
+  mutate(
+    paid_male = q19_13 + q19_16 + q19_19 + q19_10 + q19_10a,
+    unpaid_male = q19_7 + q19_7a + q19_4 + q19_1,
+    paid_female =  q19_11 + q19_11b + q19_14 + q19_20 + q19_17, 
+    unpaid_female = q19_8 + q19_8b + q19_5 + q19_2,
+    employed_capital_group = employed_capital
+  ) %>% 
+  clean_names() %>% 
+  mutate(
+    establishment_id = village_id* 10000 + q1_6,
+    owner_manager = ifelse(owner_manager == 1, 1, 0)
+  ) %>% 
+  mutate(
+    total_owner = 1,
+    total_manager = ifelse(owner_manager == 1, 0, 1)
+  ) %>% 
+  mutate(
+    total_manager = ifelse(is.na(total_manager), 0, total_manager),
+    owner_gender = ifelse(owner_gender == 9, NA, owner_gender),
+    isic_level1 = q6_1
+  )
+  
+##Village level aggregate----
+  
+  
+village_level_2020 <- ec_2020_clean %>% 
+    group_by(village_id) %>% 
+    summarise(
+      num_establishment = n(),
+      total_employee = sum(total_employee, na.rm = TRUE),
+      total_owner = sum(total_owner, na.rm = TRUE),
+      total_manager = sum(total_manager, na.rm = TRUE),
+      
+      # establishment_type = Q18,
+      head_office = sum(establishment_type == 1, na.rm = TRUE),
+      single_unit = sum(establishment_type == 2, na.rm = TRUE),
+      branch_office = sum(establishment_type == 3, na.rm = TRUE), #Branch of national enterprise
+      branch_sub = sum(establishment_type == 4, na.rm = TRUE),#Branch of international enterprise
+      
+      # manager_gender = Q4A,#How is it different from the other gender?
+      male_manager = sum(manager_gender == 1, na.rm = TRUE),
+      female_manager = sum(manager_gender == 2, na.rm = TRUE),
+      
+      
+      #     working_place = Q2,
+      within_market = sum(working_place == 1, na.rm = TRUE),
+      outside_market = sum(working_place == 2, na.rm = TRUE),
+      industrial_zone = sum(working_place == 3, na.rm = TRUE),
+      ICPCs = sum(working_place == 4, na.rm = TRUE), 
+      
+      
+      #     working_status = Q3,
+      status_working = sum(working_status == 1, na.rm = TRUE),
+      status_temp_closed = sum(working_status == 2, na.rm = TRUE),
+      
+      #sector = Q8,
+      # private_sector = Q9,
+      # mixed_sector = Q10,,
+      sector_private = sum(sector == 1, na.rm = TRUE),
+      sector_cooperative = sum(sector == 2, na.rm = TRUE),
+      sector_public = sum(sector == 3, na.rm = TRUE),
+      sector_public_private = sum(sector == 4, na.rm = TRUE),
+      sector_ngo_rw = sum(sector == 5, na.rm = TRUE),
+      sector_ngo_nr = sum(sector == 6, na.rm = TRUE),
+      
+      
+      #     ownership = SO,
+      ownership_rw = sum(ownership == 1, na.rm = TRUE),
+      ownership_other = sum(ownership != 1, na.rm = TRUE),
+      
+      # year_start = Q5A,
+      min_year_start = min(year_start, na.rm = TRUE),
+      max_year_start = max(year_start, na.rm = TRUE),
+      
+      #turnover q20
+      turn_over_1 = sum(turn_over == 1, na.rm = TRUE),#les than 300.000
+      turn_over_2 = sum(turn_over == 2, na.rm = TRUE),#300.000 - 12million
+      turn_over_3 = sum(turn_over == 3, na.rm = TRUE),#12-20 million
+      turn_over_4 = sum(turn_over == 4, na.rm = TRUE),#more than 20 - 50 million
+      turn_over_5 = sum(turn_over == 5, na.rm = TRUE),#more than 50 million
+      
+      #    employed_capital = Q24,
+      employed_capital_1 = sum(employed_capital == 1, na.rm = TRUE),#less than 500,000
+      employed_capital_2 = sum(employed_capital == 2, na.rm = TRUE),#500,000 - 15 million
+      employed_capital_3 = sum(employed_capital == 3, na.rm = TRUE),#More than 15 million to 75 million
+      employed_capital_4 = sum(employed_capital == 4, na.rm = TRUE),#More than 75 million
+      
+      
+      # legal_status = Q12,
+      
+      sole_proprietorship = sum(legal_status == 1, na.rm = TRUE),
+      lim_share = sum(legal_status == 2, na.rm = TRUE),
+      lim_guarantee = sum(legal_status == 3, na.rm = TRUE),
+      lim_share_guarantee = sum(legal_status == 4, na.rm = TRUE),
+      unlimited = sum(legal_status == 5, na.rm = TRUE),
+      
+      # owner_manager = Q14,
+      # owner_gender = SO2,
+      owner_manager = sum(owner_manager == 1, na.rm = TRUE),
+      owner_male = sum(owner_gender == 1, na.rm = TRUE),
+      owner_female = sum(owner_gender == 2, na.rm = TRUE),
+      
+      # 
+      registered_ssf = sum(registered_ssf == 1, na.rm = TRUE), #registered at social security fund
+      registered_rra = sum(registered_rra == 1, na.rm = TRUE), 
+      registered_rdb = sum(registered_rdb == 1, na.rm = TRUE),
+      registered_rca = sum(registered_rca == 1, na.rm = TRUE), #Rwanda cooperative Agency
+      registered_distr = sum( registered_distr == 1, na.rm = TRUE),
+      registered_sector = sum(registered_sector == 1, na.rm = TRUE),
+      registered_psf = sum(registered_psf == 1, na.rm = TRUE), #registered at private sector fund
+      registered_rgb = sum(registered_rgb == 1, na.rm = TRUE),
+      tax_vat = sum(tax_vat == 1, na.rm = TRUE),
+      tax_tpr = sum(tax_tpr == 1, na.rm = TRUE),
+      tax_income = sum(tax_income == 1, na.rm = TRUE),
+      regular_account = sum(regular_account == 1, na.rm = TRUE),#Does the establishment maintain regular operational account
+      
+      
+      #employee status
+      
+      paid_workers = sum(paid_workers, na.rm = TRUE),
+      unpaid_workers = sum(unpaid_workers, na.rm = TRUE),
+      paid_male = sum(paid_male, na.rm = TRUE),
+      unpaid_male = sum(unpaid_male, na.rm = TRUE),
+      paid_female = sum(paid_female, na.rm = TRUE),
+      unpaid_female = sum(unpaid_female, na.rm = TRUE),
+      
+      rw_male = sum(rw_male, na.rm = TRUE),
+      rw_female = sum(rw_female, na.rm = TRUE),
+      nr_male = sum(nr_male, na.rm = TRUE), #None Rwanda male
+      nr_female = sum(nr_female, na.rm = TRUE), #None Rwanda female
+      
+      rw_total = sum(rw_total, na.rm = TRUE),
+      nr_total = sum(nr_total, na.rm = TRUE),
+      total_male = sum(total_male, na.rm = TRUE),
+      total_female = sum(total_female, na.rm = TRUE),
+      
+    )
+
+
+write_xlsx(village_level_2020, path = here("outputs","2020", "village_level_2020.xlsx"))
+
+
+##Grouping 2020----
+
+capital_group <- ec_2020_clean %>%
+  group_by(village_id, employed_capital_group) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+sector_group <- ec_2020_clean %>% 
+  group_by(village_id, sector) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+establishment_group <- ec_2020_clean %>% 
+  group_by(village_id, establishment_type) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+manager_gender_group <- ec_2020_clean %>% 
+  group_by(village_id, manager_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+owner_gender_group <- ec_2020_clean %>% 
+  group_by(village_id, owner_gender) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_place_group <- ec_2020_clean %>% 
+  group_by(village_id,working_place) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+working_status_group <- ec_2020_clean %>% 
+  group_by(village_id,working_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+ownership_group <- ec_2020_clean %>% 
+  group_by(village_id, ownership) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+legal_status_group <- ec_2020_clean %>% 
+  group_by(village_id, legal_status) %>% 
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+isic_level1 <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+
+list_2020 <- list(
+  "capital_group" = capital_group,
+  "sector_group" = sector_group,
+  "establishment_group" = establishment_group,
+  "manager_gender" = manager_gender_group,
+  "owner_gender" = owner_gender_group,
+  "working_place" = working_place_group,
+  "working_status" = working_status_group,
+  "ownership" = ownership_group,
+  "legal_status" = legal_status_group,
+  "isic_level1" = isic_level1)
+
+write_xlsx(list_2020, path = here("outputs","2020", "group_long_2020.xlsx"))
+
+
+##ISIC groups----
+
+
+isic_sector <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, sector) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_capital <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, employed_capital_group) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_establishment <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, establishment_type) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_manager_gender <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, manager_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_owner_gender <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, owner_gender) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_place <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, working_place) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_working_status <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, working_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_ownership <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, ownership) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+isic_legal_status <- ec_2020_clean %>% 
+  group_by(village_id, isic_level1, legal_status) %>%
+  summarise(
+    n = n(),
+    total_employee = sum(total_employee),
+    total_manager = sum(total_manager),
+    total_owner = sum(total_owner)
+  )
+
+list_isic_2020 <- list(
+  "capital_group" = isic_capital,
+  "sector_group" = isic_sector,
+  "establishment_group" = isic_establishment,
+  "manager_gender" = isic_manager_gender,
+  "owner_gender" = isic_owner_gender,
+  "working_place" = isic_working_place,
+  "working_status" = isic_working_status,
+  "ownership" = isic_ownership,
+  "legal_status" = isic_legal_status)
+
+
+write_xlsx(list_isic_2020, path = here("outputs","2020", "group_long_2020(isic).xlsx"))
+
+
+
+
+table(village_leve$isic)
+

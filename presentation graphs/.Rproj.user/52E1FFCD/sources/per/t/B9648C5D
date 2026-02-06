@@ -12,8 +12,9 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "259,0",
-        "scrollLine": "0"
+        "cursorPosition": "167,0",
+        "scrollLine": "0",
+        "docOutlineVisible": "1"
     },
     "folds": "",
     "lastKnownWriteTime": 1730388574,
