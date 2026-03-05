@@ -1,0 +1,207 @@
+#' ********************************************************************************
+#' LSMS-ISA Harmonised Panel Analysis Code
+#' Description: Reusable functions for Uganda data processing
+#' Country: Uganda (UNPS)
+#' ********************************************************************************
+
+library(haven)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(purrr)
+
+# ============================================================================
+# MEDIAN VALUATION FUNCTIONS
+# ============================================================================
+
+#' Calculate median crop prices at different administrative levels
+valuation_median_crops <- function(data, hhid, plotid, cropvar, temp_path) {
+  
+  ea_data <- read_dta(file.path(temp_path, "ea_id.dta"))
+  data <- data |> left_join(ea_data, by = hhid)
+  
+  harvest_sold_value <- read_dta(file.path(temp_path, "harvest_sold_value.dta"))
+  harvest_sold_kg <- read_dta(file.path(temp_path, "harvest_sold_kg.dta"))
+  
+  data <- data |>
+    left_join(harvest_sold_value, by = c(hhid, plotid, cropvar)) |>
+    left_join(harvest_sold_kg, by = c(hhid, plotid, cropvar))
+  
+  data <- data |>
+    mutate(crop_price_temp = harvest_sold_value / harvest_sold_kg) |>
+    mutate(crop_price_temp = if_else(crop_price_temp == 0, NA_real_, crop_price_temp))
+  
+  for (n in 1:4) {
+    admin_file <- file.path(temp_path, paste0("admin", n, ".dta"))
+    if (file.exists(admin_file)) {
+      admin_data <- read_dta(admin_file)
+      data <- data |> left_join(admin_data, by = hhid)
+    }
+  }
+  
+  calc_median_price <- function(df, group_vars, cropvar, min_obs = 10) {
+    df |>
+      group_by(across(all_of(c(group_vars, cropvar)))) |>
+      mutate(
+        n_obs = sum(!is.na(crop_price_temp) & crop_price_temp != 0),
+        has_enough_obs = n_obs >= min_obs,
+        median_price = if_else(
+          has_enough_obs,
+          median(crop_price_temp[crop_price_temp != 0], na.rm = TRUE),
+          NA_real_
+        )
+      ) |>
+      ungroup()
+  }
+  
+  # EA level
+  data <- calc_median_price(data, "ea_id", cropvar)
+  data <- data |>
+    mutate(
+      crop_price = if_else(has_enough_obs, median_price, NA_real_),
+      ten_obs_EA = has_enough_obs
+    ) |>
+    select(-n_obs, -has_enough_obs, -median_price)
+  
+  # Admin levels (District -> County -> Subcounty -> Parish for Uganda)
+  if ("admin_4" %in% names(data)) {
+    data <- calc_median_price(data, "admin_4", cropvar)
+    data <- data |>
+      mutate(
+        crop_price = if_else(has_enough_obs & !ten_obs_EA, median_price, crop_price),
+        ten_obs_admin4 = has_enough_obs
+      ) |>
+      select(-n_obs, -has_enough_obs, -median_price)
+    
+    data <- calc_median_price(data, "admin_3", cropvar)
+    data <- data |>
+      mutate(
+        crop_price = if_else(has_enough_obs & !ten_obs_admin4, median_price, crop_price),
+        ten_obs_admin3 = has_enough_obs
+      ) |>
+      select(-n_obs, -has_enough_obs, -median_price)
+  } else {
+    data <- calc_median_price(data, "admin_3", cropvar)
+    data <- data |>
+      mutate(
+        crop_price = if_else(has_enough_obs & !ten_obs_EA, median_price, crop_price),
+        ten_obs_admin3 = has_enough_obs
+      ) |>
+      select(-n_obs, -has_enough_obs, -median_price)
+  }
+  
+  data <- calc_median_price(data, "admin_2", cropvar)
+  data <- data |>
+    mutate(
+      crop_price = if_else(has_enough_obs & !ten_obs_admin3, median_price, crop_price),
+      ten_obs_admin2 = has_enough_obs
+    ) |>
+    select(-n_obs, -has_enough_obs, -median_price)
+  
+  data <- calc_median_price(data, "admin_1", cropvar)
+  data <- data |>
+    mutate(
+      crop_price = if_else(has_enough_obs & !ten_obs_admin2, median_price, crop_price),
+      ten_obs_admin1 = has_enough_obs
+    ) |>
+    select(-n_obs, -has_enough_obs, -median_price)
+  
+  # National level
+  data <- data |>
+    group_by(across(all_of(cropvar))) |>
+    mutate(
+      n_obs = sum(!is.na(crop_price_temp) & crop_price_temp != 0),
+      has_enough_obs = n_obs >= 10,
+      crop_price_national = median(crop_price_temp[crop_price_temp != 0], na.rm = TRUE),
+      crop_price = if_else(has_enough_obs & !ten_obs_admin1, crop_price_national, crop_price),
+      crop_price = if_else(!has_enough_obs, crop_price_national, crop_price)
+    ) |>
+    ungroup()
+  
+  price_data <- data |>
+    select(ea_id, all_of(cropvar), crop_price) |>
+    distinct()
+  
+  harvest_kg <- read_dta(file.path(temp_path, "harvest_kg.dta"))
+  result <- harvest_kg |>
+    left_join(price_data, by = c("ea_id", cropvar)) |>
+    mutate(harvest_value = crop_price * harvest_kg)
+  
+  result
+}
+
+
+#' Calculate main crop on a plot (crop with highest harvest value)
+main_crop_def <- function(data, cropvar) {
+  data |>
+    filter(!is.na(plot_id), !is.na(.data[[cropvar]]), !is.na(harvest_value)) |>
+    group_by(plot_id) |>
+    mutate(main_crop = .data[[cropvar]][which.max(harvest_value)]) |>
+    ungroup()
+}
+
+
+#' Calculate main crop on a parcel
+main_crop_def_parcel <- function(data, cropvar) {
+  data |>
+    filter(!is.na(parcel_id), !is.na(.data[[cropvar]]), !is.na(harvest_value)) |>
+    group_by(parcel_id) |>
+    mutate(main_crop = .data[[cropvar]][which.max(harvest_value)]) |>
+    ungroup()
+}
+
+
+#' Calculate median wages at different administrative levels
+valuation_median_wages <- function(data, hhid, hired_man_wage, hired_woman_wage, 
+                                    hired_child_wage, temp_path) {
+  
+  ea_data <- read_dta(file.path(temp_path, "ea_id.dta"))
+  data <- data |> left_join(ea_data, by = hhid)
+  
+  for (n in 1:4) {
+    admin_file <- file.path(temp_path, paste0("admin", n, ".dta"))
+    if (file.exists(admin_file)) {
+      admin_data <- read_dta(admin_file)
+      data <- data |> left_join(admin_data, by = hhid)
+    }
+  }
+  
+  calc_median_wage <- function(df, group_var, wage_col, min_obs = 10) {
+    df |>
+      group_by(across(all_of(group_var))) |>
+      mutate(
+        n_obs = sum(!is.na(.data[[wage_col]]) & .data[[wage_col]] > 0),
+        has_enough_obs = n_obs >= min_obs,
+        median_wage = if_else(
+          has_enough_obs,
+          median(.data[[wage_col]][.data[[wage_col]] > 0], na.rm = TRUE),
+          NA_real_
+        )
+      ) |>
+      ungroup()
+  }
+  
+  for (wage_type in c("man", "woman", "child")) {
+    wage_col <- switch(wage_type,
+                       "man" = hired_man_wage,
+                       "woman" = hired_woman_wage,
+                       "child" = hired_child_wage)
+    result_col <- paste0(wage_type, "_wage")
+    
+    data <- calc_median_wage(data, "ea_id", wage_col)
+    data <- data |>
+      mutate(
+        !!result_col := if_else(has_enough_obs, median_wage, NA_real_),
+        !!paste0("ten_obs_EA_", wage_type) := has_enough_obs
+      ) |>
+      select(-n_obs, -has_enough_obs, -median_wage)
+  }
+  
+  data
+}
+
+
+#' Create year-month variable from year and month
+create_ym <- function(year, month) {
+  as.Date(paste(year, month, "01", sep = "-"))
+}

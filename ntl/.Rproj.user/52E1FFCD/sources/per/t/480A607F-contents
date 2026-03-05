@@ -7,6 +7,7 @@ library(sf)
 library(tidyr)
 library(readxl)
 library(writexl)
+library(tidyr)
 
 
 if (Sys.getenv("USERNAME") == "wb614406"){
@@ -16,6 +17,12 @@ if (Sys.getenv("USERNAME") == "wb614406"){
 historical_data_path <- file.path(
   DROPBOX,
   "Rwanda Energy/EAQIP/datawork/Historical data"
+)
+
+
+expansion_data_path <- file.path(
+  DROPBOX,
+  "Rwanda Energy/EAQIP/datawork/Historical Expansion"
 )
 
 #Read shapefile-------
@@ -93,15 +100,571 @@ for (year in 2014:2023) {
 
 View(rwa_df)
 
-rwa_df <- rwa_df %>% 
-  st_drop_geometry() %>% 
-  select(-geometry)
+library(writexl)
+
+
 write_xlsx(rwa_df, path = file.path(historical_data_path, "Nightlight", "data", "viirs_2014-2023(monthly&yearly).xlsx"))
 
 
 #Yearly data only df ----
 
 rwa_yearly <- rwa_df %>% 
-  select(Village_ID, Province, District, Sector, Cell, Name, `2014`, `2015`, `2016`, `2017`, `2018`, `2019`, `2020`, `2021`, `2022`, `2023`)
+  select(village_id, province, district, sector, cell, name, `2014`, `2015`, `2016`, `2017`, `2018`, `2019`, `2020`, `2021`, `2022`, `2023`)
 
 write_xlsx(rwa_yearly, path = file.path(historical_data_path, "Nightlight", "data", "viirs_2014-2023(yearly).xlsx"))
+
+
+
+#Plot----
+
+library(janitor)
+library(readxl)
+
+# ---- Load shapefiles ----
+rwa_village <- st_read(dsn = file.path(historical_data_path, "rwa_villages", "Village.shp"))
+
+rwa_district <- st_read(dsn = file.path(rct_data_path, "rwa_district", "District.shp"))
+rwa_district <- st_transform(rwa_district, crs = st_crs(rwa_village))
+
+# ---- Clean ID ----
+rwa_village <- rwa_village %>% 
+  clean_names() %>% 
+  mutate(village_id = as.character(village_id))   # adjust if column name differs
+
+# ---- Load electrification data ----
+
+rwa_regress <- read_xlsx(
+  path = file.path(expansion_data_path, "outputs", "expansion_join.xlsx")
+)
+
+rwa_regress <- rwa_regress %>%
+  mutate(
+    status = case_when(
+      electrified_year == 9999 ~ "never_elec",
+      electrified_year <= 2011 ~ "always_elec",
+      electrified_year >= 2012 & electrified_year <= 2014 ~ "elec12_14",
+      electrified_year >= 2015 & electrified_year <= 2017 ~ "elec15_17",
+      electrified_year >= 2018 & electrified_year <= 2020 ~ "elec18_20",
+      TRUE ~ "never_elec"
+    )
+  ) %>% 
+  filter(status != "always_elec")
+
+# rwa_regress <- read_xlsx(
+#   path = file.path(historical_data_path,  "rwa_regress_villagelevel.xlsx")
+# )
+
+village_electrified <- rwa_regress %>% 
+  distinct(village_id, .keep_all = TRUE) %>% 
+  select(village_id, status)
+
+# ---- Join ----
+rwa_village_join <- left_join(
+  rwa_village,
+  village_electrified,
+  by = "village_id"
+)
+
+
+#join------
+
+
+# ---- Load shapefiles ----
+rwa_village <- st_read(dsn = file.path(historical_data_path, "rwa_villages", "Village.shp"))
+
+rwa_district <- st_read(dsn = file.path(rct_data_path, "rwa_district", "District.shp"))
+rwa_district <- st_transform(rwa_district, crs = st_crs(rwa_village))
+
+# ---- Clean ID ----
+rwa_village <- rwa_village %>% 
+  clean_names() %>% 
+  mutate(village_id = as.character(village_id))   # adjust if column name differs
+
+# ---- Load electrification data ----
+
+rwa_regress <- read_xlsx(
+  path = file.path(expansion_data_path, "outputs", "expansion_join.xlsx")
+)
+
+rwa_regress <- rwa_regress %>%
+  mutate(
+    status = case_when(
+      electrified_year == 9999 ~ "never_elec",
+      electrified_year <= 2011 ~ "always_elec",
+      electrified_year >= 2012 & electrified_year <= 2014 ~ "elec12_14",
+      electrified_year >= 2015 & electrified_year <= 2017 ~ "elec15_17",
+      electrified_year >= 2018 & electrified_year <= 2020 ~ "elec18_20",
+      TRUE ~ "never_elec"
+    )
+  ) %>% 
+  filter(status != "always_elec")
+
+# rwa_regress <- read_xlsx(
+#   path = file.path(historical_data_path,  "rwa_regress_villagelevel.xlsx")
+# )
+
+village_electrified <- rwa_regress %>% 
+  distinct(village_id, .keep_all = TRUE) %>% 
+  select(village_id, status)
+
+# ---- Join ----
+rwa_village_join <- left_join(
+  rwa_village,
+  village_electrified,
+  by = "village_id"
+)
+
+
+#join------
+
+rwa_df <- read_xlsx(path = file.path(historical_data_path, "Nightlight", "data", "viirs_2014-2023(yearly).xlsx"))
+
+rwa_village <- rwa_village %>%
+  mutate(village_id = as.character(village_id))
+
+rwa_df <- rwa_df %>%
+  mutate(village_id = as.character(Village_ID))
+
+# Join 2014
+rwa_village_2014 <- rwa_village %>%
+  left_join(
+    rwa_df %>% select(village_id, `2014`),
+    by = "village_id"
+  ) %>%
+  rename(value = `2014`)
+
+
+rwa_village_2014 <- rwa_village_2014 %>%
+  mutate(
+    value = ifelse(value < 0, 0, value),
+    value = ifelse(value >= 5, 5, value),
+    value_adj = (value)^(1/4)
+  )
+
+
+
+# DISTRICTS TO PLOT--------------
+
+district_list <- c("Karongi", "Rutsiro", "Rulindo", "Rusizi")
+
+# LOOP THROUGH DISTRICTS-------
+
+for (dist_name in district_list) {
+
+    # 1. Filter district boundary
+  
+  district_boundary <- rwa_district %>%
+    filter(District == dist_name)
+
+  # 2. Electrification Map
+  
+  district_village_join <- st_intersection(
+    rwa_village_join,
+    district_boundary
+  )
+  
+  district_village_join <- district_village_join %>%
+    mutate(
+      status = factor(
+        status,
+        levels = c(
+          "always_elec",
+          "elec12_14",
+          "elec15_17",
+          "elec18_20",
+          "elec21_22",
+          "never_elec"
+        )
+      )
+    )
+  
+  status_colors <- c(
+    "always_elec" = "#7F2704",
+    "elec12_14"   = "#A63603",
+    "elec15_17"   = "#D94801",
+    "elec18_20"   = "#F16913",
+    "elec21_22"   = "#FD8D3C",
+    "never_elec"  = "grey80"
+  )
+  
+  p_status <- ggplot(district_village_join) +
+    geom_sf(aes(fill = status), color = NA) +
+    geom_sf(data = district_boundary, color = "black", fill = NA, size = 0.8) +
+    scale_fill_manual(values = status_colors) +
+    theme_void() +
+    labs(
+      fill = "Electrification Status",
+      caption = paste0(dist_name, " District: Electrification Status by Village")
+    ) +
+    theme(
+      legend.position = "right",
+      plot.caption = element_text(hjust = 0, size = 12, face = "italic"),
+      plot.caption.position = "plot"
+    )
+  
+  ggsave(
+    filename = file.path(
+      historical_data_path,
+      "Nightlight",
+      "output",
+      paste0(dist_name, "_Electrification_Status.png")
+    ),
+    plot = p_status,
+    width = 10,
+    height = 8,
+    dpi = 400
+  )
+  
+  # 3. Nightlight 2014 Map
+
+  district_ntl_2014 <- rwa_village_2014 %>%
+    filter(district == dist_name) %>%
+    mutate(
+      value = ifelse(value < 0, 0, value),
+      value = ifelse(value >= 5, 5, value),
+      value_adj = (value)^(1/4)
+    )
+  
+  p_ntl <- ggplot(district_ntl_2014) +
+    geom_sf(aes(fill = value_adj), color = NA) +
+    scale_fill_gradient(
+      low = "black",
+      high = "yellow"
+    ) +
+    theme_void() +
+    theme(legend.position = "none")
+  
+  ggsave(
+    filename = file.path(
+      historical_data_path,
+      "Nightlight",
+      "output",
+      paste0(dist_name, "_Nightlight_2014.png")
+    ),
+    plot = p_ntl,
+    width = 10,
+    height = 8,
+    dpi = 400
+  )
+  
+  print(paste("Finished:", dist_name))
+}
+
+
+
+
+#Winsorize at pixel level-------
+
+
+# Initialize new dataframe (do NOT overwrite original)
+
+rwa_df_5 <- rwa_sp %>%
+  st_drop_geometry()
+
+
+# Monthly Loop with Pixel-Level Winsorization
+
+for (layer_number in 1:114) {
+  
+  night_light_5 <- raster(
+    file.path(
+      historical_data_path,
+      "Nightlight",
+      "data",
+      "gb_viirs_corrected_monthly_start_201401_avg_rad.tif"
+    ),
+    layer_number
+  )
+  
+
+  # Pixel-level winsorization at 5
+
+  night_light_5[night_light_5 < 0] <- 0
+  night_light_5[night_light_5 > 5] <- 5
+  
+  # Extract mean AFTER winsorization
+  mean_value_5 <- exact_extract(night_light_5, rwa_sp, "mean")
+  
+  # Create date column names
+  date_start_5 <- as.Date("2014-01-01")
+  new_date_5 <- format(
+    seq(date_start_5, by = "months", length.out = 114),
+    "%Y-%m"
+  )
+  
+  col_name_5 <- new_date_5[layer_number]
+  rwa_df_5[[col_name_5]] <- mean_value_5
+}
+
+# Compute Yearly Means
+
+column_names_5 <- colnames(rwa_df_5)
+
+yearly_means_df_5 <- data.frame(matrix(NA, nrow = nrow(rwa_df_5), ncol = 0))
+
+for (year in 2014:2023) {
+  
+  year_columns_5 <- grep(paste0("^", year, "-"), column_names_5)
+  
+  yearly_mean_5 <- rowMeans(rwa_df_5[, year_columns_5], na.rm = TRUE)
+  
+  yearly_means_df_5[[as.character(year)]] <- yearly_mean_5
+}
+
+# Append yearly columns
+for (year in 2014:2023) {
+  rwa_df_5[[as.character(year)]] <- yearly_means_df_5[[as.character(year)]]
+}
+
+# Save Monthly + Yearly
+
+
+write_xlsx(
+  rwa_df_5,
+  path = file.path(
+    historical_data_path,
+    "Nightlight",
+    "data",
+    "viirs_2014-2023(monthly&yearly)_5.xlsx"
+  )
+)
+
+
+# Yearly-only dataframe
+
+
+rwa_yearly_5 <- rwa_df_5 %>%
+  select(
+    Village_ID, Province, District, Sector, Cell, Name,
+    `2014`, `2015`, `2016`, `2017`,
+    `2018`, `2019`, `2020`, `2021`,
+    `2022`, `2023`
+  )
+
+write_xlsx(
+  rwa_yearly_5,
+  path = file.path(
+    historical_data_path,
+    "Nightlight",
+    "data",
+    "viirs_2014-2023(yearly)_5.xlsx"
+  )
+)
+
+
+
+#Plot----
+# LOAD WINSORIZED YEARLY DATA (_5)
+
+##Read file
+rwa_df_5 <- read_xlsx(
+  path = file.path(
+    historical_data_path,
+    "Nightlight",
+    "data",
+    "viirs_2014-2023(yearly)_5.xlsx"
+  )
+)
+
+rwa_village <- st_read(dsn = file.path(historical_data_path, "rwa_villages", "Village.shp"))
+
+
+rwa_village <- rwa_village %>%
+  mutate(village_id = as.character(village_id))
+
+rwa_df_5 <- rwa_df_5 %>%
+  mutate(village_id = as.character(Village_ID))
+
+
+## JOIN 2014 (_5 VERSION)-----
+
+rwa_village_ntl_5 <- rwa_village %>%
+  left_join(
+    rwa_df_5 %>% select(village_id, `2014`, `2022`),
+    by = "village_id"
+  ) %>%
+  pivot_longer(
+    cols = starts_with("20"),
+    names_to = "year",
+    values_to = "value"
+  )
+
+rwa_village_ntl_5 <- rwa_village_ntl_5 %>%
+  mutate(
+    value = ifelse(value < 0, 0, value),
+    value = ifelse(value >= 5, 5, value),
+    value_adj = (value)^(1/4)
+  )
+
+
+
+##Load elec data
+
+rwa_regress <- read_xlsx(
+  path = file.path(expansion_data_path, "outputs", "expansion_join.xlsx")
+)
+
+rwa_regress <- rwa_regress %>%
+  mutate(
+    status = case_when(
+      electrified_year == 9999 ~ "never_elec",
+      electrified_year <= 2011 ~ "always_elec",
+      electrified_year >= 2012 & electrified_year <= 2014 ~ "elec12_14",
+      electrified_year >= 2015 & electrified_year <= 2017 ~ "elec15_17",
+      electrified_year >= 2018 & electrified_year <= 2020 ~ "elec18_20",
+      TRUE ~ "never_elec"
+    )
+  ) %>% 
+  filter(status != "always_elec")
+
+# rwa_regress <- read_xlsx(
+#   path = file.path(historical_data_path,  "rwa_regress_villagelevel.xlsx")
+# )
+
+village_electrified <- rwa_regress %>% 
+  distinct(village_id, .keep_all = TRUE) %>% 
+  select(village_id, status)
+
+# join to shapefile
+rwa_village_join <- left_join(
+  rwa_village,
+  village_electrified,
+  by = "village_id"
+)
+
+
+# DISTRICTS TO PLOT
+
+district_list <- c("Karongi", "Rutsiro", "Rulindo", "Rusizi")
+
+
+# LOOP THROUGH DISTRICTS
+
+
+# for (dist_name in district_list) {
+#   
+#   district_ntl_5 <- rwa_village_ntl_5 %>%
+#     filter(district == dist_name) %>% 
+#     filter(village_id %in% rwa_village_join$village_id)
+#   
+#   p_ntl_5 <- ggplot(district_ntl_5) +
+#     geom_sf(aes(fill = value), color = NA) +
+#     scale_fill_gradient(
+#       low = "black",
+#       high = "yellow"
+#     ) +
+#     theme_void() +
+#     theme(legend.position = "none")
+#   
+#   ggsave(
+#     filename = file.path(
+#       historical_data_path,
+#       "Nightlight",
+#       "output",
+#       paste0(dist_name, "_Nightlight_2014_5.png")
+#     ),
+#     plot = p_ntl_5,
+#     width = 10,
+#     height = 8,
+#     dpi = 400
+#   )
+#   
+#   print(paste("Finished:", dist_name, "_5 version"))
+#   
+# }
+
+rwa_village_ntl_5 <- rwa_village_ntl_5 %>%
+  left_join(village_electrified, by = "village_id") %>%
+  filter(status != "always_elec")
+
+
+for (dist_name in district_list) {
+  
+  district_ntl_5 <- rwa_village_ntl_5 %>%
+    filter(district == dist_name)
+  
+  p_ntl_5 <- ggplot(district_ntl_5) +
+    geom_sf(aes(fill = value), color = NA) +
+    scale_fill_gradient(
+      low = "black",
+      high = "yellow"
+    ) +
+    facet_wrap(~year) +
+    theme_void() +
+    theme(
+      legend.position = "right",
+      strip.text = element_text(size = 14, face = "bold")
+    )
+  
+  ggsave(
+    filename = file.path(
+      historical_data_path,
+      "Nightlight",
+      "output",
+      paste0(dist_name, "_Nightlight_2014_2022_5.png")
+    ),
+    plot = p_ntl_5,
+    width = 12,
+    height = 8,
+    dpi = 400
+  )
+  
+  print(paste("Finished:", dist_name))
+}
+
+
+
+
+for (dist_name in district_list) {
+  
+  district_ntl_5 <- rwa_village_ntl_5 %>%
+    filter(
+      district == dist_name,
+      year %in% c("2014", "2022"),
+      status != "always_elec"
+    )
+  
+  # Fix scale within district (so 2014/2022 comparable)
+  max_val <- max(district_ntl_5$value_adj, na.rm = TRUE)
+  
+  p_ntl_5 <- ggplot(district_ntl_5) +
+    geom_sf(aes(fill = value_adj), color = NA) +
+    scale_fill_gradient(
+      low = "black",
+      high = "yellow",
+      limits = c(0, max_val)
+    ) +
+    facet_wrap(~year, ncol = 1) +
+    theme_void() +
+    theme(
+      legend.position = "right",
+      strip.text = element_text(size = 16, face = "bold"),
+      plot.title = element_text(size = 18, face = "bold", hjust = 0.5)
+    ) +
+    labs(title = paste0(dist_name, " Nightlight (2014 vs 2022)"))
+  
+  ggsave(
+    filename = file.path(
+      historical_data_path,
+      "Nightlight",
+      "output",
+      paste0(dist_name, "_Nightlight_2014_2022_5.png")
+    ),
+    plot = p_ntl_5,
+    width = 8,
+    height = 14,
+    dpi = 400
+  )
+  
+  print(paste("Finished:", dist_name))
+}
+
+
+
+
+
+
+
+
+
+
