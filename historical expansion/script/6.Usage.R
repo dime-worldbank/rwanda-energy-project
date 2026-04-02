@@ -32,7 +32,7 @@ utility_long  <- utility %>%
   ) %>% 
   group_by(village_id, year) %>% 
   summarise(usage = sum(usage, na.rm = TRUE), .groups = "drop") %>% 
-  select(village_id, year, usage) %>% 
+  dplyr::select(village_id, year, usage) %>% 
   mutate(year = as.numeric(year))
 
 utility_long_join <- utility_long %>% 

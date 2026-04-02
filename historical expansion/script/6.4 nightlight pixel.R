@@ -98,8 +98,8 @@ village_ntl <- left_join(village_ntl_pixel,  expansion_join, by = c("village_id"
 
 
 
-p95_cut <- quantile(ntl_long$ntl, 0.95, na.rm = TRUE)
-p99_cut <- quantile(ntl_long$ntl, 0.99, na.rm = TRUE)
+#p95_cut <- quantile(ntl_long$ntl, 0.95, na.rm = TRUE)
+#p99_cut <- quantile(ntl_long$ntl, 0.99, na.rm = TRUE)
 
 
 #Data construction-------
@@ -274,262 +274,7 @@ ggsave(
 
 
 #Cross-sectional Results-------
-# 
-# ##2014
-# 
-# library(dplyr)
-# 
-# utility_2014 <- utility_long %>% 
-#   filter(year == 2014)
-# 
-# 
-# # Prepare NTL 2014
-# 
-# 
-# ntl_2014 <- village_ntl_analysis %>%
-#   pivot_longer(
-#     cols = starts_with("20"),
-#     names_to = "year",
-#     values_to = "ntl"
-#   ) %>%
-#   mutate(year = as.integer(gsub("ntl_", "", year))) %>%
-#   filter(year == 2014) %>% 
-#   mutate(
-#     ntl = ifelse(ntl > 5, 5, ntl)
-#   ) %>% 
-#   group_by(village_id) %>% 
-#   summarise(
-#     ntl = mean(ntl)
-#   )
-# 
-# 
-# # Merge + construct variables
-# 
-# expansion_join <- read_xlsx(file.path(output_path, "expansion_join.xlsx")) 
-# 
-# 
-# 
-# expansion_join14 <- expansion_join %>% 
-#   filter(!District %in% c(
-#     "Ngororero", "Nyabihu", "Nyamasheke", "Rubavu"
-#   )) %>% 
-#   mutate(
-#     elec14 = ifelse(electrified_year <= 2014 | earp_mv == 1, 1, 0)
-#   ) %>% 
-#   left_join(utility_2014, by = "village_id") %>% 
-#   left_join(ntl_2014, by = "village_id") %>% 
-#   mutate(
-#     usage = ifelse(is.na(usage), 0, usage),
-#     usage = ifelse(elec14 == 0, 0, usage),
-#     ntl   = ifelse(is.na(ntl), 0, ntl),
-#     ntl   = ifelse(ntl >= 5, 5, ntl),
-#     usage = usage / (100 * 365)
-#   ) %>% 
-#   rename(
-#     usage_2014 = usage,
-#     ntl_2014   = ntl
-#   ) %>% 
-#   mutate(
-#     ntl_2014_log = log1p(ntl_2014)
-#   )
-# 
-# ### NTL
-# 
-# ntl_2014_reg.1 = felm(
-#   ntl_2014 ~ elec14 |
-#     cell_id | 0 | cell_id,
-#   data = expansion_join14
-# )
-# 
-# ntl_2014_reg.2 = felm(
-#   ntl_2014 ~ elec14 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# ntl_2014_log_reg.1 = felm(
-#   ntl_2014_log ~ elec14 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# ntl_2014_log_reg.2 = felm(
-#   ntl_2014_log ~ elec14 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# 
-# 
-# reg_ntl_2014 <- list(
-#   ntl_2014_reg.1,
-#   ntl_2014_reg.2,
-#   ntl_2014_log_reg.1,
-#   ntl_2014_log_reg.2
-# )
-# 
-# tex_file_ntl_2014 <- file.path(
-#   output_path, "regressions",
-#   "elec14_ntl_2014_cell_pixel.tex"
-# )
-# 
-# stargazer(
-#   reg_ntl_2014,
-#   type = "latex",
-#   out = tex_file_ntl_2014,
-#   title = "Electrification Status and Nightlights in 2014",
-#   label = "tab:ntl_2014",
-#   
-#   column.labels = c(
-#     "cell FE",
-#     "cell + infra FE",
-#     "cell FE",
-#     "cell + infra FE"
-#   ),
-#   
-#   covariate.labels = c("Electrified by 2014"),
-#   keep = c("elec14"),
-#   
-#   omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
-#   keep.stat = c("n", "rsq"),
-#   
-#   add.lines = list(
-#     c("Cell FE", "Yes", "Yes", "Yes", "Yes"),
-#     c("Infrastructure Controls", "No", "Yes", "No", "Yes"),
-#     c("Clustered SE (Sector)", "Yes", "Yes", "Yes", "Yes"),
-#     c(
-#       "Usage (2020): mean (sd)",
-#       sprintf(
-#         "%.3f (%.3f)",
-#         mean(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join14$village_id
-#         ], na.rm = TRUE),
-#         sd(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join14$village_id
-#         ], na.rm = TRUE)
-#       ),
-#       "", "", ""
-#     )
-#   ),
-#   
-#   header = FALSE,
-#   font.size = "small",
-#   digits = 3
-# )
-# 
-# 
-# ##Usage
-# usage_2014_reg.1 = felm(
-#   ntl_2014 ~ elec14 + usage_2014 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# usage_2014_reg.2 = felm(
-#   ntl_2014 ~ elec14 + usage_2014 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# usage_2014_log_reg.1 = felm(
-#   ntl_2014_log ~ elec14 + usage_2014 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# usage_2014_log_reg.2 = felm(
-#   ntl_2014_log ~ elec14 + usage_2014 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join14
-# )
-# 
-# 
-# tex_file_ntl_2014_usage <- file.path(
-#   output_path, "regressions",
-#   "elec14_usage_ntl_2014_cell_pixel.tex"
-# )
-# 
-# reg_ntl_2014_usage <- list(
-#   usage_2014_reg.1,
-#   usage_2014_reg.2,
-#   usage_2014_log_reg.1,
-#   usage_2014_log_reg.2
-# )
-# 
-# stargazer(
-#   reg_ntl_2014_usage,
-#   type = "latex",
-#   out = tex_file_ntl_2014_usage,
-#   title = "Electrification, Electricity Usage, and Nightlights in 2014",
-#   label = "tab:ntl_2014_usage",
-#   
-#   column.labels = c(
-#     "cell FE",
-#     "cell + infra FE",
-#     "cell FE",
-#     "cell + infra FE"
-#   ),
-#   
-#   covariate.labels = c(
-#     "Electrified by 2014",
-#     "Electricity Usage (2014)"
-#   ),
-#   
-#   keep = c("elec14", "usage_2014"),
-#   digits = 3,
-#   
-#   omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
-#   keep.stat = c("n", "rsq"),
-#   
-#   add.lines = list(
-#     c("Cell FE", "Yes", "Yes", "Yes", "Yes"),
-#     c("Infrastructure Controls", "No", "Yes", "No", "Yes"),
-#     c("Clustered SE (Sector)", "Yes", "Yes", "Yes", "Yes"),
-#     c(
-#       "Usage (2020): mean (sd)",
-#       sprintf(
-#         "%.3f (%.3f)",
-#         mean(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join14$village_id
-#         ], na.rm = TRUE),
-#         sd(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join14$village_id
-#         ], na.rm = TRUE)
-#       ),
-#       "", "", ""
-#     )
-#   ),
-#   
-#   header = FALSE,
-#   font.size = "small"
-# )
-# 
-# 
-# 
-# 
-# 
-# 
-# 
+
 ##2017-----
 
 library(dplyr)
@@ -556,201 +301,6 @@ expansion_join17 <- ntl_long%>%
   rename(
     usage_2017 = usage
   )
-# %>%
-#   mutate(
-#     ntl_2017_log = log1p(ntl_2017)
-#   )
-
-# ### NTL
-# ntl_2017_reg.1 = felm(
-#   ntl_2017 ~ elec12_17 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# ntl_2017_reg.2 = felm(
-#   ntl_2017 ~ elec12_17 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# ntl_2017_log_reg.1 = felm(
-#   ntl_2017_log ~ elec12_17 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# ntl_2017_log_reg.2 = felm(
-#   ntl_2017_log ~ elec12_17 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# 
-# 
-# reg_ntl_2017 <- list(
-#   ntl_2017_reg.1,
-#   ntl_2017_reg.2,
-#   ntl_2017_log_reg.1,
-#   ntl_2017_log_reg.2
-# )
-# 
-# tex_file_ntl_2017 <- file.path(
-#   output_path, "regressions",
-#   "elec12_17_ntl_2017_cell_viirs.tex"
-# )
-# 
-# stargazer(
-#   reg_ntl_2017,
-#   type = "latex",
-#   out = tex_file_ntl_2017,
-#   title = "Electrification Status and Nightlights in 2017",
-#   label = "tab:ntl_2017",
-#   
-#   column.labels = c(
-#     "cell FE",
-#     "cell + infra FE",
-#     "cell FE",
-#     "cell + infra FE"
-#   ),
-#   
-#   covariate.labels = c("Electrified by 2017"),
-#   keep = c("elec12_17"),
-#   
-#   omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
-#   keep.stat = c("n", "rsq"),
-#   
-#   add.lines = list(
-#     c("Cell FE", "Yes", "Yes", "Yes", "Yes"),
-#     c("Infrastructure Controls", "No", "Yes", "No", "Yes"),
-#     c("Clustered SE (Sector)", "Yes", "Yes", "Yes", "Yes"),
-#     c(
-#       "Usage (2020): mean (sd)",
-#       sprintf(
-#         "%.3f (%.3f)",
-#         mean(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join17$village_id
-#         ], na.rm = TRUE),
-#         sd(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join17$village_id
-#         ], na.rm = TRUE)
-#       ),
-#       "", "", ""
-#     )
-#   ),
-#   
-#   header = FALSE,
-#   font.size = "small",
-#   digits = 3
-# )
-# 
-# 
-# ##Usage
-# 
-# usage_2017_reg.1 = felm(
-#   ntl_2017 ~ elec12_17 + usage_2017 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# usage_2017_reg.2 = felm(
-#   ntl_2017 ~ elec12_17 + usage_2017 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# usage_2017_log_reg.1 = felm(
-#   ntl_2017_log ~ elec12_17 + usage_2017 |
-#     cell_id | 0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# usage_2017_log_reg.2 = felm(
-#   ntl_2017_log ~ elec12_17 + usage_2017 |
-#     cell_id +
-#     cell_office + health_center +
-#     primary_school + secondary_school +
-#     sector_district_office + industry + market +
-#     imidugudu |
-#     0 | sector_id,
-#   data = expansion_join17
-# )
-# 
-# 
-# tex_file_ntl_2017_usage <- file.path(
-#   output_path, "regressions",
-#   "elec12_17_usage_ntl_2017_cell_viirs.tex"
-# )
-# 
-# reg_ntl_2017_usage <- list(
-#   usage_2017_reg.1,
-#   usage_2017_reg.2,
-#   usage_2017_log_reg.1,
-#   usage_2017_log_reg.2
-# )
-# 
-# stargazer(
-#   reg_ntl_2017_usage,
-#   type = "latex",
-#   out = tex_file_ntl_2017_usage,
-#   title = "Electrification, Electricity Usage, and Nightlights in 2017",
-#   label = "tab:ntl_2017_usage",
-#   
-#   column.labels = c(
-#     "cell FE",
-#     "cell + infra FE",
-#     "cell FE",
-#     "cell + infra FE"
-#   ),
-#   
-#   covariate.labels = c(
-#     "Electrified by 2017",
-#     "Electricity Usage (2017)"
-#   ),
-#   
-#   keep = c("elec12_17", "usage_2017"),
-#   digits = 3,
-#   
-#   omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
-#   keep.stat = c("n", "rsq"),
-#   
-#   add.lines = list(
-#     c("Cell FE", "Yes", "Yes", "Yes", "Yes"),
-#     c("Infrastructure Controls", "No", "Yes", "No", "Yes"),
-#     c("Clustered SE (Sector)", "Yes", "Yes", "Yes", "Yes"),
-#     c(
-#       "Usage (2020): mean (sd)",
-#       sprintf(
-#         "%.3f (%.3f)",
-#         mean(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join17$village_id
-#         ], na.rm = TRUE),
-#         sd(utility_2020$usage[
-#           utility_2020$village_id %in% expansion_join17$village_id
-#         ], na.rm = TRUE)
-#       ),
-#       "", "", ""
-#     )
-#   ),
-#   
-#   header = FALSE,
-#   font.size = "small"
-# )
 
 
 #Function------
@@ -839,6 +389,7 @@ for (v in lhs_vars) {
 
 expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
 
+
 expansion_join_drop15_17 <- expansion_join%>% 
   filter(electrified_year %in% c("2015", "2016", "2017") |electrified_year == "9999" ) %>% 
   mutate(
@@ -875,18 +426,18 @@ elec15_17_controls <- expansion_join_drop15_17 %>%
 
 # Update ntl_long to include all NTL variants
 ntl_long_did <- ntl_long %>%
-  filter(year_month %in% c("2014_01", "2017_01", "2020_01"))  |> 
+  dplyr::filter(year_month %in% c("2014_01", "2017_01", "2020_01"))  |> 
   mutate(year = case_when(
     year_month == "2014_01" ~ 2014,
     year_month == "2017_01" ~ 2017,
     year_month == "2020_01" ~ 2020
   ))  %>% 
-  filter(status %in% c("elec15_17", "never_elec" )) %>% 
+  dplyr::filter(status %in% c("elec15_17", "never_elec" )) %>% 
   mutate(
     `elec15_17` = ifelse(status %in% c("elec15_17"), 1, 0)
   ) %>% 
   #anti_join(earp_existing_mv, by = c("village_id" = "Village_ID")) %>% 
-  filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
+  dplyr::filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
   mutate(
     ntl = ifelse(is.na(ntl), 0 , ntl),
     # Fixed effects
@@ -937,123 +488,6 @@ ntl_long_did <- ntl_long_did |>
 ntl_long_did |>
   count(pixel_id) |>
   count(n, name = "n_pixels")
-
-# 
-# # 3. Regressions: LEVEL nightlights
-# 
-# ntl_regs_level <- list(
-#   
-#   spec1 = felm(
-#     ntl ~
-#       year * elec15_17|
-#       village_id + cell_year |
-#       0 | sector_id,
-#     data = ntl_did
-#   ),
-#   
-#   spec2 = felm(
-#     ntl ~
-#       year * elec15_17 |
-#       village_id + cell_year +
-#       cell_office_year + health_center_year +
-#       primary_school_year + secondary_school_year +
-#       sector_district_office_year + industry_year + market_year +
-#       imidugudu_year |
-#       0 | sector_id,
-#     data = ntl_did
-#   )
-# )
-# 
-# # 4. Regressions: LOG nightlights
-# ntl_regs_log <- list(
-#   
-#   spec1 = felm(
-#     log1_ntl ~
-#       year * elec15_17  |
-#       village_id + cell_year |
-#       0 | sector_id,
-#     data = ntl_did
-#   ),
-#   
-#   spec2 = felm(
-#     log1_ntl ~
-#       year * elec15_17 |
-#       village_id + cell_year +
-#       cell_office_year + health_center_year +
-#       primary_school_year + secondary_school_year +
-#       sector_district_office_year + industry_year + market_year +
-#       imidugudu_year |
-#       0 | sector_id,
-#     data = ntl_did
-#   )
-# )
-# 
-# 
-# # 5.Stargazer: Nightlights
-# 
-# summary(ntl_regs_level$spec2)
-# 
-# 
-# tex_file_ntl <- file.path(
-#   output_path, "regressions", 
-#   "elec15_17_ntl_viirs_cell.tex"
-# )
-# 
-# reg_ntl <- list(
-#   ntl_regs_level$spec1,
-#   ntl_regs_level$spec2,
-#   ntl_regs_log$spec1,
-#   ntl_regs_log$spec2
-#   
-# )
-# 
-# stargazer(
-#   reg_ntl,
-#   type = "latex",
-#   out = tex_file_ntl,
-#   title = "Regression Results: Electrification and Nightlights",
-#   label = "tab:ntl_level",
-#   column.labels = c(
-#     "cell FE",
-#     "cell + infra FE",
-#     "cell FE",
-#     "cell + infra FE"
-#   ),
-#   covariate.labels = c(
-#     
-#     "elec15-17 × 2017",
-#     "elec15-17 × 2020"
-#   ),
-#   keep = c(
-#     
-#     "year2017:elec15_17",
-#     "year2020:elec15_17"
-#   ),
-#   omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
-#   keep.stat = c("n", "rsq"),
-#   
-#   add.lines = list(
-#     c("Cell Year FE", "Yes", "Yes", "Yes", "Yes"),
-#     c("Infrastructure Controls", "No", "Yes", "No", "Yes"),
-#     c("Clustered SE (cell)", "Yes", "Yes", "Yes", "Yes"),
-#     c(
-#       "Usage (2020): mean (sd)",
-#       as.character(sprintf(
-#         "%.3f (%.3f)",
-#         mean(utility_2020$usage[utility_2020$village_id %in% expansion_join_drop15_17$village_id],
-#              na.rm = TRUE),
-#         sd(utility_2020$usage[utility_2020$village_id %in% expansion_join_drop15_17$village_id],
-#            na.rm = TRUE)
-#       )),
-#       "", "", ""
-#     )
-#   ),
-#   header = FALSE,
-#   font.size = "small",
-#   digits = 3
-# )
-# 
-# 
 
 #DID Regressions------
 
@@ -1145,13 +579,177 @@ for (v in lhs_vars_did) {
 
 
 
+# Update ntl_long to include all years 2014-2020-------
+
+
+ntl_long <- village_ntl %>%
+  pivot_longer(
+    cols = matches("^(2014|2015|2016|2017|2018|2019|2020)_"),
+    names_to = "year_month",
+    values_to = "ntl_raw"
+  ) %>% 
+  mutate(
+    ntl = ifelse(ntl_raw <0, 0, ntl_raw),
+    ntl_0.6  = ifelse(ntl >= 0.6, 0.6, ntl ),
+    ntl_3 = ifelse(ntl >= 3, 3, ntl),
+    ntl_15 = ifelse(ntl >= 15, 15, ntl),
+    ntl_15_drop = ifelse(ntl >= 15, NA, ntl),
+  ) %>% 
+  dplyr::select(village_id, year_month,ntl_raw, starts_with("ntl"), status, District, cell_id, sector_id, cell_office, health_center, primary_school, secondary_school, sector_district_office, industry, market, imidugudu, geometry)
 
 
 
 
 
+ntl_long_did <- ntl_long %>%
+  filter(str_detect(year_month, "^(2014|2015|2016|2017|2018|2019|2020)_01$")) |> 
+  mutate(year = as.numeric(str_extract(year_month, "^\\d{4}"))) %>% 
+  filter(status %in% c("elec15_17", "never_elec")) %>% 
+  mutate(
+    elec15_17 = ifelse(status == "elec15_17", 1, 0)
+  ) %>% 
+  filter(!District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
+  mutate(
+    ntl = ifelse(is.na(ntl), 0, ntl),
+    sector_year = paste0(sector_id, "_", year),
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year)
+  ) %>% 
+  mutate(log1_ntl = log1p(ntl)) %>% 
+  mutate(
+    year = as.factor(year),
+    year = factor(year, levels = as.character(2014:2020))
+  )
 
+# Balance the panel
+ntl_long_did <- ntl_long_did |>
+  mutate(pixel_id = as.character(geometry)) |>
+  st_drop_geometry() |>
+  complete(pixel_id, year = factor(2014:2020, levels = as.character(2014:2020))) |>
+  group_by(pixel_id) |>
+  fill(village_id, sector_id, cell_id, District, elec15_17, status,
+       cell_office, health_center, primary_school, secondary_school,
+       sector_district_office, industry, market, imidugudu,
+       .direction = "downup") |>
+  ungroup() |>
+  mutate(
+    ntl = replace_na(ntl, 0),
+    log1_ntl = log1p(ntl),
+    sector_year = paste0(sector_id, "_", year),
+    cell_year = paste0(cell_id, "_", year),
+    cell_office_year = paste0(cell_office, "_", year),
+    health_center_year = paste0(health_center, "_", year),
+    primary_school_year = paste0(primary_school, "_", year),
+    secondary_school_year = paste0(secondary_school, "_", year),
+    sector_district_office_year = paste0(sector_district_office, "_", year),
+    industry_year = paste0(industry, "_", year),
+    market_year = paste0(market, "_", year),
+    imidugudu_year = paste0(imidugudu, "_", year)
+  )
 
+# Verify balance
+ntl_long_did |>
+  count(pixel_id) |>
+  count(n, name = "n_pixels")
+
+#write one regression with usage control for ntl_0.6
+reg_0.6 <- felm(ntl_0.6 ~ year * elec15_17 | village_id + cell_year + cell_office_year + health_center_year + primary_school_year + secondary_school_year + sector_district_office_year + industry_year + market_year + imidugudu_year | 0 | sector_id, data = ntl_long_did)
+summary(reg_0.6)
+
+# Updated DID regression function for 2014-2019
+did_regression <- function(lhs_var, data, output_path) {
+  
+  safe_var <- gsub("\\.", "-", lhs_var)
+  safe_var <- gsub("_", "-", safe_var)
+  
+  lhs_log       <- paste0(lhs_var, "_log1p")
+  lhs_log_label <- paste0(safe_var, "-log1p")
+  
+  data <- data %>%
+    mutate(!!lhs_log := log1p(.data[[lhs_var]]))
+  
+  f_level_1 <- as.formula(paste0(
+    lhs_var, " ~ year * elec15_17 | village_id + cell_year | 0 | sector_id"
+  ))
+  
+  f_level_2 <- as.formula(paste0(
+    lhs_var, " ~ year * elec15_17 | village_id + cell_year + ",
+    "cell_office_year + health_center_year + primary_school_year + ",
+    "secondary_school_year + sector_district_office_year + industry_year + ",
+    "market_year + imidugudu_year | 0 | sector_id"
+  ))
+  
+  f_log_1 <- as.formula(paste0(
+    lhs_log, " ~ year * elec15_17 | village_id + cell_year | 0 | sector_id"
+  ))
+  
+  f_log_2 <- as.formula(paste0(
+    lhs_log, " ~ year * elec15_17 | village_id + cell_year + ",
+    "cell_office_year + health_center_year + primary_school_year + ",
+    "secondary_school_year + sector_district_office_year + industry_year + ",
+    "market_year + imidugudu_year | 0 | sector_id"
+  ))
+  
+  reg_level_1 <- felm(f_level_1, data = data)
+  reg_level_2 <- felm(f_level_2, data = data)
+  reg_log_1   <- felm(f_log_1, data = data)
+  reg_log_2   <- felm(f_log_2, data = data)
+  
+  reg_list <- list(reg_level_1, reg_level_2, reg_log_1, reg_log_2)
+  
+  tex_file <- file.path(
+    output_path, "regressions",
+    paste0("elec15_17_", lhs_var, "_did_pixel_2014_2020.tex")
+  )
+  
+  
+  
+  stargazer(
+    reg_list,
+    type = "latex",
+    out = tex_file,
+    title = paste("DID: Electrification and", lhs_var, "(2014-2020)"),
+    label = paste0("tab:did-", safe_var, "-2014-2020"),
+    column.labels = c("cell FE", "cell + infra FE", "cell FE", "cell + infra FE"),
+    dep.var.labels = c(safe_var, lhs_log_label),
+    multicolumn = TRUE,
+    covariate.labels = c(
+      "elec15-17 × 2015", "elec15-17 × 2016", "elec15-17 × 2017",
+      "elec15-17 × 2018", "elec15-17 × 2019", "elec15-17 × 2020"
+    ),
+    keep = c("year2015:elec15_17", "year2016:elec15_17", "year2017:elec15_17",
+             "year2018:elec15_17", "year2019:elec15_17", "year2020:elec15_17"),
+    omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
+    keep.stat = c("n", "rsq"),
+    add.lines = list(
+      c("Village FE", "Yes", "Yes", "Yes", "Yes"),
+      c("Cell × Year FE", "Yes", "Yes", "Yes", "Yes"),
+      c("Infrastructure × Year FE", "No", "Yes", "No", "Yes"),
+      c("Clustered SE (Sector)", "Yes", "Yes", "Yes", "Yes")
+    ),
+    header = FALSE,
+    font.size = "small",
+    digits = 4
+  )
+  
+  invisible(reg_list)
+}
+
+# Run for all NTL variants
+lhs_vars_did <- c("ntl_0.6", "ntl_3", "ntl_15", "ntl_15_drop")
+for (v in lhs_vars_did) {
+  did_regression(v, ntl_long_did, output_path)
+}
+
+# Outside the loop write one regression with usage control for ntl_0.6
+did_regression("ntl_0.6", ntl_long_did, output_path)
 
 
 
