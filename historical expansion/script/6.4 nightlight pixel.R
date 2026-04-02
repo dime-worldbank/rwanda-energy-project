@@ -426,18 +426,18 @@ elec15_17_controls <- expansion_join_drop15_17 %>%
 
 # Update ntl_long to include all NTL variants
 ntl_long_did <- ntl_long %>%
-  filter(year_month %in% c("2014_01", "2017_01", "2020_01"))  |> 
+  dplyr::filter(year_month %in% c("2014_01", "2017_01", "2020_01"))  |> 
   mutate(year = case_when(
     year_month == "2014_01" ~ 2014,
     year_month == "2017_01" ~ 2017,
     year_month == "2020_01" ~ 2020
   ))  %>% 
-  filter(status %in% c("elec15_17", "never_elec" )) %>% 
+  dplyr::filter(status %in% c("elec15_17", "never_elec" )) %>% 
   mutate(
     `elec15_17` = ifelse(status %in% c("elec15_17"), 1, 0)
   ) %>% 
   #anti_join(earp_existing_mv, by = c("village_id" = "Village_ID")) %>% 
-  filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
+  dplyr::filter(! District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) %>% 
   mutate(
     ntl = ifelse(is.na(ntl), 0 , ntl),
     # Fixed effects
@@ -579,12 +579,12 @@ for (v in lhs_vars_did) {
 
 
 
-# Update ntl_long to include all years 2014-2019-------
+# Update ntl_long to include all years 2014-2020-------
 
 
 ntl_long <- village_ntl %>%
   pivot_longer(
-    cols = matches("^(2014|2015|2016|2017|2018|2019)_"), #change this to include all 2014-2019 years
+    cols = matches("^(2014|2015|2016|2017|2018|2019|2020)_"),
     names_to = "year_month",
     values_to = "ntl_raw"
   ) %>% 
@@ -602,7 +602,7 @@ ntl_long <- village_ntl %>%
 
 
 ntl_long_did <- ntl_long %>%
-  filter(str_detect(year_month, "^(2014|2015|2016|2017|2018|2019)_01$")) |> 
+  filter(str_detect(year_month, "^(2014|2015|2016|2017|2018|2019|2020)_01$")) |> 
   mutate(year = as.numeric(str_extract(year_month, "^\\d{4}"))) %>% 
   filter(status %in% c("elec15_17", "never_elec")) %>% 
   mutate(
@@ -625,14 +625,14 @@ ntl_long_did <- ntl_long %>%
   mutate(log1_ntl = log1p(ntl)) %>% 
   mutate(
     year = as.factor(year),
-    year = factor(year, levels = as.character(2014:2019))
+    year = factor(year, levels = as.character(2014:2020))
   )
 
 # Balance the panel
 ntl_long_did <- ntl_long_did |>
   mutate(pixel_id = as.character(geometry)) |>
   st_drop_geometry() |>
-  complete(pixel_id, year = factor(2014:2019, levels = as.character(2014:2019))) |>
+  complete(pixel_id, year = factor(2014:2020, levels = as.character(2014:2020))) |>
   group_by(pixel_id) |>
   fill(village_id, sector_id, cell_id, District, elec15_17, status,
        cell_office, health_center, primary_school, secondary_school,
@@ -706,7 +706,7 @@ did_regression <- function(lhs_var, data, output_path) {
   
   tex_file <- file.path(
     output_path, "regressions",
-    paste0("elec15_17_", lhs_var, "_did_pixel_2014_2019.tex")
+    paste0("elec15_17_", lhs_var, "_did_pixel_2014_2020.tex")
   )
 
 
@@ -715,17 +715,17 @@ did_regression <- function(lhs_var, data, output_path) {
     reg_list,
     type = "latex",
     out = tex_file,
-    title = paste("DID: Electrification and", lhs_var, "(2014-2019)"),
-    label = paste0("tab:did-", safe_var, "-2014-2019"),
+    title = paste("DID: Electrification and", lhs_var, "(2014-2020)"),
+    label = paste0("tab:did-", safe_var, "-2014-2020"),
     column.labels = c("cell FE", "cell + infra FE", "cell FE", "cell + infra FE"),
     dep.var.labels = c(safe_var, lhs_log_label),
     multicolumn = TRUE,
     covariate.labels = c(
       "elec15-17 × 2015", "elec15-17 × 2016", "elec15-17 × 2017",
-      "elec15-17 × 2018", "elec15-17 × 2019"
+      "elec15-17 × 2018", "elec15-17 × 2019", "elec15-17 × 2020"
     ),
     keep = c("year2015:elec15_17", "year2016:elec15_17", "year2017:elec15_17",
-              "year2018:elec15_17", "year2019:elec15_17"),
+              "year2018:elec15_17", "year2019:elec15_17", "year2020:elec15_17"),
     omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
     keep.stat = c("n", "rsq"),
     add.lines = list(

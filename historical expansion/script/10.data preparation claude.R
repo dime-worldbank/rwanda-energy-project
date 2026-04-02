@@ -81,7 +81,7 @@ expansion_join_clean <- expansion_join_organize |>
 
 
 expansion_claude <- expansion_join_clean |>
-  dplyr::select(village_id, sector_id, cell_id, District, status) |> 
+  dplyr::select(village_id, sector_id, cell_id, District, status, electrified_year) |> 
   dplyr::filter(status %in% c( "elec15_17", "never_elec")) |>
   mutate(
     elec15_17 = ifelse(status == "elec15_17", 1, 0)
