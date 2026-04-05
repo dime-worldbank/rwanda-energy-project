@@ -488,7 +488,7 @@ ntl_long_did <- ntl_long_did |>
 ntl_long_did |>
   count(pixel_id) |>
   count(n, name = "n_pixels")
- 
+
 #DID Regressions------
 
 did_regression <- function(lhs_var, data, output_path) {
@@ -708,9 +708,9 @@ did_regression <- function(lhs_var, data, output_path) {
     output_path, "regressions",
     paste0("elec15_17_", lhs_var, "_did_pixel_2014_2020.tex")
   )
-
-
-
+  
+  
+  
   stargazer(
     reg_list,
     type = "latex",
@@ -725,7 +725,7 @@ did_regression <- function(lhs_var, data, output_path) {
       "elec15-17 × 2018", "elec15-17 × 2019", "elec15-17 × 2020"
     ),
     keep = c("year2015:elec15_17", "year2016:elec15_17", "year2017:elec15_17",
-              "year2018:elec15_17", "year2019:elec15_17", "year2020:elec15_17"),
+             "year2018:elec15_17", "year2019:elec15_17", "year2020:elec15_17"),
     omit.stat = c("adj.rsq", "ser", "f", "ll", "aic", "bic"),
     keep.stat = c("n", "rsq"),
     add.lines = list(

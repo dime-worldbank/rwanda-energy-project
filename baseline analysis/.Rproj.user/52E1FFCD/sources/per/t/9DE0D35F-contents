@@ -212,7 +212,7 @@ hfc_plot<- hfc_constr.1 %>%
 
 
 wtp_regress <- hfc_plot %>% 
-  mutate(hh = row_number()) %>% 
+  mutate(hh =hh_id) %>% 
   select(hh, appliance, low_reliability, lightbulb, village) %>% 
   pivot_longer(
     cols = c("appliance", "low_reliability"),
@@ -241,58 +241,14 @@ wtp_regress <- wtp_regress %>%
     grid_factor = factor(grid, levels = c(1, 0))  # Grid first
   )
 
-wtp_regress <- wtp_regress %>%
-  mutate(
-    log_demand = log(`energy demand`),
-    log_wtp = log(wtp),
-    grid_factor = factor(grid, levels = c(1, 0))  # Grid first
-    
-  )
-
-# # Plot
-# energy_demand_plot <- ggplot(wtp_regress, aes(
-#   x = log_demand,
-#   y = log_wtp,
-#   color = grid_factor
-# )) +
-#   geom_point(alpha = 0.6, size = 2) +
-#   geom_smooth(method = "lm", se = TRUE) +
-#   scale_x_continuous(
-#     name = "Energy Demand (RwF/month)",
-#     breaks = c(log(100), log(1000), log(10000), log(100000)),
-#     labels = c(100, 1000, 10000, 10000)
-#   ) +
-#   scale_y_continuous(
-#     name = "Willingness to Pay (RwF)",
-#     breaks = c(log(100), log(1000), log(10000), log(100000)),
-#     labels = c(100, 1000, 10000, 10000)
-#   ) +
-#   scale_color_manual(
-#     values = c("1" = "darkorange", "0" = "steelblue"),
-#     labels = c("Grid", "SHS")
-#   ) +
-#   guides(color = guide_legend(title = NULL)) +  # remove legend title
-#   theme_minimal(base_size = 13) +
-#   theme(
-#     plot.title = element_text(face = "bold", hjust = 0.5),
-#     axis.text = element_text(color = "black"),
-#     panel.background = element_rect(fill = "white", color = NA),
-#     plot.background = element_rect(fill = "white", color = NA)
+# wtp_regress <- wtp_regress %>%
+#   mutate(
+#     log_demand = log(`energy demand`),
+#     log_wtp = log(wtp),
+#     grid_factor = factor(grid, levels = c(1, 0))  # Grid first
+#     
 #   )
 # 
-# # Show the plot
-# energy_demand_plot
-# 
-# ggsave(
-#   file.path(output_path, "figures", "energy demand(scatter).png"),   # file name
-#   plot = energy_demand_plot,                      # which plot to save
-#   width = 8,                                         # width in inches
-#   height = 6,                                        # height in inches
-#   dpi = 300,                                         # high quality
-#   scale = 0.7                                      # scale down by 60%
-# )
-
-
 
 
 
@@ -372,3 +328,176 @@ ggsave(
 )
 
 
+
+#Energy demand government spending plot-----
+
+compute_energy_spending <- function(data, p) {
+  
+  # Base dataset
+  df <- data %>% 
+    mutate(hh = hh_id) %>% 
+    select(hh, appliance, low_reliability, lightbulb, village) %>% 
+    rename(
+      grid = appliance,
+      off_grid = low_reliability,
+      energy_demand = lightbulb
+    ) %>% 
+    
+  # Choices + usage
+
+  mutate(
+    choice_grid_free = 1,
+    usage_grid_free = energy_demand,
+    
+    choice_grid_p = as.integer((grid - off_grid) >= p),
+    usage_grid_p = if_else(choice_grid_p == 1, energy_demand, 300)
+  ) %>% 
+    
+
+  # Government cost
+  mutate(
+    cost_grid_free = 400000,
+    cost_grid_p = if_else(choice_grid_p == 1, 400000 - p, 240000)
+  ) %>% 
+    
+  # Demand grouping
+  mutate(
+    energy_demand_level = if_else(
+      energy_demand >= median(energy_demand, na.rm = TRUE),
+      "above_median",
+      "below_median"
+    )
+  )
+  
+
+  # Long format (scenario level)
+
+  df_long <- df %>% 
+    select(
+      hh, village, energy_demand_level,
+      usage_grid_free, usage_grid_p,
+      cost_grid_free, cost_grid_p,
+      choice_grid_free, choice_grid_p
+    ) %>% 
+    pivot_longer(
+      cols = c(starts_with("usage_grid"),
+               starts_with("cost_grid"),
+               starts_with("choice_grid")),
+      names_to = c(".value", "scenario"),
+      names_pattern = "(usage|cost|choice)_grid_(.*)"
+    ) %>%
+    mutate(
+      scenario = if_else(scenario == "free", "Free", paste0(p/1000, "k")),
+      choice_label = if_else(choice == 1, "Grid", "SHS")
+    ) %>% 
+    
+
+  # Transform units + reshape type
+  mutate(
+    usage = usage * 12,
+    cost = cost * (1.1^(1/12) - 1)
+  ) %>% 
+    pivot_longer(
+      cols = c(usage, cost),
+      names_to = "type",
+      values_to = "value_rwf"
+    )
+  
+
+  # Aggregate for plotting
+  plot_data <- df_long %>% 
+    group_by(energy_demand_level, type, scenario) %>% 
+    summarise(value = mean(value_rwf, na.rm = TRUE), .groups = "drop") %>% 
+    
+    mutate(
+      group = paste(energy_demand_level, type, sep = "_"),
+      group = factor(group,
+                     levels = c("below_median_cost",
+                                "below_median_usage",
+                                "above_median_cost",
+                                "above_median_usage")),
+      
+      x = case_when(
+        group == "below_median_cost"  ~ 1,
+        group == "below_median_usage" ~ 2,
+        group == "above_median_cost"  ~ 3,
+        group == "above_median_usage" ~ 4
+      )
+    )
+  
+
+  # Labels for legend
+
+  label_free <- "Status quo \n (free grid connection)"
+  label_p <- paste0(p/1000, "k grid connection")
+  
+  plot_data <- plot_data %>% 
+    mutate(
+      scenario = if_else(
+        scenario == "Free",
+        label_free,
+        label_p
+      ),
+      scenario = factor(
+        scenario,
+        levels = c(label_free, label_p)
+      )
+    )
+  
+  # Plot
+
+  p_plot <- ggplot(plot_data,
+                   aes(x = x, y = value, fill = scenario)) +
+    
+    geom_bar(stat = "identity",
+             position = position_dodge(width = 0.6),
+             width = 0.5) +
+    
+    scale_x_continuous(
+      breaks = c(1, 1.5, 2, 2.5, 3, 3.5, 4),
+      labels = c(
+        "Utility cost \n per Month",
+        expression(atop("", bold("Low Energy Demand"))),
+        "Energy use \n per Year",
+        "",
+        "Utility cost \n per Month",
+        expression(atop("", bold("High Energy Demand"))),
+        "Energy use \n per Year"
+      )
+    ) +
+    
+    scale_fill_manual(
+      values = setNames(
+        c("#4CAF50", "#2196F3"),
+        c(label_free, label_p)
+      )
+    ) +
+    
+    labs(
+      x = "",
+      y = "RwF",
+      fill = ""
+    ) +
+    
+    theme_minimal() +
+    theme(
+      legend.position = "top"
+    )
+  
+  plot_name <- paste0("energy spending_", p/1000, "k.png")
+  
+  ggsave(
+    file.path(output_path, "figures", plot_name),   # file name
+    plot = p_plot,                      # which plot to save
+    width = 8,                                         # width in inches
+    height = 5.5,                                        # height in inches
+    dpi = 300,                                         # high quality
+    scale = 0.5                                      # scale down by 60%
+  )
+  
+  return(p_plot)
+}
+
+energy_spending_p <- compute_energy_spending(hfc_plot, p = 10000)
+
+energy_spending_p
