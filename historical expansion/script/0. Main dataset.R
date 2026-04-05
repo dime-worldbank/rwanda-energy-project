@@ -185,7 +185,8 @@ consumer_join <- consumer %>%
 #Lot-----
 lot_sf <- st_read(dsn = file.path(data_path, "shapefiles", "lots.shp") )
 
-View(lot)
+View(lot_sf)
+
 lot <- st_transform(lot_sf , crs = st_crs(rwa_villages))
 
 
@@ -540,7 +541,8 @@ population <- population %>%
   select(village_id, population, popdens ) %>% 
   mutate(
     popdens = round(popdens/1000, 2)
-  )
+  ) |> 
+  distinct(village_id, .keep_all = TRUE)
 
 
 
@@ -578,7 +580,7 @@ roads <- rwa_villages_centroids %>%
 
 #Nightlight data-----
 
-ntl <- read_xlsx(path = file.path(path = file.path(historical_data_path,"data", "Nightlight", "data", "LRCC-DVNL data", "village_ntl(2010-2022).xlsx")))
+ntl <- read_xlsx(path = file.path(path = file.path(historical_data_path,"Nightlight", "data", "LRCC-DVNL data", "village_ntl(2010-2022).xlsx")))
 
 
 
@@ -659,7 +661,7 @@ expansion_join <- expansion_join %>%
 expansion_join <- expansion_join %>% 
   mutate(imidugudu = ifelse(is.na(imidugudu), 0 , imidugudu))
 
-
+n_distinct(expansion_join$village_id) == nrow(expansion_join)
 write_xlsx(expansion_join, path = file.path(output_path, "expansion_join.xlsx"))
 write_xlsx(electrification_status_year, path = file.path(output_path, "electrification_status_year.xlsx"))
 
