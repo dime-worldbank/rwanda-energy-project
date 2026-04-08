@@ -42,6 +42,23 @@ household <- household |>
     tertiary_fuel = str_replace_all(tertiary_fuel, "[[:punct:]]", "")
   )
 
+library(xtable)
+
+# Create the frequency table
+fuel_tab <- as.data.frame(table(household$main_fuel))
+colnames(fuel_tab) <- c("Main Fuel Type", "Count")
+
+# Write LaTeX table to file
+latex_table <- xtable(fuel_tab, caption = "Distribution of Main Fuel Types", label = "tab:mainfuel")
+print(
+  latex_table,
+  include.rownames = FALSE,
+  file = file.path(output_path, "main_fuel_table.tex")
+)
+
+
+
+
 household <- household |> 
   mutate(
     main_fuel = case_when(
@@ -145,17 +162,26 @@ mean_expenditure <- expenditure %>%
 
 p2 <- ggplot(mean_expenditure, aes(x = fuel, y = mean_expenditure, fill = fuel)) +
   geom_col(width = 0.5) +
-  geom_text(aes(label = round(mean_expenditure, 0)), vjust = -0.5, size = 4) +
-  labs(title = "Mean Expenditure by Fuel Type", x = "Fuel Type", y = "Mean Expenditure (RwF last 4 weeks") +
+  geom_text(
+    aes(label = round(mean_expenditure, 0)),
+    vjust = -0.5, size = 4,
+    color = "black",
+    stroke = 0.3, # white outline if using ggtext or shadowtext, see note below
+    fontface = "bold"
+  ) +
+  labs(x = "Fuel Type", y = "Mean Expenditure (RwF last 4 weeks)") +
   theme_minimal() +
   theme(
     legend.position = "none",
-    plot.title = element_text(hjust = 0.5)
-  )
+    plot.title = element_blank()
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
 
-p2
-
-ggsave(file.path(output_path, "mean_expenditure_bar_plot.png"), plot = p2, width = 6, height = 6, dpi = 300)
+ggsave(
+  file.path(output_path, "mean_expenditure_bar_plot.png"),
+  plot = p2,
+  width = 7, height = 4, dpi = 300, scale = 0.8
+)
 
 
 #Person-------
@@ -238,19 +264,106 @@ time_data <- fuel_data |>
 
 p3 <- ggplot(time_data, aes(x = activity, y = mean_hours, fill = gender)) +
   geom_col(position = position_dodge(width = 0.6), width = 0.5) +
-  geom_text(aes(label = round(mean_hours, 1)), position = position_dodge(width = 0.6), vjust = -0.5, size = 4) +
-  labs(title = "Mean Hours Spent on Activities by Gender", x = "Activity", y = "Mean Hours") +
+  geom_text(
+    aes(label = round(mean_hours, 1)),
+    position = position_dodge(width = 0.6),
+    vjust = -0.5, size = 4,
+    color = "black",
+    stroke = 0.3, # white outline if using ggtext or shadowtext, see note below
+    fontface = "bold"
+  ) +
+  labs(x = "Activity", y = "Mean Hours") +
   theme_minimal() +
   theme(
     legend.title = element_blank(),
-    plot.title = element_text(hjust = 0.5)
-  )
+    plot.title = element_blank()
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
 
-p3
-
-ggsave(file.path(output_path, "mean_hours_bar_plot.png"), plot = p3, width = 6, height = 4, dpi = 300, scale = 0.6)
+ggsave(
+  file.path(output_path, "mean_hours_bar_plot.png"),
+  plot = p3,
+  width = 7, height = 4, dpi = 300, scale = 0.8
+)
 
 
 #Regression-----
 
+fuel_data <- fuel_data |> 
+  mutate(expenditure = expenditure_gas + expenditure_kerosene + expenditure_batteries) 
 
+#LM regression of main fuel gas on expenditure
+
+lm_model <- lm(expenditure ~ main_fuel_gas, data = fuel_data)
+
+summary(lm_model)
+stargazer(
+  lm_model,
+  type = "latex",
+  title = "Linear Regression of Expenditure on Main Fuel Gas",
+  dep.var.labels = "Expenditure (RwF last 4 weeks)",
+  covariate.labels = c("Main Fuel is Gas"),
+  out = file.path(output_path, "lm_expenditure_main_fuel_gas.tex")
+)
+
+# Extract only the tabular environment
+tex_file <- file.path(output_path, "lm_expenditure_main_fuel_gas.tex")
+lines <- readLines(tex_file)
+
+# Find the start and end of tabular environment
+start_idx <- grep("\\\\begin\\{tabular\\}", lines)
+end_idx <- grep("\\\\end\\{tabular\\}", lines)
+
+# Keep only lines from tabular start to end
+if (length(start_idx) > 0 && length(end_idx) > 0) {
+  lines <- lines[start_idx:end_idx]
+  writeLines(lines, tex_file)
+}
+
+
+
+
+
+#LM regression of main fuel gas on time spent on collecting firewood and'cooking hours
+#Number of hours spent in the last 7 days
+lm_firewood_female <- lm(collect_firewood_hours_female ~ main_fuel_gas, data = fuel_data)
+lm_firewood_male <- lm(collect_firewood_hours_male ~ main_fuel_gas, data = fuel_data)
+lm_cooking_female <- lm(cooking_hours_female ~ main_fuel_gas, data = fuel_data)
+lm_cooking_male <- lm(cooking_hours_male ~ main_fuel_gas, data = fuel_data)
+
+summary(lm_firewood_female)
+summary(lm_firewood_male)
+summary(lm_cooking_female)
+summary(lm_cooking_male)
+
+
+models <- list(
+  "Firewood(Female)" = lm_firewood_female,
+  "Firewood(Male)" = lm_firewood_male,
+  "Cooking(Female)" = lm_cooking_female,
+  "Cooking(Male)" = lm_cooking_male
+)
+
+stargazer(
+  models,
+  type = "latex",
+  dep.var.labels.include = FALSE,
+  covariate.labels = c("Main Fuel is Gas"),
+  column.labels = c("Firewood (Female)", "Firewood (Male)", "Cooking (Female)", "Cooking (Male)"),
+  omit.stat = c("f", "ser"),  # optional cleanup
+  out = file.path(output_path, "lm_time_spent_activities_main_fuel_gas.tex")
+)
+
+
+tex_file <- file.path(output_path, "lm_time_spent_activities_main_fuel_gas.tex")
+lines <- readLines(tex_file)
+
+# Find the start and end of tabular environment
+start_idx <- grep("\\\\begin\\{tabular\\}", lines)
+end_idx <- grep("\\\\end\\{tabular\\}", lines)
+
+# Keep only lines from tabular start to end
+if (length(start_idx) > 0 && length(end_idx) > 0) {
+  lines <- lines[start_idx:end_idx]
+  writeLines(lines, tex_file)
+}
