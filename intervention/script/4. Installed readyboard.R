@@ -55,61 +55,32 @@ check <- rutsiro_installed %>%
 
 
 
+##New Rulindo Installed------
 
+rulindo_installed_raw<- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo Ready Boards installed by Team 02 04082026.xlsx" ), sheet = "Sheet1") |> 
+  clean_names()
 
-## Rulindo----------
+rulindo_installed<- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo Ready Boards installed by Team 02 04082026.xlsx" ), sheet = "Sheet1") |> 
+  clean_names() |>
+  mutate(
+    installed = ifelse(grepl("not installed", comment, ignore.case = TRUE), 0, 1)
+  ) |> 
+  filter(installed == 1) |> 
+  mutate(installed_id = nid) |> 
+  mutate(
+    nid = ifelse(nid == "1195780036166019", "1198080112173019", nid),
+    nid = ifelse(nid == "1198180105341033", "1198180105341030", nid),
+    nid = ifelse(nid == "1196380047274105", "1196580044343077", nid),
+    nid = ifelse(nid == "1198270134559079", "119827013455073", nid),
+    nid = ifelse(nid == "1199280052386004", "1199280052386000", nid),
+    nid = ifelse(nid == "1195980045986090", "1195980045986098", nid),
+    nid = ifelse(nid == "1200080015448090", "1200080015448092", nid),
+    nid = ifelse(nid == "1198380117993040", "1198380117993042", nid)
 
-rulindo_installed_raw<- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")
-
-rulindo_installed_6 <- rulindo_installed_raw %>% 
-  filter(villageid_key %in% rulindo_epc_6$villageid_key | is.na(villageid_key))
-
-write_xlsx(rulindo_installed_6, path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Rulindo_installed_in_first_6_villages.xlsx"))
-
-rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")  %>% 
-  clean_names() %>% 
-  filter(comments == "INSTALLED")  %>% 
-  mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>%
-  mutate(installed_id = nid) %>%
-  mutate(nid = case_when(
-    nid == "1195780036166019" ~ "1198080112173019",
-    nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
-    nid == "1198270134559079" & last_name == "Nyirakamana" ~ "119827013455073",
-    nid == "1199280052386004" & first_name == "Theodomir" ~ "1199280052386000",
-    nid == "1195980045986090" & last_name == "MVUYEKURE" ~ "1195980045986098",
-    nid == "1200080015448090" & last_name == "MBWIRABUMVA" ~ "1200080015448092",
-    nid == "1198380117993040" & last_name == "NZIRAGUSESWA" ~ "1198380117993042",
-    
-    nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
-    nid == "1196380047274105" ~"1196580044343077",
-    nid == "1198780122610117" ~ "1198980075181012",
-    nid == "1198080112173019" ~ "1197870091194098",
-    TRUE ~ nid
-
-  )) %>%
-  rename(village_id = villageid_key) %>% 
+  ) |> 
+  rename(village_id = village_id_key) %>% 
   mutate(installed = 1 ) %>% 
   select(village_id, nid, installed, installed_id)
-# 
-# 
-# rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ))  %>% 
-#   clean_names() %>% 
-#   filter(comments == "Ready board installed") %>% 
-#   mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>% 
-#   mutate(installed_id = nid) %>% 
-#   mutate(nid = case_when(
-#     nid == "1195780036166019" ~ "1198080112173019",
-#     nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
-#     nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
-#     nid == "1196380047274105" ~"1196580044343077",
-#     nid == "1198780122610117" ~ "1198980075181012",
-#     nid == "1198080112173019" ~ "1197870091194098",
-#     TRUE ~ nid
-#     
-#   )) %>% 
-#   rename(village_id = villageid_key) %>% 
-#   mutate(installed = 1 ) %>% 
-#   select(village_id, nid, installed, installed_id)
 
 
 dup_df<- tibble(duplicate_id = rulindo_installed$installed_id[duplicated(rulindo_installed$installed_id)])
@@ -122,11 +93,94 @@ check <- rulindo_installed %>%
 id_issues <- rulindo_installed_raw%>% 
   filter(nid %in% check$nid)
 
+rulindo_raw_check <- rulindo_installed_raw %>% 
+  filter(nid %in% check$nid) |> 
+  mutate(across(everything(), str_to_lower))
 
 write_xlsx(
   dup_df,
   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Duplicate NID in Rulindo readyboard installation.xlsx")
 )
+
+
+
+
+
+
+
+
+
+
+# ## Rulindo----------
+
+# rulindo_installed_raw<- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")
+
+# rulindo_installed_6 <- rulindo_installed_raw %>% 
+#   filter(villageid_key %in% rulindo_epc_6$villageid_key | is.na(villageid_key))
+
+# write_xlsx(rulindo_installed_6, path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Rulindo_installed_in_first_6_villages.xlsx"))
+
+# rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")  %>% 
+#   clean_names() %>% 
+#   filter(comments == "INSTALLED")  %>% 
+#   mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>%
+#   mutate(installed_id = nid) %>%
+#   mutate(nid = case_when(
+#     nid == "1195780036166019" ~ "1198080112173019",
+#     nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
+#     nid == "1198270134559079" & last_name == "Nyirakamana" ~ "119827013455073",
+#     nid == "1199280052386004" & first_name == "Theodomir" ~ "1199280052386000",
+#     nid == "1195980045986090" & last_name == "MVUYEKURE" ~ "1195980045986098",
+#     nid == "1200080015448090" & last_name == "MBWIRABUMVA" ~ "1200080015448092",
+#     nid == "1198380117993040" & last_name == "NZIRAGUSESWA" ~ "1198380117993042",
+    
+#     nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
+#     nid == "1196380047274105" ~"1196580044343077",
+#     nid == "1198780122610117" ~ "1198980075181012",
+#     nid == "1198080112173019" ~ "1197870091194098",
+#     TRUE ~ nid
+
+#   )) %>%
+#   rename(village_id = villageid_key) %>% 
+#   mutate(installed = 1 ) %>% 
+#   select(village_id, nid, installed, installed_id)
+# # 
+# # 
+# # rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ))  %>% 
+# #   clean_names() %>% 
+# #   filter(comments == "Ready board installed") %>% 
+# #   mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>% 
+# #   mutate(installed_id = nid) %>% 
+# #   mutate(nid = case_when(
+# #     nid == "1195780036166019" ~ "1198080112173019",
+# #     nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
+# #     nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
+# #     nid == "1196380047274105" ~"1196580044343077",
+# #     nid == "1198780122610117" ~ "1198980075181012",
+# #     nid == "1198080112173019" ~ "1197870091194098",
+# #     TRUE ~ nid
+# #     
+# #   )) %>% 
+# #   rename(village_id = villageid_key) %>% 
+# #   mutate(installed = 1 ) %>% 
+# #   select(village_id, nid, installed, installed_id)
+
+
+# dup_df<- tibble(duplicate_id = rulindo_installed$installed_id[duplicated(rulindo_installed$installed_id)])
+
+
+# check <- rulindo_installed %>%
+#   filter(!nid %in% rulindo_dime$nid)
+
+
+# id_issues <- rulindo_installed_raw%>% 
+#   filter(nid %in% check$nid)
+
+
+# write_xlsx(
+#   dup_df,
+#   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Duplicate NID in Rulindo readyboard installation.xlsx")
+# )
 
 
 
