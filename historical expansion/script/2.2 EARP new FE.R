@@ -309,7 +309,7 @@ run_reg_all <- function(df) {
 # 2. Run and export combined table-----
 
 regs_private_all <- run_reg_all(earp_p)
-# lapply(regs_private_all, summary)
+lapply(regs_private_all, summary)
 
 # Terms to keep
 keep_terms <- c(

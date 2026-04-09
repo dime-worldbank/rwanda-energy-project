@@ -1,7 +1,7 @@
 #######################################
 #Purpose: Create unified long-format dataset for FE analyses
 #Author: XIAOMING ZHANG
-#Date: April 2025
+#Date: April 2026
 #Description: Single source for all three electrification windows (12-14, 15-17, post-13)
 ######################################################
 
@@ -29,24 +29,25 @@ output_path <- file.path(
 
 # Using expansion_join from your main dataset (0. Main dataset.R)
 # This assumes expansion_join is already loaded in your environment
+expansion_join <- read_xlsx(file.path(output_path, "expansion_join.xlsx")) 
 
-fe_dataset <- expansion_join |>
+fe_dataset <- expansion_join %>%
   mutate(
     # 2012-2014 window
-    elec12_14 = ifelse(electrified_year %in% c("2012", "2013", "2014"), 1, 0),
+    elec1214 = ifelse(electrified_year %in% c("2012", "2013", "2014"), 1, 0),
     
     # 2015-2017 window
-    elec15_17 = ifelse(electrified_year %in% c("2015", "2016", "2017"), 1, 0),
+    elec1517 = ifelse(electrified_year %in% c("2015", "2016", "2017"), 1, 0),
 
     # Never electrified
-    never_electrified = ifelse(electrified_year == 9999, 1, 0),
+    neverelectrified = ifelse(electrified_year == 9999, 1, 0),
     
     # Post-2013 window (for EARP)
     EARP = ifelse(earp_lv == 1 | earp_mv == 1, 1, 0)
-  ) |>
+  )  |> 
   # Apply common sample restrictions
   anti_join(earp_existing_mv, by = c("village_id" = "Village_ID")) |>
-  filter(!District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) |>
+  filter(!District %in% c("Ngororero", "Nyabihu", "Nyamasheke", "Rubavu")) |> 
   # Create derived variables
   mutate(
     log1_residential_consumer = log1p(residential_consumer),
@@ -99,7 +100,7 @@ ec_2017 <- read_xlsx(path = file.path(data_path, "2017", "group_long_2017(isic).
   select(village_id, num_establishment, total_employee, isic_level1) |>
   mutate(year = 2017)
 
-ec_2020 <- read_xlsx(path = file.path(data_path, "2020", "group_long_2020(isic).xlsx")) |>
+ec_2020 <- read_xlsx(path = file.path(data_path, "2020", "group_long_2020(isic).xlsx")) |> 
   mutate(village_id = as.character(village_id)) |>
   rename(num_establishment = n) |>
   group_by(village_id, isic_level1) |>
@@ -120,12 +121,12 @@ ec_all <- bind_rows(ec_2011, ec_2014, ec_2017, ec_2020)
 # Select key variables from fe_dataset for joining
 fe_dataset_select <- fe_dataset |>
   select(
-    village_id, elec12_14, elec15_17, EARP,
+    village_id, elec1214, elec1517, neverelectrified, EARP,
     cell_id, sector_id, district_id,
     cell_office, health_center, primary_school, secondary_school,
     sector_district_office, industry, market, imidugudu,
     residential_consumer, non_residential_consumer,
-    log1_residential_consumer, log1_non_residential_consumer
+    log1_residential_consumer, log1_non_residential_consumer, electrified_year
   )
 
 # Create complete ISIC-year combinations and join with electrification variables
@@ -164,5 +165,6 @@ fe_dataset_long <- fe_dataset_select |>
   mutate(
     private_sector = ifelse(isic %in% c("3", "7", "9", "19"), 1, 0)
   )
+
 
 saveRDS(fe_dataset_long, file.path(output_path, "fe_dataset_long.rds"))
