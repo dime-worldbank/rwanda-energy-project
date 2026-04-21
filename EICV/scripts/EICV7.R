@@ -16,7 +16,7 @@ dropbox <- 'C:/Users/wb614406/Dropbox'
 
 data_path <- file.path(
   dropbox,
-  "Rwanda Energy/EAQIP/datawork/EICV/data/Cross_Section"
+  "Rwanda Energy/EAQIP/datawork/EICV/data"
 )
 
 output_path <- file.path(
@@ -25,7 +25,7 @@ output_path <- file.path(
 )
 
 #Household fuel-----
-household <- read_dta(file.path(data_path, "CS_S01_S5_S7_Household.dta"))
+household <- read_dta(file.path(data_path, "Cross_Section_7","CS_S01_S5_S7_Household.dta"))
 # Replace column names with variable labels if available
 
 household <- household |> 
@@ -33,14 +33,15 @@ household <- household |>
   main_fuel = as_factor(s5cq22a),
   secondary_fuel = as_factor(s5cq22b),
   tertiary_fuel = as_factor(s5cq22c),
-  cook_stove = as_factor(s5cq21)
+  cook_stove = as_factor(s5cq21),
+  ur = as_factor(ur)
   ) |> 
   #remove all punctuation from the fuel type variables
   mutate(
     main_fuel = str_replace_all(main_fuel, "[[:punct:]]", ""),
     secondary_fuel = str_replace_all(secondary_fuel, "[[:punct:]]", ""),
     tertiary_fuel = str_replace_all(tertiary_fuel, "[[:punct:]]", "")
-  )
+  )  
 
 library(xtable)
 
@@ -95,9 +96,9 @@ gas_main_fuel <- household %>%
   )
 
 household_id <- household |> 
-  select(hhid)
+  select(hhid, clust, province, district, ur, main_fuel, secondary_fuel, tertiary_fuel)
 
-fuel_data <- left_join(household_id, gas_main_fuel |> select(hhid, main_fuel_gas), by = "hhid") |> 
+fuel_data.1 <- left_join(household_id, gas_main_fuel |> select(hhid, main_fuel_gas), by = "hhid") |> 
   mutate(main_fuel_gas = ifelse(is.na(main_fuel_gas), 0, main_fuel_gas))
 
 
@@ -125,36 +126,46 @@ ggsave(file.path(output_path, "main_fuel_pie_chart.png"), plot = p, width = 6, h
 
 #household energy expenditure------
 
-expenditure <- read_dta(file.path(data_path, "CS_S8A2_Expenditure.dta"))
 
-
-expenditure <- expenditure |>
+gas_expenditure <- read_dta(file.path(data_path,"Cross_Section_7", "CS_S8A2_Expenditure.dta")) |>
   mutate(
     fuel = as_factor(s8a2q0),
-    purchase = s8a2q2,
-    expenditure = s8a2q3
-  ) |>
-  filter(str_detect(tolower(as.character(fuel)), "gas|kerosene|batteries|lightbulbs")) |> 
-  filter(purchase == 1)  
-
-expenditure_wide <- expenditure |> 
-  select(hhid, fuel, expenditure) |> 
-  pivot_wider(names_from = fuel, values_from = expenditure, values_fill = list(expenditure = 0)) |> 
-  rename_with(~ paste0("expenditure_", .), -hhid)
-
-fuel_data <- left_join(fuel_data, expenditure_wide, by = "hhid") |> 
-  mutate(
-    expenditure_gas = ifelse(is.na(`expenditure_Gas (propane)`), 0, `expenditure_Gas (propane)`),
-    expenditure_kerosene = ifelse(is.na(`expenditure_Kerosene`), 0, `expenditure_Kerosene`),
-    expenditure_batteries = ifelse(is.na(`expenditure_Batteries`), 0, `expenditure_Batteries`),
+    purchase = as_factor(s8a2q2),
+    expenditure = s8a2q3,
+    ur = as_factor(ur)
   ) |> 
-  select(-`expenditure_Gas (propane)`, -`expenditure_Kerosene`, -`expenditure_Batteries`)
+  filter(str_detect(tolower(as.character(fuel)), "gas")) |> 
+  mutate(expenditure_gas = expenditure) |> 
+  mutate(expenditure_gas = ifelse(purchase == "No", 0, expenditure_gas)) |> 
+  select(hhid, purchase,  expenditure_gas)
+
+
+charcoal_expenditure <- read_dta(file.path(data_path, "Cross_Section_7", "CS_S8A3_Expenditure.dta")) |> 
+  mutate(
+    fuel = as_factor(s8a3q0),
+    purchase = as_factor(s8a3q2),
+    expenditure = s8a3q3,
+    ur = as_factor(ur)
+  ) |> 
+  filter(str_detect(tolower(as.character(fuel)), "charcoal")) |> 
+  mutate(expenditure_charcoal = expenditure) |> 
+  mutate(expenditure_charcoal = ifelse(purchase == "No", 0, expenditure_charcoal)) |> 
+  select(hhid, expenditure_charcoal)
+
+expenditure_wide <- left_join(gas_expenditure, charcoal_expenditure, by = "hhid")
+
+fuel_data.2 <- left_join(fuel_data.1, expenditure_wide, by = "hhid") 
 
 
 
+#Calculate expediture including zeros
+#Two versions 1. sample households primary charcoal vs gas 
+#treatment is primary gas
 
 
-mean_expenditure <- expenditure %>%
+
+mean_expenditure <- expenditure_wide%>%
+  pivot_longer(cols = starts_with("expenditure_"), names_to = "fuel", values_to = "expenditure") %>%
   group_by(fuel) %>%
   summarise(mean_expenditure = mean(expenditure, na.rm = TRUE))
 
@@ -177,6 +188,8 @@ p2 <- ggplot(mean_expenditure, aes(x = fuel, y = mean_expenditure, fill = fuel))
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
 
+p2
+
 ggsave(
   file.path(output_path, "mean_expenditure_bar_plot.png"),
   plot = p2,
@@ -187,9 +200,10 @@ ggsave(
 #Person-------
 
 
-person <- read_dta(file.path(data_path, "CS_S0_S1_S2_S3_S4_S6A_S6B_S6C_Person.dta"))
+person <- read_dta(file.path(data_path, "Cross_Section_7", "CS_S0_S1_S2_S3_S4_S6A_S6B_S6C_Person.dta"))
 
-person_time <- person |> 
+person_time.1 <- person |> 
+   mutate(ur = as_factor(ur)) |>
   select(hhid, pid,  s1q1, s1q3y, starts_with("s6c")) |> 
   mutate(
     gender = as_factor(s1q1),
@@ -215,7 +229,18 @@ person_time <- person |>
     chores = as_factor(s6cq11),
     chores_hours = s6cq12
   ) |> 
-  select(-starts_with("s6c"), -s1q1, -s1q3y) |> 
+  mutate(
+    fetch_water_hours = ifelse(fetch_water == "No", 0, fetch_water_hours),
+    collect_firewood_hours = ifelse(collect_firewood == "No", 0, collect_firewood_hours),
+    grazing_animals_hours = ifelse(grazing_animals == "No", 0, grazing_animals_hours),
+    shopping_hours = ifelse(shopping == "No", 0, shopping_hours),
+    cooking_hours = ifelse(cooking == "No", 0, cooking_hours),
+    chores_hours = ifelse(chores == "No", 0, chores_hours)
+  ) |>
+  select(-starts_with("s6c"), -s1q1, -s1q3y)  
+
+
+person_time <- person_time.1 |> 
   group_by(hhid, gender) |>
   summarise(
     fetch_water_hours = sum(fetch_water_hours, na.rm = TRUE),
@@ -230,19 +255,19 @@ person_time <- person |>
   pivot_wider(names_from = gender, values_from = c(fetch_water_hours, collect_firewood_hours, grazing_animals_hours, shopping_hours, cooking_hours, chores_hours), values_fill = 0)
 
 
-fuel_data <- left_join(fuel_data, person_time, by = "hhid")
+fuel_data.3<- left_join(fuel_data.2, person_time, by = "hhid")
 
 
 #plot data of time spent on colleting fire wook and cooking hours by gender in bar plot
 
-time_data <- fuel_data |>
+time_data <- fuel_data.3 |>
   select(starts_with("collect_firewood_hours"), starts_with("cooking_hours")) |>
   pivot_longer(cols = everything(), names_to = "activity_gender", values_to = "hours") |>
   separate(activity_gender, into = c("activity", "gender"), sep = "(_[^_]*)$", remove = TRUE, extra = "merge") |> 
   group_by(activity, gender) |>
   summarise(mean_hours = mean(hours, na.rm = TRUE), .groups = "drop")
 
-time_data <- fuel_data |>
+time_data <- fuel_data.3 |>
   select(starts_with("collect_firewood_hours"), starts_with("cooking_hours")) |>
   pivot_longer(cols = everything(), names_to = "activity_gender", values_to = "hours") |>
   mutate(
@@ -279,6 +304,7 @@ p3 <- ggplot(time_data, aes(x = activity, y = mean_hours, fill = gender)) +
     plot.title = element_blank()
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
+p3
 
 ggsave(
   file.path(output_path, "mean_hours_bar_plot.png"),
@@ -288,20 +314,53 @@ ggsave(
 
 
 #Regression-----
+consumption <- read_dta(file.path(data_path, "Cross_Section_7", "CS_S8B_Food_Expenditure_Consumption.dta")) |>
+  select(hhid, starts_with("s8bq4")) |>
+  mutate(mean_expenditure = rowMeans(across(starts_with("s8bq4")), na.rm = TRUE)) |>
+  group_by(hhid) |>
+  summarise(food_consumption = mean(mean_expenditure*7, na.rm = TRUE), .groups = "drop") 
 
-fuel_data <- fuel_data |> 
-  mutate(expenditure = expenditure_gas + expenditure_kerosene + expenditure_batteries) 
+
+
+fuel_data_sub <- fuel_data.3 |> 
+  left_join(consumption, by = "hhid") 
+
+
+library(lfe)
+
+# Filter to charcoal or LPG households
+fuel_data_sub <- fuel_data_sub|>
+  filter(main_fuel %in% c("Charcoal", "Gas")) |>
+  mutate(use_lpg = as.integer(main_fuel == "Gas"))
 
 #LM regression of main fuel gas on expenditure
 
-lm_model <- lm(expenditure ~ main_fuel_gas, data = fuel_data)
+lm_model_gas <- felm(
+  expenditure_gas ~ use_lpg + log1p(food_consumption) | clust,
+  data = fuel_data_sub
+)
 
-summary(lm_model)
+summary(lm_model_gas)
+
+
+lm_model_charcoal <- felm(
+  expenditure_charcoal ~ use_lpg + log1p(food_consumption) | clust,
+  data = fuel_data_sub
+)
+
+summary(lm_model_charcoal)
+
+
+models_expenditure <- list(
+  "Gas Expenditure" = lm_model_gas,
+  "Charcoal Expenditure" = lm_model_charcoal
+)
+
+
 stargazer(
-  lm_model,
+  models_expenditure,
   type = "latex",
-  title = "Linear Regression of Expenditure on Main Fuel Gas",
-  dep.var.labels = "Expenditure (RwF last 4 weeks)",
+  title = "Linear Regression of Expenditure on Main Fuel Gas (RwF last 4 weeks)",
   covariate.labels = c("Main Fuel is Gas"),
   out = file.path(output_path, "lm_expenditure_main_fuel_gas.tex")
 )
@@ -324,12 +383,12 @@ if (length(start_idx) > 0 && length(end_idx) > 0) {
 
 
 
-#LM regression of main fuel gas on time spent on collecting firewood and'cooking hours
+#LM regression of main fuel gas on time spent on collecting firewood and'cooking hours-----
 #Number of hours spent in the last 7 days
-lm_firewood_female <- lm(collect_firewood_hours_female ~ main_fuel_gas, data = fuel_data)
-lm_firewood_male <- lm(collect_firewood_hours_male ~ main_fuel_gas, data = fuel_data)
-lm_cooking_female <- lm(cooking_hours_female ~ main_fuel_gas, data = fuel_data)
-lm_cooking_male <- lm(cooking_hours_male ~ main_fuel_gas, data = fuel_data)
+lm_firewood_female <- felm(collect_firewood_hours_female ~ use_lpg + log1p(food_consumption) | clust, data = fuel_data_sub)
+lm_firewood_male <- felm(collect_firewood_hours_male ~ use_lpg + log1p(food_consumption) | clust, data = fuel_data_sub)
+lm_cooking_female <- felm(cooking_hours_female ~ use_lpg + log1p(food_consumption) | clust, data = fuel_data_sub)
+lm_cooking_male <- felm(cooking_hours_male ~ use_lpg + log1p(food_consumption) | clust, data = fuel_data_sub)
 
 summary(lm_firewood_female)
 summary(lm_firewood_male)
