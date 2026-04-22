@@ -1,0 +1,291 @@
+########################################
+#Author: Xiaoming Zhang
+#Purpose: Code Sample
+#Date: Feb 2026
+##################################################
+
+
+# b) Choose a few baseline household variables, and perform t-tests or produce a balance table to -----
+
+# Reproducing a balance table similar to Stata's `iebaltab`
+#
+# The goal is to present:
+#   - Group means with standard deviations in parentheses
+#   - Differences in means with standard errors clustered at the group_id level
+#   - Sample sizes for treated and control groups
+#   - Number of clusters per group and in total
+#
+# Initially, I intended to include only significance stars to indicate differences,
+# but since two variables show significant differences, I included the actual p-values
+# to better assess how small they are and how concerned we should be.
+#
+# Because I require flexibility in clustering (e.g., at the group_id level),
+# I used a regression-based difference-in-means test with cluster-robust standard errors.
+# This approach is statistically equivalent to a t-test under certain assumptions,
+# but allows for more robust inference in clustered randomized designs.
+#
+#I did consult chatGPT to achieve the best version of code to give me my intended result.
+#
+
+
+
+# Define variables
+vars <- c("hhnomembers_baseline", "gender_hoh", "age_hoh", 
+          "educyears_hoh", "readwrite_hoh", "hhcaste_sc_st")
+
+
+#Balance results
+balance_results <- lapply(vars, function(var) {
+  # Formula
+  formula <- as.formula(paste(var, "~ treated"))
+  
+  # OLS with cluster-robust SEs
+  model <- lm(formula, data = merged_clean)
+  vcov_clustered <- vcovCR(model, cluster = merged_clean$group_id, type = "CR2")
+  est <- tidy(model, vcov = vcov_clustered) %>% filter(term == "treated")
+  
+  # Means, SDs, and Ns
+  stats <- merged_clean %>%
+    group_by(treated) %>%
+    summarise(
+      mean = mean(.data[[var]], na.rm = TRUE),
+      sd = sd(.data[[var]], na.rm = TRUE),
+      n = sum(!is.na(.data[[var]])),
+      .groups = "drop"
+    ) %>%
+    pivot_wider(
+      names_from = treated,
+      values_from = c(mean, sd, n),
+      names_glue = "{.value}_{treated}"
+    )
+  
+  # Significance stars
+  stars <- case_when(
+    est$p.value < 0.01 ~ "***",
+    est$p.value < 0.05 ~ "**",
+    est$p.value < 0.10 ~ "*",
+    TRUE ~ ""
+  )
+  
+  # Cluster counts
+  clusters_total <- merged_clean %>% pull(group_id) %>% n_distinct()
+  clusters_treated <- merged_clean %>% filter(treated == 1) %>% pull(group_id) %>% n_distinct()
+  clusters_control <- merged_clean %>% filter(treated == 0) %>% pull(group_id) %>% n_distinct()
+  
+  tibble(
+    variable = var,
+    `mean_control(sd)` = sprintf("%.2f (%.2f)", stats$mean_0, stats$sd_0),
+    `mean_treated(sd)` = sprintf("%.2f (%.2f)", stats$mean_1, stats$sd_1),
+    `diff(se)` = sprintf("%.2f (%.2f)%s", est$estimate, est$std.error, stars),
+    p_value = round(est$p.value, 3),
+    N_control = stats$n_0,
+    N_treated = stats$n_1,
+    clusters_control = clusters_control,
+    clusters_treated = clusters_treated,
+    clusters_total = clusters_total
+  )
+}) %>% bind_rows()
+
+
+###balance table----
+
+#Saved as html for primary viewing, also edited in latex to be formatted for paper in overleaf
+balance_results %>%
+  kbl(caption = "Balance Table", format = "html", digits = 2, align = "l") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  save_kable(here("output", "balance_table.html"))
+
+
+
+
+
+
+# c) Regress (with OLS) the household income on the treatment dummy. Include pair fixed ----
+# effects, and correct standard errors if necessary.\
+
+
+reg_income <- felm(hhinc ~ treated | pair_id | 0 | group_id, data = merged_clean)
+
+summary(reg_income)
+
+
+
+# d) Generate a log income variable, and re-run the previous specification with log household ----
+# income as the dependent variable.
+
+merged_clean <- merged_clean %>%
+  mutate(log_hhinc = ifelse(hhinc > 0, log(hhinc), NA))
+
+reg_log_income <- felm(log_hhinc ~ treated | pair_id | 0 | group_id, data = merged_clean)
+
+summary(reg_log_income)
+
+#create latex to be included in overleaf/latex
+
+###regression output----
+stargazer(
+  reg_income,
+  reg_log_income,
+  type = "latex",
+  title = "Regression Results No Control",
+  out = here("output", "no_controlled_regression.tex")
+  
+)
+
+#save html
+stargazer(
+  reg_income,
+  reg_log_income,
+  type = "html",
+  title = "Regression Results Without Controls",
+  out = here("output", "no_controlled_regression.html")
+)
+
+# e) Re-run the previous regression including a set of household-level controls.----
+
+reg_income_controls <- felm(
+  hhinc ~ treated + hhnomembers_baseline + gender_hoh + age_hoh + 
+    educyears_hoh + readwrite_hoh + hhcaste_sc_st |
+    pair_id | 0 | group_id,
+  data = merged_clean
+)
+
+summary(reg_income_controls)
+
+
+reg_log_income_controls <- felm(
+  log_hhinc ~ treated + hhnomembers_baseline + gender_hoh + age_hoh + 
+    educyears_hoh + readwrite_hoh + hhcaste_sc_st |
+    pair_id | 0 | group_id,
+  data = merged_clean
+)
+
+summary(reg_log_income_controls)
+
+
+###regression output----
+#create latex to be included in overleaf/latex
+stargazer(
+  reg_income_controls,
+  reg_log_income_controls,
+  type = "latex",
+  title = "Regression Results With Control",
+  out = here("output", "controlled_regression.tex")
+)
+
+#save html
+stargazer(
+  reg_income_controls,
+  reg_log_income_controls,
+  type = "html",
+  title = "Regression Results With Controls",
+  out = here("output", "controlled_regression.html")
+)
+
+
+
+# b. Export and save a regression table suitable for publication from these results.
+stargazer(
+  reg_income,
+  reg_log_income,
+  reg_income_controls,
+  reg_log_income_controls,
+  type = "latex",
+  title = "Effect of Treatment on Household Income",
+  column.labels = c("Income", "Log Income", "Income + Controls", "Log Income + Controls"),
+  dep.var.labels.include = FALSE,
+  covariate.labels = c(
+    "Treated",
+    "Household Size (Baseline)",
+    "Household Head Female",
+    "Household Head Age",
+    "HOH Years of Education",
+    "Household Head Literate",
+    "Scheduled Caste and Tribe"
+  ),
+  keep.stat = c("n", "rsq"),
+  no.space = TRUE,
+  omit.stat = c("f", "ser"),
+  out = here("output", "final regression output.tex")
+  
+)
+
+
+# Save as HTML
+stargazer(
+  reg_income,
+  reg_log_income,
+  reg_income_controls,
+  reg_log_income_controls,
+  type = "html",
+  title = "Effect of Treatment on Household Income",
+  column.labels = c("Income", "Log Income", "Income", "Log Income"),
+  dep.var.labels.include = FALSE,
+  covariate.labels = c(
+    "Treated",
+    "Household Size (Baseline)",
+    "Household Head Female",
+    "Household Head Age",
+    "HOH Years of Education",
+    "Household Head Literate",
+    "Scheduled Caste and Tribe"
+  ),
+  keep.stat = c("n", "rsq"),
+  no.space = TRUE,
+  omit.stat = c("f", "ser"),
+  out = here("output", "final_regression_output.html")
+)
+
+
+# f) Create a bar chart suitable for publication that summarizes the average borrowed 
+# amount for each income quartile, by treatment group. Save the chart as a PNG file.
+
+# Create income quartiles
+merged_clean <- merged_clean %>%
+  mutate(income_quartile = ntile(hhinc, 4)) %>%
+  mutate(
+    income_quartile = factor(
+      income_quartile,
+      labels = c("Q1 (Lowest)", "Q2", "Q3", "Q4 (Highest)")
+    ),
+    treated = factor(treated, labels = c("Control", "Treatment"))
+  )
+
+# Summarize mean borrowed amount by income quartile and treatment
+borrow_summary <- merged_clean %>%
+  group_by(treated, income_quartile) %>%
+  summarise(mean_borrowed = mean(total_borrowed, na.rm = TRUE), .groups = "drop")
+
+###average borrowing by incquartile----
+
+# Plot with labels
+borrow_plot <- ggplot(borrow_summary, aes(x = income_quartile, y = mean_borrowed, fill = treated)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(mean_borrowed, 0)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3.5) +  # Adjust text size and vertical position
+  labs(
+    title = "Average Borrowed Amount by Income Quartile and Treatment Group",
+    x = "Income Quartile",
+    y = "Average Borrowed Amount (RWF)",
+    fill = "Group"
+  ) +  
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+
+# Save the plot
+# Save the plot to the output folder
+ggsave(
+  filename = here("output", "average_borrowed_by_incquartile.png"),
+  plot = borrow_plot,
+  width = 8,
+  height = 6,
+  dpi = 300,
+  scale = 0.8
+)
+
+

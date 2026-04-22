@@ -1,0 +1,26 @@
+#################################################
+#Author: Xiaoming zhang
+#Date 2026 APril
+#Purpose: Trucker Aggregator data baseline explore
+#########################################################
+
+
+pacman::p_load(tidyverse, dplyr, here, sf, 
+               stringr, haven, lmtest, fixest, kableExtra,
+               ggplot2, readxl, writexl, janitor, randomizr,
+               stargazer, modelsummary, googlesheets4)
+
+getwd()
+
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+baseline_data_path <- file.path(
+  dropbox,
+  "Rwanda Feeder Roads/Trucker experiment/SCTO_backup/Aggregator/Baseline/data"
+)
+
+
+#Read file------
+
+
+baseline_raw <- read.csv(file.path(baseline_data_path, "Aggregator Baseline.csv"))

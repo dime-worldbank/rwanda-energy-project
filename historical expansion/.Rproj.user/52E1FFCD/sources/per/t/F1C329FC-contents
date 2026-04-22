@@ -1,0 +1,494 @@
+########################################
+#Author: Xiaoming Zhang
+#Purpose: Code assessment
+#Date: March 2026
+##################################################
+
+#Read packages----
+# install.packages(pacman)
+library(pacman)
+
+pacman::p_load(
+  tidyverse, 
+  ggplot2, 
+  dplyr, 
+  tidyr, 
+  readr, 
+  here,
+  haven,
+  sf,
+  readxl,
+  writexl,
+  janitor,
+  stargazer,
+  knitr,
+  kableExtra,
+  labelled,
+  clubSandwich,
+  broom,
+  lfe,
+  lubridate
+)
+
+getwd()
+
+
+#Table 1, annual trade credit summary(all firms)-----
+
+df_invoices <- read_csv(here("data", "RA_CSVs", "df_invoices.csv"))
+df_firms    <- read_csv(here("data", "RA_CSVs","df_firms.csv"))
+
+
+invoices_2023 <- df_invoices %>%
+  filter(lubridate::year(issue_date) == 2023)
+
+ar <- invoices_2023 %>%
+  group_by(id_seller) %>%
+  summarise(
+    total_ar = sum(payment),
+    n_customers = n_distinct(id_buyer)
+  ) %>%
+  rename(id_firm = id_seller)
+
+ap <- invoices_2023 %>%
+  group_by(id_buyer) %>%
+  summarise(
+    total_ap = sum(payment),
+    n_suppliers = n_distinct(id_seller)
+  ) %>%
+  rename(id_firm = id_buyer)
+
+table1 <- df_firms %>%
+  select(id_firm, industry, founding_year) %>%
+  left_join(ar, by = "id_firm") %>%
+  left_join(ap, by = "id_firm") %>%
+  mutate(
+    total_ar = replace_na(total_ar, 0),
+    total_ap = replace_na(total_ap, 0),
+    n_customers = replace_na(n_customers, 0),
+    n_suppliers = replace_na(n_suppliers, 0),
+    net_trade_credit = total_ar - total_ap
+  ) %>%
+  arrange(desc(net_trade_credit))
+
+write_csv(table1, here("output","table1_trade_credit.csv"))
+
+
+#Figure 1: Cash on Hand----
+
+df_receipts <- read_csv(here("data", "RA_CSVs","df_receipts.csv"))
+df_invoices <- read_csv(here("data", "RA_CSVs","df_invoices.csv"))
+df_credit <- read_csv(here("data", "RA_CSVs","df_credit.csv"))
+df_expenses <- read_csv(here("data", "RA_CSVs","df_expenses.csv"))
+
+dates_2023 <- seq(as.Date("2023-01-01"), as.Date("2023-12-31"), by = "day")
+
+##Inflow----
+# Receipts
+cash_receipts <- df_receipts %>%
+  mutate(
+    date = sale_date, 
+    firm = id_seller, 
+    amount =  payment) %>%
+  select(firm, date, amount)
+
+# Payments received (on due_date)
+cash_ar <- df_invoices %>%
+  mutate(
+    date = due_date, 
+    firm = id_seller, 
+    amount =  payment) %>%
+  select(firm, date, amount)
+
+# Loanss (in on borrow_date)
+cash_borrow <- df_credit %>%
+  mutate(date = borrow_date, firm = id_borrower,
+         amount = loan_borrowed) %>%
+  select(firm, date, amount)
+
+##Outflows----
+# invoice payments made (on due_date)
+cash_ap <- df_invoices %>%
+  mutate(date = due_date, firm = id_buyer, amount = -payment) %>%
+  select(firm, date, amount)
+
+
+# loan repayments (cash out on maturity_date) (AI assisted on maturity date)
+cash_repay <- df_credit %>%
+  mutate(
+    borrow_date = as.Date(borrow_date),
+    maturity_date = borrow_date + maturity,
+    date   = maturity_date,
+    firm   = id_borrower,
+    amount = -(loan_borrowed * (1 + loan_rate / 100 * maturity / 365))
+  ) %>%
+  select(firm, date, amount)
+
+# Outflows: expenses
+cash_expenses <- df_expenses %>%
+  mutate(
+    date = expense_date, 
+    firm = id_firm, 
+    amount = -payment) %>%
+  select(firm, date, amount)
+
+##Bind rows----
+
+all_cash <- bind_rows(cash_receipts, 
+                      cash_ar, 
+                      cash_ap,
+                      cash_borrow,   
+                      cash_repay, 
+                      cash_expenses)
+
+daily_flows <- all_cash %>%
+  group_by(firm, date) %>%
+  summarise(
+    net_flow = sum(amount, na.rm = TRUE)
+    ) 
+
+# Left join
+firm_dates <- expand.grid(
+  firm = 1:10,
+  date = dates_2023,
+  stringsAsFactors = FALSE
+) %>% 
+  as_tibble()
+
+cash_daily <- firm_dates %>%
+  left_join(daily_flows, by = c("firm", "date")) %>%
+  mutate(net_flow = replace_na(net_flow, 0)) %>%
+  left_join(df_firms %>% select(id_firm, start_cash),
+            by = c("firm" = "id_firm")) %>%
+  arrange(firm, date) %>%
+  group_by(firm) %>%
+  mutate(
+    cum_flow  = cumsum(net_flow),
+    cash      = start_cash + cum_flow       # cash AFTER today's flows (AI assisted)
+  ) %>%
+  ungroup()
+
+##plot----
+#AI assited 
+
+plot_df.1 <- cash_daily %>%
+  filter(firm %in% 1:3) %>%
+  mutate(firm_label = paste0("Firm ", firm))
+
+firm_colors <- c(
+  "Firm 1" = "brown", 
+  "Firm 2" = "red", 
+  "Firm 3" = "navy"
+  )
+
+p1 <- ggplot(plot_df.1, aes(x = date, y = cash / 1e3,
+                              color = firm_label, group = firm_label)) +
+  geom_line(linewidth = 0.8) +
+  scale_color_manual(values = firm_colors, name = "Firm") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b",
+               limits = as.Date(c("2023-01-01", "2023-12-31"))) +
+  scale_y_continuous() +
+  labs(title  = "Figure 1: Cash on Hand – Firms 1, 2, and 3 (2023)",
+       x      = "Date",
+       y      = "Cash on Hand (thousands USD)") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right",
+        panel.grid.minor = element_blank())
+
+p1
+
+ggsave(
+  filename = here::here("output", "figure1_firm123_cash_on_hand.png"),
+  plot = p1,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+
+#Figures 2–3: Obligation maturity distribution (Firm 5 and Firm 6)----
+
+maturity_bins <- function(x){
+  case_when(
+    x <= 30 ~ "0-30",
+    x <= 60 ~ "31-60",
+    x <= 90 ~ "61-90",
+    x <= 120 ~ "91-120",
+    x <= 180 ~ "121-180",
+    TRUE ~ "Above 180"
+  )
+}
+
+credit_oblig <- df_credit %>%
+  mutate(
+    maturity_bin = maturity_bins(maturity),
+    type = loan_type,
+    amount_due = loan_borrowed * (1 + loan_rate / 100 * maturity / 365)
+  ) %>%
+  group_by(id_borrower,maturity_bin,type) %>%
+  summarise(
+    amount=sum(amount_due)
+    ) %>% 
+  ungroup()
+
+invoice_payables <- df_invoices %>%
+  mutate(
+    maturity_bin = maturity_bins(maturity),
+    type="Payables"
+    ) %>%
+  group_by(id_buyer,maturity_bin,type) %>%
+  summarise(
+    amount=sum(payment)) %>%
+  ungroup() %>% 
+  rename(id_borrower=id_buyer)
+
+##Combine----
+
+oblig_all <- bind_rows(credit_oblig,invoice_payables)
+
+oblig_all <- oblig_all %>%
+  mutate(
+    maturity_bin = factor(
+      maturity_bin,
+      levels = c("0-30","31-60","61-90","91-120","121-180","Above 180")
+    )
+  )
+
+
+repayment_colors <- c(
+  "Term Loan" = "gray",
+  "Line of Credit" = "navy",
+  "Payables" = "brown"
+)
+
+##plot----
+#AI assisted
+
+#Firm 5
+
+oblig_all_5 <- oblig_all %>% 
+  filter(id_borrower == 5)
+
+p2.5<- ggplot(oblig_all_5,
+             aes(x = maturity_bin,
+                 y = amount / 1e3,
+                 fill = type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = repayment_colors,
+                    name = "Repayment Type") +
+  labs(
+    x = "Contractual Maturity",
+    y = "Obligations (thousands USD)",
+    title = "Obligations by Contractual Maturity  (Firm 5)"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right")
+
+p2.5
+
+ggsave(
+  here::here("output", "figure2_firm5_obligations.png"),
+  p2.5,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+#Firm 6
+
+oblig_all_6 <- oblig_all %>% 
+  filter(id_borrower == 6)
+
+p2.6<- ggplot(oblig_all_6,
+              aes(x = maturity_bin,
+                  y = amount / 1e3,
+                  fill = type)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = repayment_colors,
+                    name = "Repayment Type") +
+  labs(
+    x = "Contractual Maturity",
+    y = "Obligations (thousands USD)",
+    title = "Obligations by Contractual Maturity  (Firm 6)"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right")
+
+p2.6
+
+ggsave(
+  here::here("output", "figure3_firm6_obligations.png"),
+  p2.6,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+#Figures 4–5: Interest rate distribution (credit market)----
+
+sum(is.na(df_credit$loan_rate))
+
+
+credit_rates <- df_credit %>%
+  mutate(
+    rate_round = round(loan_rate, 0),
+    rate_bin = case_when(
+      rate_round <= 10 ~ "0-10",
+      rate_round <= 20 ~ "11-20",
+      rate_round <= 30 ~ "21-30",
+      rate_round <= 40 ~ "31-40",
+      rate_round <= 50 ~ "41-50",
+      TRUE ~ "Above 50"
+    )
+  ) %>%
+  mutate(
+    rate_bin = factor(
+      rate_bin,
+      levels = c("0-10","11-20","21-30","31-40","41-50","Above 50")
+    ),
+    loan_type = factor(loan_type, levels = c("Term Loan", "Line of Credit"))
+  )
+
+
+sum_credit <- credit_rates %>% 
+  group_by(rate_bin, loan_type) %>% 
+  summarise(
+    num_loans = n(),
+    total_borrowed = sum(loan_borrowed, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+##plot----
+#AI assisted
+
+loan_colors <- c(
+  "Term Loan" = "gray",
+  "Line of Credit" = "navy"
+)
+
+# Figure 4: Number of loans
+p4 <- ggplot(sum_credit,
+             aes(x = rate_bin, y = num_loans, fill = loan_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = loan_colors, name = "Loan Type") +
+  labs(title = "Interest Rate Distribution – Number of Loans",
+       x     = "Interest Rate Bin (%)",
+       y     = "Number of Loans") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right",
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 15, hjust = 1))
+
+p4
+
+ggsave(
+  filename = here::here("output", "figure4_num_loans.png"),
+  plot = p4,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+# Figure 5: Total principal borrowed
+p5 <- ggplot(sum_credit,
+               aes(x = rate_bin, y = total_borrowed / 1e3, fill = loan_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = loan_colors, name = "Loan Type") +
+  labs(title = "Interest Rate Distribution – Total Principal Borrowed",
+       x     = "Interest Rate Bin (%)",
+       y     = "Total Borrowed (thousands USD)") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right",
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 15, hjust = 1))
+
+p5
+
+ggsave(
+  filename = here::here("output", "figure5_total_principal.png"),
+  plot = p5,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+#Figure 6: Rolling Outstanding Payables vs. Receivables (Firm 3)----
+
+firm3_invoices <- df_invoices %>%
+  filter(id_seller == 3 | id_buyer == 3)
+
+invoice_panel <- tidyr::crossing(date = dates_2023, firm3_invoices ) #AI assisted because I never used this function
+
+# Outstanding AR
+
+ar_outstanding <- invoice_panel %>%
+  filter(id_seller == 3) %>%
+  select(date, issue_date, due_date, payment) %>%
+  filter(issue_date <= date, due_date > date) %>%
+  group_by(date) %>%
+  summarise(
+    outstanding_ar = sum(payment, na.rm = TRUE)
+  )
+
+
+# Outstanding AP
+ap_outstanding <- invoice_panel %>%
+  filter(id_buyer == 3) %>% 
+  select(date, issue_date, due_date, payment) %>%
+  filter(issue_date <= date, due_date > date) %>%
+  group_by(date) %>%
+  summarise(
+    outstanding_ap = sum(payment, na.rm = TRUE)
+  ) %>% 
+  right_join(data.frame(date = dates_2023), by = "date") %>%
+  mutate(outstanding_ap = replace_na(outstanding_ap, 0)) %>% 
+  arrange(date)
+
+outstanding_join <- ar_outstanding %>% 
+  left_join(ap_outstanding, by = c("date") )
+
+##plot---- 
+#AI assisted
+
+outstanding_colors <- c("Outstanding AR" = "navy", "Outstanding AP" = "brown")
+
+p6 <- ggplot(outstanding_join, aes(x = date)) +
+  geom_line(aes(y = outstanding_ar / 1e3, color = "Outstanding AR"), linewidth = 0.9) +
+  geom_line(aes(y = outstanding_ap / 1e3, color = "Outstanding AP"), linewidth = 0.9) +
+  scale_color_manual(values = outstanding_colors, name = "") +
+  labs(
+    title = "Outstanding Accounts Receivable and Payable – Firm 3",
+    x = "Date",
+    y = "Outstanding Amount (thousands USD)"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    legend.position = "right",
+    panel.grid.minor = element_blank()
+  )
+
+p6
+
+
+ggsave(
+  here::here("output", "figure6_outstanding_ar_ap_firm3.png"),
+  p6,
+  width = 10,
+  height = 5,
+  dpi = 300
+)
+
+
+
+
+
+
+
+
+
+
+
+
+

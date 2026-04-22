@@ -1,0 +1,222 @@
+########################################
+#Author: Xiaoming Zhang
+#Purpose: Code Sample
+#Date: Feb 2026
+##################################################
+
+
+#a) Load the endline data----
+
+endline <- read_dta(here("data", "endline.dta"))
+
+#b) Recode household debt and income variables as ----
+#numeric values instead of strings, and replace “None” with 0
+#Also mutated "." which means NA in STATA to NA in R
+
+endline_clean <- endline %>%
+  mutate(
+    across(
+      c(totformalborrow_24, totinformalborrow_24, hhinc),
+      ~ as.numeric(ifelse(. == "None", 0, ifelse(. == ".", NA, .))) #There are 4 NAs in the borrowing data
+    )
+  ) %>% 
+  filter(
+    !is.na(totformalborrow_24) &
+      !is.na(totinformalborrow_24) &
+      !is.na(hhinc)
+  ) #removed the hh with NAs from the dataset for cleaness
+
+
+
+# Check duplicates in hh_id
+hhid_duplicates <- endline_clean %>%
+  filter(duplicated(hhid) | duplicated(hhid, fromLast = TRUE))
+
+#There are no duplicates in the endline data
+
+#c)Browse the variables in this dataset ----
+
+
+endline_summary <- endline_clean %>%
+  summarise(
+    hhinc_mean = mean(hhinc, na.rm = TRUE),
+    hhinc_median = median(hhinc, na.rm = TRUE),
+    hhinc_sd = sd(hhinc, na.rm = TRUE),
+    hhinc_min = min(hhinc, na.rm = TRUE),
+    hhinc_max = max(hhinc, na.rm = TRUE),
+    hhinc_pctzero = mean(hhinc == 0, na.rm = TRUE) * 100,
+    
+    formalborrow_mean = mean(totformalborrow_24, na.rm = TRUE),
+    formalborrow_median = median(totformalborrow_24, na.rm = TRUE),
+    formalborrow_sd = sd(totformalborrow_24, na.rm = TRUE),
+    formalborrow_min = min(totformalborrow_24, na.rm = TRUE),
+    formalborrow_max = max(totformalborrow_24, na.rm = TRUE),
+    formalborrow_pctzero = mean(totformalborrow_24 == 0, na.rm = TRUE) * 100,
+    
+    informalborrow_mean = mean(totinformalborrow_24, na.rm = TRUE),
+    informalborrow_median = median(totinformalborrow_24, na.rm = TRUE),
+    informalborrow_sd = sd(totinformalborrow_24, na.rm = TRUE),
+    informalborrow_min = min(totinformalborrow_24, na.rm = TRUE),
+    informalborrow_max = max(totinformalborrow_24, na.rm = TRUE),
+    informalborrow_pctzero = mean(totinformalborrow_24 == 0, na.rm = TRUE) * 100
+  ) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c("Variable", ".value"),
+    names_sep = "_"
+  ) %>%
+  mutate(
+    pctzero = sprintf("%.2f%%", pctzero)  # Format to 2 decimals + % sign
+  ) %>%
+  select(Variable, mean, median, sd, min, max, pctzero)
+
+###endline summary----
+# Create table as LaTeX for overleaf, interpretation of the data separately attached
+kable(endline_summary, 
+      format = "latex", 
+      booktabs = TRUE,
+      caption = "Summary Statistics of Household Financial Variables") 
+
+#Save table as html for viewing
+endline_summary %>%
+  kable(format = "html", digits = 2, caption = "Summary Statistics of Household Financial Variables") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) %>%
+  save_kable(file = here("output", "endline_summary_table.html"))
+
+###endline boxplot----
+#Create box plot, interpretation separately attached
+
+endline_long <- endline_clean %>%
+  select(hhinc, totformalborrow_24, totinformalborrow_24) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value")
+
+# Create boxplot
+endline_box <- ggplot(endline_long, aes(x = variable, y = value)) +
+  geom_boxplot(outlier.alpha = 0.3, fill = "lightblue") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Boxplot of Household Income and Borrowing",
+    x = "Variable",
+    y = "Value (INR)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+
+# Save the plot to the output folder
+ggsave(
+  filename = here("output", "endline_boxplot.png"),
+  plot = endline_box,
+  width = 8,
+  height = 6,
+  dpi = 300,
+  scale = 0.8
+)
+
+
+
+# d) Top code household debt and income variables, replacing all values greater than three ----
+# standard deviations above the mean with a value that is equal to three standard deviations 
+# above the mean.
+# e) Label the new top-coded variables.-----
+
+
+endline_clean <- endline_clean %>%
+  mutate(
+    hhinc_top = ifelse(hhinc > mean(hhinc, na.rm = TRUE) + 3 * sd(hhinc, na.rm = TRUE),
+                       mean(hhinc, na.rm = TRUE) + 3 * sd(hhinc, na.rm = TRUE),
+                       hhinc),
+    
+    totformalborrow_24_top = ifelse(totformalborrow_24 > mean(totformalborrow_24, na.rm = TRUE) + 3 * sd(totformalborrow_24, na.rm = TRUE),
+                                    mean(totformalborrow_24, na.rm = TRUE) + 3 * sd(totformalborrow_24, na.rm = TRUE),
+                                    totformalborrow_24),
+    
+    totinformalborrow_24_top = ifelse(totinformalborrow_24 > mean(totinformalborrow_24, na.rm = TRUE) + 3 * sd(totinformalborrow_24, na.rm = TRUE),
+                                      mean(totinformalborrow_24, na.rm = TRUE) + 3 * sd(totinformalborrow_24, na.rm = TRUE),
+                                      totinformalborrow_24)
+  ) %>%
+  set_variable_labels(
+    hhinc_top = "Household income (top-coded at 3 SDs above mean)",
+    totformalborrow_24_top = "Formal borrowing (top-coded at 3 SDs above mean)",
+    totinformalborrow_24_top = "Informal borrowing (top-coded at 3 SDs above mean)"
+  )
+
+
+
+# g) Create a total borrowed amount variable that equals the sum of formal and informal borrowed amounts----
+
+endline_clean <- endline_clean %>%
+  mutate(
+    total_borrowed = totformalborrow_24 + totinformalborrow_24
+  )
+
+
+# h) Merge the endline data with the treatment_status dataset to assign a treatment status for ----
+# each household.
+
+
+treatment <- read.csv(here("data", "treatment_status.csv"))
+
+endline_clean <- left_join(endline_clean, treatment, by = c("group_id"))
+
+# i) Create a dummy variable for households that are below the poverty line using a daily per ----
+# capita poverty line of 26.995 INR (which was equivalent to 1.90 USD at the time of data collection).
+# Use the endline top coded “hhinc” variable, which contains self-reported 
+# household income over the past 30 days, in order to do this.
+
+
+endline_clean <- endline_clean%>%
+  mutate(
+    daily_per_capita_income = hhinc_top / 30 /hhnomembers,
+    below_poverty_line = ifelse(daily_per_capita_income < 26.995, 1, 0)
+  )
+
+
+
+
+#   k) Merge working data with the baseline controls dataset, and save the merged data. ----
+
+
+baseline <- read_dta(here("data", "baseline_controls.dta"))
+
+
+# Check duplicates in hhids within each dataset
+dups_endline <- endline_clean %>% filter(duplicated(hhid) | duplicated(hhid, fromLast = TRUE))
+dups_baseline <- baseline %>% filter(duplicated(hhid) | duplicated(hhid, fromLast = TRUE))
+#no duplicates
+
+# Households only in endline
+only_in_endline <- anti_join(endline_clean, baseline, by = c("hhid", "group_id"))
+
+# Households only in baseline
+only_in_baseline <- anti_join(baseline, endline_clean, by = c("hhid", "group_id"))
+
+
+
+#Since there are households only in baseline or endline, for analysis purposes, only households found
+#both on baseline and endline and have the same group_id are included
+#In addition there are households where the income and borrowing data(both formal and informal) is NA
+#These households along with their pair are excluded in the dataset
+
+
+merged_clean <- left_join(endline_clean, baseline, by = c("hhid" = "hhid",
+                                                          "group_id" = "group_id")) %>% 
+  filter(!is.na(age_hoh)) %>%  
+  rename(
+    hhnomembers_endline = hhnomembers.x,
+    hhnomembers_baseline = hhnomembers.y
+  )
+
+###save merged data----
+write_dta(merged_clean, here("output", "merged_clean.dta"))
+write_dta(merged_clean, here("data", "merged_clean.dta")) #because I need to use it for analysis, also saving in data folder
+
+#Save .csv version
+
+
+write_csv(merged_clean, here("output", "merged_clean.csv"))
+write_csv(merged_clean, here("data", "merged_clean.csv")) #because I need to use it for analysis, also saving in data folder
+
