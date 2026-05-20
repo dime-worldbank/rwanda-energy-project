@@ -46,19 +46,19 @@ This folder contains scripts analyzing the impacts of historical electrification
 
 ### Electrification Analysis (3.x & 4.x Scripts)
 
-- **3.1 elec12-14.R**: Analyzes electrification outcomes 2012-2014. Event study using 2012-2014 baseline period.
+- **3.1 elec12-14.R**: Analyzes electrification outcomes 2012-2014. Event study of electrification around EARP implementation using 2012-2014 period baseline.
 
-- **3.2 elec12-14 new FE.R**: 2012-2014 analysis with updated fixed effects methodology.
+- **3.2 elec12-14 new FE.R**: 2012-2014 electrification analysis with updated fixed effects methodology.
 
-- **3.3 elec12-14 balance table.R**: Balance tests for 2012-2014 sample.
+- **3.3 elec12-14 balance table.R**: Balance tests for 2012-2014 electrification sample.
 
-- **4.1 elec15-17.R**: Analyzes electrification outcomes 2015-2017. Later follow-up period.
+- **4.1 elec15-17.R**: Analyzes electrification outcomes 2015-2017. Later follow-up period examining longer-term electrification patterns.
 
-- **4.2 elec15-17 new FE.R**: 2015-2017 analysis with new FE specifications.
+- **4.2 elec15-17 new FE.R**: 2015-2017 electrification analysis with new FE specifications.
 
 - **4.3 elec15-17 balance table.R**: Balance tests for 2015-2017 sample.
 
-- **4.4 elec12_17_es.R**: Event study analysis covering full 2012-2017 period.
+- **4.4 elec12_17_es.R**: Event study analysis covering full 2012-2017 period examining dynamic effects of electrification over time.
 
 ### Economic Impact Analysis (5.x Scripts)
 
@@ -66,11 +66,11 @@ This folder contains scripts analyzing the impacts of historical electrification
 
 ### Nightlight Analysis (6.x Scripts)
 
-- **6.1 nightlight analysis.R**: Analyzes NOAA nighttime luminosity data.
+- **6.1 nightlight analysis.R**: Analyzes NOAA nighttime luminosity data. Examines light intensity as proxy for electrification and economic activity.
 
-- **6.2 nightlight analysis VIIRS.R**: Analysis using VIIRS (higher resolution) satellite data for robustness checks.
+- **6.2 nightlight analysis VIIRS.R**: Analysis using VIIRS (higher resolution) satellite nightlight data for robustness checks.
 
-- **6.3 nightlight win5.R**: Nightlight analysis with windowed smoothing (5-pixel window).
+- **6.3 nightlight win5.R**: Nightlight analysis with windowed smoothing (5-pixel window) to reduce noise.
 
 - **6.4 nightlight pixel.R**: Pixel-level nightlight analysis for spatial granularity.
 
@@ -78,59 +78,82 @@ This folder contains scripts analyzing the impacts of historical electrification
 
 ### Heterogeneous Effects (7.x, 8.x, 9.x Scripts)
 
-- **7. Event study plot.R**: Generates event study plots visualizing dynamic treatment effects.
+- **7. Event study plot.R**: Generates event study plots visualizing dynamic treatment effects over time.
 
-- **8. above below median.R**: Examines heterogeneous effects by median baseline characteristics.
+- **8. above below median.R**: Examines heterogeneous effects by median baseline characteristics (above vs. below median analysis).
 
-- **8.1-8.4 above below mean(...).R**: Heterogeneous effects by sector (manufacturing, wholesale, accommodation, other).
+- **8.1 above below mean(3.manufacture).R**: Heterogeneous effects by manufacturing sector baseline activity.
+
+- **8.2 above below mean(7.wholesale).R**: Heterogeneous effects by wholesale/trade sector baseline activity.
+
+- **8.3 above below mean(9.accomodation).R**: Heterogeneous effects by accommodation/service sector baseline activity.
+
+- **8.4 above below mean(19.other).R**: Heterogeneous effects by other sectors.
 
 - **9. working place.R**: Analyzes effects on workplace employment and labor market outcomes.
 
 ### Specialized Analyses
 
-- **Decomposition.R**: Decomposes treatment effects into components.
+- **Decomposition.R**: Decomposes total treatment effects into components (e.g., direct EARP vs. network spillovers).
+
+- **EARP new FE archive.R**: Archived version of updated EARP analysis.
 
 - **earp_lv_mv.R**: Separates analysis of Low Voltage vs. Medium Voltage EARP components.
 
+- **elec12-14 new FE archive.R**: Archived 2012-2014 analysis version.
+
+- **elec15-17 new FE archive.R**: Archived 2015-2017 analysis version.
+
 - **ISIC.R**: Industry analysis by ISIC (International Standard Industrial Classification) codes.
 
+- **historical expansion.R**: Core historical expansion analysis pipeline.
+
 - **new electrification.R**: Analysis of newly electrified areas.
+
+- **Nightlight.R**: Master nightlight analysis script.
 
 - **public private.R**: Comparative analysis of public vs. private electrification impacts.
 
 - **Usage analysis.R**: Electricity consumption and usage pattern analysis.
 
-### Archive & Utilities
-
-- **Archive versions**: EARP new FE archive.R, elec12-14 new FE archive.R, elec15-17 new FE archive.R
 - **balance table plot.R**: Visualization of balance test results.
-- **10.data preparation claude.R**: Data preparation utilities.
-- **mdb file.R**: Database file processing.
+
+- **10.data preparation claude.R**: Data preparation script (automated generation note).
+
+- **mdb file.R**: Access and processing of database files.
+
 - **save to mega.R**: Output file management and archiving.
-- **junk code.R**: Experimental/testing code.
+
+- **junk code.R**: Experimental/testing code (not part of main pipeline).
 
 ## Execution Workflow
 
 Recommended execution order:
 
-1. **Data Preparation**: Run scripts 0.x in sequence
+1. **Data Preparation**: Run scripts 0.x in sequence to prepare merged dataset
 2. **Identification**: Run script 1.x to validate treatment variable
 3. **Treatment Construction**: Run scripts 2.x to define EARP treatment
-4. **Main Analysis**: Run electrification scripts 3.x and 4.x
-5. **Economic Impacts**: Run script 5.x
+4. **Main Analysis**: Run electrification scripts 3.x and 4.x 
+5. **Economic Impacts**: Run script 5.x for business outcomes
 6. **Robustness Checks**: Run nightlight scripts 6.x
-7. **Heterogeneity**: Run scripts 7.x, 8.x, 9.x
+7. **Heterogeneity**: Run scripts 7.x, 8.x, 9.x for subgroup analysis
 8. **Specialized**: Run remaining analysis scripts as needed
 
 ## Key Variables
 
 - **Treatment**: EARP electrification (MV/LV lines)
-- **Outcomes**: Electrification status, nighttime luminosity, business establishments, employment, electricity consumption, sectoral productivity
+- **Outcomes**: 
+  - Electrification status (yes/no)
+  - Nighttime luminosity (NOAA/VIIRS)
+  - Business establishments count
+  - Employment levels
+  - Electricity consumption
+  - Sectoral productivity indicators
 - **Units**: Village-level analysis with year dimension
 
 ## Notes
 
-- Uses fixed effects methodology with cell and year fixed effects
+- Analysis uses fixed effects methodology with cell and year fixed effects
 - Multiple robustness checks via balance tables and predicted treatment variables
 - Comprehensive heterogeneous effects analysis by baseline characteristics and sectors
 - Satellite data used to validate survey-based electrification measures
