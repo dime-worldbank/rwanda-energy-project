@@ -9,10 +9,10 @@ options(readr.show_progress = FALSE)
 # `here` is needed before 00_setup.R can resolve project paths.
 if (!requireNamespace("here", quietly = TRUE)) install.packages("here")
 
-source(here::here("scripts", "00_setup.R"))         # packages + paths
-source(here::here("scripts", "01_load.R"))          # waves_raw
-source(here::here("scripts", "02_clean.R"))         # waves, waves_long, common_cols
-source(here::here("scripts", "03_descriptives.R"))  # tables, figures
-source(here::here("scripts", "04_export.R"))        # write to output/
+source(here::here("aggregator", "scripts", "00_setup.R"))         # packages + paths
+source(here::here("aggregator", "scripts", "01_load.R"))          # waves_raw
+source(here::here("aggregator", "scripts", "02_clean.R"))         # waves, waves_long, common_cols
+source(here::here("aggregator", "scripts", "03_descriptives.R"))  # tables, figures
+source(here::here("aggregator", "scripts", "04_export.R"))        # write to output/
 
 invisible(NULL)

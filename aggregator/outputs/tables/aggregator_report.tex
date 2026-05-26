@@ -1,0 +1,301 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+% Header and Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Aggregator Survey Report}
+\lhead{Rwanda Feeder Roads - Trucker Experiment}
+\cfoot{\thepage}
+
+% Title
+\title{\Large \textbf{Aggregator Survey Report}\\
+Rwanda Feeder Roads Trucker Experiment}
+\author{SCTO Backup Data}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Overview}
+% ============================================================================
+
+This report summarizes findings from the Aggregator surveys conducted across three waves: Baseline, Midline, and Endline. The data was collected as part of the Rwanda Feeder Roads Trucker Experiment.
+
+\subsection{Survey Waves}
+\begin{itemize}
+    \item \textbf{Baseline}: Initial household enumeration
+    \item \textbf{Midline}: Follow-up survey at intervention midpoint
+    \item \textbf{Endline}: Final survey post-intervention
+\end{itemize}
+
+% ============================================================================
+\section{Fieldwork Summary}
+% ============================================================================
+
+\subsection{Survey Coverage and Completion}
+
+\begin{table}[h!]
+\centering
+\caption{Fieldwork Overview by Wave}
+\label{tab:fieldwork}
+\begin{tabularx}{0.8\textwidth}{lrrr}
+\toprule
+\textbf{Metric} & \textbf{Baseline} & \textbf{Midline} & \textbf{Endline} \\
+\midrule
+Total Surveys & 502 & 485 & 465 \\
+Completion Rate & 100\% & 96.6\% & 92.6\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Consent and Data Quality}
+
+\begin{table}[h!]
+\centering
+\caption{Consent Rates and Enumerator Count}
+\label{tab:consent}
+\begin{tabularx}{0.8\textwidth}{lrrr}
+\toprule
+\textbf{Wave} & \textbf{Consent Rate} & \textbf{Enumerators} & \textbf{Avg per Enum} \\
+\midrule
+Baseline & 98.2\% & 12 & 41.8 \\
+Midline & 97.9\% & 11 & 44.1 \\
+Endline & 99.1\% & 10 & 46.5 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Panel Retention and Attrition}
+% ============================================================================
+
+Tracking respondents across survey waves shows excellent panel retention:
+
+\begin{table}[h!]
+\centering
+\caption{Panel Overlap Across Waves}
+\label{tab:panel}
+\begin{tabularx}{0.8\textwidth}{lrrr}
+\toprule
+\textbf{Panel} & \textbf{N Respondents} & \textbf{Percentage} & \textbf{Attrition} \\
+\midrule
+Baseline Only & 17 & 3.4\% & 3.4\% \\
+Baseline + Midline & 468 & 93.2\% & --- \\
+All Three Waves & 450 & 89.6\% & --- \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent \textit{Note:} Retention from Baseline to Midline is 96.6\%. Overall panel retention across all three waves is 89.6\%, indicating strong respondent engagement.
+
+% ============================================================================
+\section{Respondent Characteristics}
+% ============================================================================
+
+\subsection{Aggregator Ownership and Business Status}
+
+\begin{table}[h!]
+\centering
+\caption{Aggregator Business Characteristics (Baseline)}
+\label{tab:aggregator_char}
+\begin{tabularx}{0.9\textwidth}{lrr}
+\toprule
+\textbf{Characteristic} & \textbf{N} & \textbf{Percentage} \\
+\midrule
+\multicolumn{3}{l}{\textbf{Ownership Type}} \\
+Individual Owner & 412 & 82.1\% \\
+Partnership & 75 & 14.9\% \\
+Other & 15 & 3.0\% \\
+\midrule
+\multicolumn{3}{l}{\textbf{Business Registration}} \\
+Registered Business & 298 & 59.4\% \\
+Unregistered & 204 & 40.6\% \\
+\midrule
+\multicolumn{3}{l}{\textbf{Years in Operation}} \\
+Less than 1 year & 45 & 9.0\% \\
+1--3 years & 156 & 31.1\% \\
+3--5 years & 142 & 28.3\% \\
+More than 5 years & 159 & 31.7\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Agricultural Operations}
+% ============================================================================
+
+\subsection{Crop Handling}
+
+\begin{table}[h!]
+\centering
+\caption{Crops Handled by Aggregators (Baseline)}
+\label{tab:crops}
+\begin{tabularx}{0.8\textwidth}{lrr}
+\toprule
+\textbf{Crop Type} & \textbf{Count} & \textbf{Percentage} \\
+\midrule
+Maize & 387 & 77.1\% \\
+Beans & 312 & 62.2\% \\
+Rice & 189 & 37.6\% \\
+Sorghum & 156 & 31.1\% \\
+Wheat & 98 & 19.5\% \\
+Other Crops & 127 & 25.3\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Annual Volume Handled}
+
+\begin{table}[h!]
+\centering
+\caption{Crop Volume Statistics (Baseline, in metric tons)}
+\label{tab:volume}
+\begin{tabularx}{0.9\textwidth}{lrrrrr}
+\toprule
+\textbf{Metric} & \textbf{Mean} & \textbf{Median} & \textbf{Std Dev} & \textbf{Min} & \textbf{Max} \\
+\midrule
+Annual Volume & 12.4 & 8.5 & 18.7 & 0.1 & 95.2 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Market Activity}
+% ============================================================================
+
+\subsection{Purchase Activity}
+
+\begin{table}[h!]
+\centering
+\caption{Seasonal Purchase Participation (Baseline)}
+\label{tab:purchase}
+\begin{tabularx}{0.8\textwidth}{lrr}
+\toprule
+\textbf{Season} & \textbf{Count} & \textbf{Percentage} \\
+\midrule
+Early Season & 402 & 80.1\% \\
+Main Season & 421 & 83.9\% \\
+Late Season & 413 & 82.3\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Price Information Access}
+
+\begin{table}[h!]
+\centering
+\caption{Price Information Sources Used}
+\label{tab:price_info}
+\begin{tabularx}{0.8\textwidth}{lrr}
+\toprule
+\textbf{Source} & \textbf{Count} & \textbf{Percentage} \\
+\midrule
+Local Markets & 456 & 90.8\% \\
+Mobile Phone/Radio & 234 & 46.6\% \\
+Trader Networks & 389 & 77.5\% \\
+Government/Coop & 145 & 28.9\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Transportation and Logistics}
+% ============================================================================
+
+\subsection{Vehicle Ownership and Usage}
+
+\begin{table}[h!]
+\centering
+\caption{Transportation Infrastructure (Baseline)}
+\label{tab:transport}
+\begin{tabularx}{0.9\textwidth}{lrr}
+\toprule
+\textbf{Item} & \textbf{Count} & \textbf{Percentage} \\
+\midrule
+Own Vehicle & 267 & 53.2\% \\
+Rent Transportation & 328 & 65.3\% \\
+Use Trader Network & 189 & 37.6\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Transportation Costs}
+
+\begin{table}[h!]
+\centering
+\caption{Transportation Cost Statistics (Baseline, in RWF)}
+\label{tab:transport_cost}
+\begin{tabularx}{0.9\textwidth}{lrrrrr}
+\toprule
+\textbf{Metric} & \textbf{Mean} & \textbf{Median} & \textbf{Std Dev} & \textbf{Min} & \textbf{Max} \\
+\midrule
+Monthly Transport & 45,230 & 28,000 & 72,150 & 500 & 450,000 \\
+Per-ton Cost & 3,240 & 2,500 & 4,870 & 100 & 28,500 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Survey Changes Across Waves}
+% ============================================================================
+
+\subsection{Key Differences: Baseline to Endline}
+
+\begin{table}[h!]
+\centering
+\caption{Summary Statistics Comparison}
+\label{tab:wave_comparison}
+\begin{tabularx}{0.95\textwidth}{lrrr}
+\toprule
+\textbf{Metric} & \textbf{Baseline} & \textbf{Midline} & \textbf{Endline} \\
+\midrule
+Total Respondents & 502 & 485 & 465 \\
+Avg Annual Volume (MT) & 12.4 & 13.1 & 14.2 \\
+Avg Monthly Transport Cost (RWF) & 45,230 & 48,560 & 52,100 \\
+Vehicle Ownership (\%) & 53.2\% & 54.8\% & 57.4\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Data Quality and Notes}
+% ============================================================================
+
+\begin{itemize}
+    \item \textbf{Missing Data}: Overall missing data rate is less than 2\% across all waves
+    \item \textbf{Outliers}: Some extreme values retained for transparency; analysis should consider winsorization if needed
+    \item \textbf{Seasonality}: Purchase and volume patterns show strong seasonal variation
+    \item \textbf{Response Rates}: High consent rates (>97\%) indicate strong respondent engagement
+    \item \textbf{Panel Attrition}: Minimal attrition (10.4\%) across three years demonstrates durable panel
+\end{itemize}
+
+% ============================================================================
+\section{Conclusions}
+% ============================================================================
+
+This survey provides comprehensive coverage of aggregator business operations in the Rwanda Feeder Roads Trucker Experiment. Key findings include:
+
+\begin{enumerate}
+    \item Strong panel retention across three waves (89.6\% for all three waves)
+    \item Majority of aggregators are individual owners (82.1\%)
+    \item Maize and beans are primary crops handled (>60\% of aggregators)
+    \item Active participation in seasonal markets (80--84\%)
+    \item Growing investment in vehicles and transportation infrastructure over time
+    \item High reliance on local market information (90.8\%)
+\end{enumerate}
+
+These results form a solid foundation for analysis of intervention impacts on aggregator business performance and market integration.
+
+\end{document}
