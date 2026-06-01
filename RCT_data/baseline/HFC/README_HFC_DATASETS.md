@@ -17,6 +17,12 @@ This directory contains all **High-Frequency Checks (HFC)** data processing scri
 - **Frequency**: Real-time submissions from field
 - **Content**: Complete household survey responses
 
+**Important Note on Household IDs (HHID)**:
+- **HHIDs are constructed manually for the baseline experiment** rather than sourced from government data
+- This allows for consistent tracking across the RCT even when households are not in official registries
+- **Link between NID (National ID) and HHID**: Stored in scope datasets (`scope_193_0807.xlsx` and related household files in the `data/` folder)
+- The NID-to-HHID mapping is essential for customer verification and deployment tracking (see intervention folder scripts)
+
 **Key Variables**:
 - Submission metadata: `SubmissionDate`, `starttime`, `endtime`, `caseid`
 - Household identifiers: `household_id`, `district`, `sector`, `cell`, `village`

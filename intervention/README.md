@@ -27,6 +27,14 @@ This folder contains scripts for managing the intervention implementation, custo
 - **HFC Data**: Household Fuel Consumption data for matching and verification
 - **Administrative Boundaries**: Village, cell, sector, and district shapefiles
 
+**Important Note on Household IDs (HHID)**:
+- **HHIDs are constructed manually for the baseline experiment** rather than sourced from government data
+- This allows for consistent tracking across the RCT even when households are not in official registries
+- **Link between NID (National ID) and HHID**: Created in the RCT baseline phase and maintained in:
+  - Scope datasets: `scope_193_0807.xlsx` and related household files in `RCT_data/baseline/data/`
+  - HFC datasets: `RCT_data/baseline/HFC/data/`
+  - Used for all customer matching and deployment verification (see `2. name match customer.R` and `3. gps match customer.R`)
+
 ## Script Organization
 
 ### Treatment & Scope Definition (0.x Scripts)

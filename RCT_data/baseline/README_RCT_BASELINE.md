@@ -48,11 +48,18 @@ baseline/
 3. Joins with geographic data (District, Sector, Cell, Village)
 4. Fuzzy matching for unmatched villages (stringdist, max_dist=2)
 5. Consolidates across four districts
-6. Creates unique household identifiers
+6. Creates unique household identifiers (HHIDs) manually constructed for the baseline experiment
+
+**Important Note on Household IDs (HHID)**:
+- **HHIDs are constructed manually for the baseline experiment** rather than sourced from government data
+- This allows for consistent tracking across the RCT even when households are not in official registries
+- **Link between NID (National ID) and HHID**: Found in the output household datasets and maintained through all downstream scripts
+- The NID-to-HHID mapping is critical for customer verification and deployment tracking in the intervention phase
 
 **Outputs**:
 - Cleaned, consolidated household head dataset
 - Geographic identifiers (village_id, sector, cell, district)
+- **NID-to-HHID mapping** (maintained throughout baseline data processing)
 
 ---
 
