@@ -42,9 +42,6 @@ complete  <- read_xlsx(path = file.path(data_path_2, "survey status of vulnerabl
 complete_survey <- complete %>% 
   filter(`Completed by Lattanzio` == "Yes")
 
-treatment_raw <- read_xlsx(path = file.path(data_path_2, "scope_193_0807.xlsx"))  
-
-View(treatment)
 
 treatment <- read_xlsx(path = file.path(data_path_2, "scope_193_0807.xlsx")) %>%
   select(village_id, treat) %>%
@@ -265,7 +262,7 @@ master_readyboard <- master %>%
 
 analysis <- master %>% count(lot, readyboard, surveyed)
 
-
+write_xlsx(master, path = file.path(data_path_2, "Readyboard EPC negotiation", "master.xlsx"))
 
 # check <- master %>% 
 #   filter(villageid_key %in% rutsiro_epc$villageid_key)
