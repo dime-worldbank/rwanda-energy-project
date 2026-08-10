@@ -23,6 +23,8 @@ output_path <- file.path(
 
 #Sample restriction----
 
+expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
+
 expansion_join_drop12_14 <- expansion_join%>% 
   filter(electrified_year %in% c("2012", "2013", "2014") |electrified_year == "9999" ) %>% 
   mutate(

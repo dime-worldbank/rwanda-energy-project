@@ -10,6 +10,90 @@ pacman::p_load(knitr, stargazer, tidyverse, dplyr, here, sf, ggplot2, readxl, wr
 library(googlesheets4)
 getwd()
 
+conflicted::conflict_prefer_all("dplyr")
+# Import Data ----
+dropbox <- 'C:/Users/wb614406/Dropbox'
+
+output_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/baseline analysis/output"
+)
+
+data_path_1 <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data"
+)
+
+hfc_path <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/HFC/data"
+)
+
+
+data_path_2 <- file.path(
+  dropbox,
+  "Rwanda Energy/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households"
+)
+
+
+
+#Read Dime-----
+
+complete  <- read_xlsx(path = file.path(data_path_2, "survey status of vulnerable households in sample villages_final.xlsx"))
+
+
+rulindo_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rulindo.xlsx"),
+                          sheet = "household list")
+rulindo_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rulindo.xlsx"),
+                                  sheet = "village list")
+
+rulindo_15 <- complete %>% 
+  filter(`Dropped from scope due to 15kv` == "Yes")
+
+
+rulindo_dime_village_no15 <- rulindo_dime_village %>% 
+  filter(!village_id %in% rulindo_15$villageid_key)
+
+
+rutsiro_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rutsiro.xlsx"),
+                          sheet = "household list")
+rutsiro_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rutsiro.xlsx"),
+                                  sheet = "village list")
+
+
+karongi_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Karongi.xlsx"),
+                          sheet = "household list")
+karongi_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Karongi.xlsx"),
+                                  sheet = "village list")
+
+
+
+
+
+##Rusizi lot 1---------
+
+rusizi1_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                          sheet = "household list")
+rusizi1_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                                  sheet = "village list")
+
+
+
+##Rusizi lot 2-------
+
+
+rusizi2_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                          sheet = "household list")
+rusizi2_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                                  sheet = "village list")
+
+
+rusizi_dime_village <- rbind(rusizi1_dime_village, rusizi2_dime_village)
+
+rusizi_dime <- rbind(rusizi1_dime, rusizi2_dime)
+
+
+
 #Karongi-----
 
 karongi_installed_raw <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "Karongi_installed.xlsx"))
@@ -17,10 +101,14 @@ karongi_installed_raw <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC
 karongi_installed <- karongi_installed_raw %>% 
   clean_names() %>% 
   filter(comment == "Installed" | comment == "INSTALL") %>% 
-  mutate(installed_id = nid) %>% 
+  mutate(installed_id = nid) %>%
   mutate(
-    nid = case_when(last_name == "Mukarubuga" ~ "1195470022711048")
-  )
+    nid = ifelse(last_name == "Mukarubuga" , "1195470022711048", installed_id)
+  ) |>
+  rename(village_id = villageid_key) |> 
+  mutate(installed = 1) |> 
+  select(village_id, nid, installed, installed_id)
+
 
 
 
@@ -40,7 +128,11 @@ rutsiro_installed <- rutsiro_installed_raw %>%
   clean_names() %>% 
   filter(!is.na(villageid_key)) %>% 
   filter(comment == "installed" ) %>% 
-  mutate(installed_id = nid) 
+  mutate(installed_id = nid) |>
+  rename(village_id = villageid_key) |> 
+  mutate(installed = 1) |> 
+  select(village_id, nid, installed, installed_id)
+
 
 
 
@@ -110,83 +202,9 @@ write_xlsx(
 
 
 
-
-# ## Rulindo----------
-
-# rulindo_installed_raw<- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")
-
-# rulindo_installed_6 <- rulindo_installed_raw %>% 
-#   filter(villageid_key %in% rulindo_epc_6$villageid_key | is.na(villageid_key))
-
-# write_xlsx(rulindo_installed_6, path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Rulindo_installed_in_first_6_villages.xlsx"))
-
-# rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ), sheet = "Sheet2")  %>% 
-#   clean_names() %>% 
-#   filter(comments == "INSTALLED")  %>% 
-#   mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>%
-#   mutate(installed_id = nid) %>%
-#   mutate(nid = case_when(
-#     nid == "1195780036166019" ~ "1198080112173019",
-#     nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
-#     nid == "1198270134559079" & last_name == "Nyirakamana" ~ "119827013455073",
-#     nid == "1199280052386004" & first_name == "Theodomir" ~ "1199280052386000",
-#     nid == "1195980045986090" & last_name == "MVUYEKURE" ~ "1195980045986098",
-#     nid == "1200080015448090" & last_name == "MBWIRABUMVA" ~ "1200080015448092",
-#     nid == "1198380117993040" & last_name == "NZIRAGUSESWA" ~ "1198380117993042",
-    
-#     nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
-#     nid == "1196380047274105" ~"1196580044343077",
-#     nid == "1198780122610117" ~ "1198980075181012",
-#     nid == "1198080112173019" ~ "1197870091194098",
-#     TRUE ~ nid
-
-#   )) %>%
-#   rename(village_id = villageid_key) %>% 
-#   mutate(installed = 1 ) %>% 
-#   select(village_id, nid, installed, installed_id)
-# # 
-# # 
-# # rulindo_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo_installed.xlsx" ))  %>% 
-# #   clean_names() %>% 
-# #   filter(comments == "Ready board installed") %>% 
-# #   mutate(nid = ifelse(nid == "1198780122610117,", "1198780122610117", nid)) %>% 
-# #   mutate(installed_id = nid) %>% 
-# #   mutate(nid = case_when(
-# #     nid == "1195780036166019" ~ "1198080112173019",
-# #     nid == "1198180105341033" & last_name == "Nibaseke" ~ "1198180105341030",
-# #     nid == "1198180105341033" & last_name == "Tumushimiyimana" ~ "1197080060557034",
-# #     nid == "1196380047274105" ~"1196580044343077",
-# #     nid == "1198780122610117" ~ "1198980075181012",
-# #     nid == "1198080112173019" ~ "1197870091194098",
-# #     TRUE ~ nid
-# #     
-# #   )) %>% 
-# #   rename(village_id = villageid_key) %>% 
-# #   mutate(installed = 1 ) %>% 
-# #   select(village_id, nid, installed, installed_id)
-
-
-# dup_df<- tibble(duplicate_id = rulindo_installed$installed_id[duplicated(rulindo_installed$installed_id)])
-
-
-# check <- rulindo_installed %>%
-#   filter(!nid %in% rulindo_dime$nid)
-
-
-# id_issues <- rulindo_installed_raw%>% 
-#   filter(nid %in% check$nid)
-
-
-# write_xlsx(
-#   dup_df,
-#   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rulindo", "Duplicate NID in Rulindo readyboard installation.xlsx")
-# )
-
-
-
 ##Rusizi----
 
-###Rusizi1-----
+##Rusizi1-----
 
 
 library(tidyverse)
@@ -217,6 +235,23 @@ rusizi1_installed_raw <- read_xlsx(
   )
 
 # 2. Clean DIME dataset
+
+
+
+rusizi1_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                          sheet = "household list")
+rusizi1_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-1.xlsx"),
+                                  sheet = "village list")
+
+
+
+##Rusizi lot 2-------
+
+
+rusizi2_dime <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                          sheet = "household list")
+rusizi2_dime_village <- read_xlsx(path = file.path(data_path_2, "EDCL", "Readyboard by lot", "Lot_Rusizi-2.xlsx"),
+                                  sheet = "village list")
 
 rusizi1_dime_clean <- rusizi1_dime %>%
   mutate(
@@ -280,106 +315,42 @@ rusizi1_unmatched <- rusizi1_installed_raw %>%
   filter(!id %in% rusizi1_installed_final$installed_id)
 
 
-write_xlsx(rusizi1_unmatched, path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Rusizi1 households installed not on list.xlsx"))
-
-
-
-
-rusizi1_installed_raw <-  read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed.xlsx" ), sheet = "lot 1") 
-
-rusizi1_installed.1 <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed.xlsx" ), sheet = "lot 1")  %>% 
-  clean_names() %>% 
-  mutate(id = gsub("[^0-9]", "", id)) %>% 
-  mutate(
-    nid = case_when(
-      id == "1197270035899039" & first_name == "MUKANKURUNZIZA"~ "1197270035896039",
-      id == "1194078708729150" & last_name == "Mukaniyitanga"~ NA,
-      id == "1199570048726820"& last_name == "Uwayezu"~ NA,
-      TRUE ~ id
-      ),
-  ) %>%
-  rename(installed_id = id) %>% 
-  mutate(installed = 1 ) %>% 
-  select(village_id, nid, installed, installed_id) %>% 
-  filter(nid %in% rusizi1_dime$nid)
-
-rusizi1_dime_join <- rusizi1_dime %>% 
-  mutate(name = paste0(last_name, " ",first_name)) %>% 
-  mutate(name = str_to_lower(name)) %>% 
-  mutate(nid_old = nid) %>% 
-  select(name, nid_old)
-
-rusizi1_installed.2 <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed.xlsx" ), sheet = "lot 1")  %>% 
-  clean_names() %>% 
-  mutate(id = gsub("[^0-9]", "", id)) %>% 
-  mutate(
-    nid = case_when(
-      id == "1197270035899039" & first_name == "MUKANKURUNZIZA"~ "1197270035896039",
-      id == "1194078708729150" & last_name == "Mukaniyitanga"~ NA,
-      id == "1199570048726820"& last_name == "Uwayezu"~ NA,
-      TRUE ~ id
+write_xlsx(
+  rusizi1_unmatched,
+  path = file.path(
+    data_path_2,
+    "Readyboard EPC negotiation",
+    "Rusizi",
+    paste0(
+      "Rusizi1 households installed not on list_",
+      Sys.Date(),
+      ".xlsx"
     )
-  ) %>%
-  filter(!nid %in% rusizi1_dime$nid) %>% 
-  mutate(name = str_to_lower(first_name)) %>% 
-  left_join(rusizi1_dime_join, by = c("name" = "name")) %>% 
-  mutate(nid = ifelse(!is.na(nid_old),nid_old, nid )) %>% 
-  filter(!is.na(nid_old)) %>% 
-  rename(installed_id = id) %>% 
-  mutate(installed = 1 ) %>% 
-  select(village_id, nid, installed, installed_id)
-  
-
-rusizi1_dime_last <- rusizi1_dime %>% 
-  mutate(last_name = str_to_lower(last_name)) %>% 
-  mutate(nid_old = nid) %>% 
-  select(last_name, nid_old,villageid_key)
-
-
-rusizi1_installed.3 <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed.xlsx" ), sheet = "lot 1")  %>% 
-  clean_names() %>% 
-  mutate(
-    nid = case_when(
-      id == "1197270035899039" & first_name == "MUKANKURUNZIZA"~ "1197270035896039",
-      id == "1194078708729150" & last_name == "Mukaniyitanga"~ NA,
-      id == "1199570048726820"& last_name == "Uwayezu"~ NA,
-      TRUE ~ id
-    )
-  ) %>%
-  filter(!nid %in% rusizi1_dime$nid) %>% 
-  mutate(name = str_to_lower(first_name)) %>% 
-  mutate(last_name = sub(" .*", "", name)) %>% 
-  left_join(rusizi1_dime_last, by = c("last_name" = "last_name",
-                                      "village_id" = "villageid_key")) 
-
-
-
-
-
-dup_df.1 <- tibble(duplicate_id = rusizi1_installed$installed_id[duplicated(rusizi1_installed$installed_id)])
-
-
-dup_df.1 <- rusizi1_installed_raw%>% 
-  filter(ID %in% dup_df.1$duplicate_id) 
-
-# 
-# write_xlsx(
-#   dup_df.1,
-#   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Duplicate in Rusizi Lot1 readyboard recipient.xlsx")
-# )
-
-rusizi1_dime <- rusizi1_dime %>% 
-  mutate(
-    nid = ifelse()
   )
-check <- rusizi1_installed %>%
-  filter(!nid %in% rusizi1_dime$nid)
+)
 
-rusizi1_installed_check <- rusizi1_installed_raw %>% 
-  filter(ID %in% check$nid)
-  
-  
-  
+
+#Rusizi1 two villages unmatched-----
+
+rusizi1_installed_two_villages<- read_xlsx(file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi1 households installed not on list_0512_07282026.xlsx")) 
+
+rusizi1_dime_two <- rusizi1_dime |> 
+  filter(villageid_key %in% rusizi1_installed_two_villages$village_id)
+
+write_xlsx(rusizi1_dime_two, path = file.path(data_path_2, "Readyboard EPC negotiation", "rusizi1_two_villages.xlsx"))
+
+rusizi1_dime_two_installed <- read_xlsx(file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi1_matching_two_villages.xlsx")) |> 
+  mutate(installed = 1) |> 
+  mutate(village_id = ifelse("Installed Village" == "Mutara", "36030205", "36030101")) |> 
+  rename(nid = `Matched National ID`,
+         installed_id = `Installed National ID` ) |> 
+  select(village_id, nid, installed, installed_id )
+
+
+rusizi1_installed <- rbind(rusizi1_dime_two_installed, rusizi1_installed_final)
+
+
+
 ##Rusizi2----
 
 rusizi2_installed <- read_xlsx(path =file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed.xlsx" ), sheet = "lot 2")   %>% 
@@ -397,27 +368,12 @@ dup_df.2 <- tibble(duplicate_id = rusizi2_installed$installed_id[duplicated(rusi
 dup_df.2 <- rusizi2_installed %>% 
   filter(installed_id %in% dup_df.2$duplicate_id)
 
-# 
-# write_xlsx(
-#   dup_df.2,
-#   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi", "Duplicate in Rusizi Lot1 readyboard recipient.xlsx")
-# )
 
 check <- rusizi2_installed %>%
   filter(!nid %in% rusizi2_dime$nid)
 
 
 
-
-# write_xlsx(
-#   list(
-#     lot1_duplicate = dup_df.1,
-#     lot2_duplicate = dup_df.2,
-#     lot2_installed_notvulnerable = rusizi2_installed_outscope
-#    
-#   ),
-#   path = file.path(data_path_2, "Readyboard EPC negotiation", "Rusizi_installed_dups&not found.xlsx")
-# )
 
 
 #Join to master--------
@@ -427,13 +383,12 @@ rusizi_installed <- rbind(rusizi1_installed, rusizi2_installed)
 rusizi_installed_join <- rusizi_installed %>% 
   select(-village_id)
 
+installed_join <- rbind(rusizi_installed, karongi_installed, rulindo_installed, rutsiro_installed) |> 
+  select(-village_id)
 
-# 
-#   filter(!is.na(nid)) %>% 
-#   distinct(nid, .keep_all = TRUE)
+master <- read_xlsx(path = file.path(data_path_2, "Readyboard EPC negotiation", "master.xlsx"))
 
-
-master_installed <- left_join(master, rusizi_installed_join)
+master_installed <- left_join(master, installed_join)
 
 
 
