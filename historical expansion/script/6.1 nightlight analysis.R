@@ -5,25 +5,27 @@
 ######################################################
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
-
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
-
-
-historical_data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical data"
-)
-
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# getwd()
+# 
+# dropbox <- 'C:/Users/wb614406/Dropbox'
+# 
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+# 
+# 
+# historical_data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical data"
+# )
+# 
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 #2011 results-----
 
@@ -34,7 +36,7 @@ output_path <- file.path(
 
 expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
 
-View(expansion_join)
+#View(expansion_join)
 
 utility_2011 <- utility_long %>% 
   filter(year == 2011)

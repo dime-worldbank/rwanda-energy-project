@@ -5,19 +5,21 @@
 ######################################################
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
-
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
-  
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# getwd()
+# 
+# dropbox <- 'C:/Users/wb614406/Dropbox'
+# 
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+#   
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 #Read and construct data-----
 utility <- read_xlsx(path = file.path(data_path, "usage_id_0416.xlsx"))

@@ -5,31 +5,28 @@
 #######################################
 
 # Libraries ----
-pacman::p_load(
-  tidyverse,
-  sf,
-  readxl,
-  writexl,
-  dplyr
-)
+pacman::p_load(tidyverse,sf,readxl,writexl,dplyr)
 conflicted::conflict_prefer("select", "dplyr")
+
 # Paths ----
-dropbox <- "C:/Users/wb614406/Dropbox"
-
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
-
-historical_data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical data"
-)
-
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+source(here("historical expansion/script/PATHS.R"))
+# 
+# dropbox <- "C:/Users/wb614406/Dropbox"
+# 
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+# 
+# historical_data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical data"
+# )
+# 
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 # 1. Data read ----
 
@@ -97,11 +94,10 @@ expansion_ntl_clean <- expansion_join_clean |>
   left_join(ntl_clean, by = "village_id")
 
 # View result
-View(expansion_ntl_clean)
-
-write_xlsx(expansion_ntl_clean, path = file.path(output_path, "expansion_ntl_claude.xlsx"))
+# View(expansion_ntl_clean)
 
 # 4. Export data ----
+write_xlsx(expansion_ntl_clean, path = file.path(output_path, "expansion_ntl_claude.xlsx"))
 
 
 

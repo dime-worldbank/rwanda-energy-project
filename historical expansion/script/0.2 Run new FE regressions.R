@@ -9,19 +9,21 @@ pacman::p_load(knitr, lfe, fixest, modelsummary, stargazer, tidyverse, dplyr,
                here, sf, haven, ggplot2, readxl, writexl, janitor, randomizr, 
                RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
+# getwd()
 
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
+# dropbox <- 'C:/Users/wb614406/Dropbox'
 
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 #Read in the unified FE dataset created in 0.1 Unified FE Dataset.R
 fe_dataset_long <- readRDS(file.path(output_path, "fe_dataset_long.rds"))
@@ -35,6 +37,12 @@ run_and_export_reg <- function(df, elec_var, output_path, label_suffix = NULL) {
   
   # Build label/filename suffix from elec_var if not provided
   if (is.null(label_suffix)) label_suffix <- elec_var
+  
+  ##################################### Change   
+  # Create output directories if they don't exist
+  dir.create(file.path(output_path, "regressions", "raw"), 
+             showWarnings = FALSE, recursive = TRUE)
+#############################################
   
   # --- 1. Build formulas dynamically ---
   make_formula <- function(outcome, include_consumers = FALSE) {
@@ -383,4 +391,5 @@ run_and_export_reg(expansion_join_drop12_14, "elec1214", output_path)
 run_and_export_reg(expansion_join_drop12_14, "elec1214", output_path,
                    table_title = "Effect of 2012--2014 Electrification on Private Sector Outcomes")
 
-run_and_export_reg(df, "elec1214", output_path, table_title = "Effect of 2012--2014 Electrification on Private Sector Outcomes", label_suffix = "elec1214_robustness")
+##################################### Change, instead of df replaced expansion_join_drop12_14
+run_and_export_reg(expansion_join_drop12_14, "elec1214", output_path, table_title = "Effect of 2012--2014 Electrification on Private Sector Outcomes", label_suffix = "elec1214_robustness")

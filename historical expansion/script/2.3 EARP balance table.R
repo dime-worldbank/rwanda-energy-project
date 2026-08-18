@@ -5,19 +5,21 @@
 ######################################################
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, kableExtra,tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
+# getwd()
 
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
+# dropbox <- 'C:/Users/wb614406/Dropbox'
 
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 #Data clean-----
 
@@ -122,7 +124,22 @@ balance_table <- function(data, treatment_vars, cluster, fe = NULL,
   bind_rows(results)
 }
 
-
+############################## Change 
+# did not change code but moved the Line 128-138 -- that creates earp_bt_data --  from bottom
+earp_bt_dta <- earp_did_all %>%
+  filter(year == 2011) %>%
+  select(num_establishment, total_employee, EARP, cell_id, cell_office, health_center,
+         primary_school, secondary_school, market, industry, sector_district_office, residential_consumer, non_residential_consumer, imidugudu) %>% 
+  mutate(
+    log1_residential_consumer = log1p(residential_consumer),
+    log1_non_residential_consumer = log1p(non_residential_consumer),
+    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
+    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
+    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
+    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
+  )
+#########################################
+ 
 # 
 balance_allfe <- balance_table(
   data = earp_bt_dta,
@@ -133,6 +150,7 @@ balance_allfe <- balance_table(
   outcomes = c("num_establishment", "total_employee"),
   extract_var = "EARP"
 )
+
 # 
 # balance <- felm(num_establishment ~ EARP + log_residential_consumer + log_non_residential_consumer
 #                 + cell_office +health_center + primary_school + secondary_school + sector_district_office +
@@ -201,22 +219,6 @@ balance_allfe <- balance_table(
 
 
 #Balance table on earp_all------
-
-earp_bt_dta <- earp_did_all %>%
-  filter(year == 2011) %>%
-  select(num_establishment, total_employee, EARP, cell_id, cell_office, health_center,
-         primary_school, secondary_school, market, industry, sector_district_office, residential_consumer, non_residential_consumer, imidugudu) %>% 
-  mutate(
-    log1_residential_consumer = log1p(residential_consumer),
-    log1_non_residential_consumer = log1p(non_residential_consumer),
-    log_residential_consumer = ifelse(residential_consumer > 0, log(residential_consumer), 0),
-    log_non_residential_consumer = ifelse(non_residential_consumer > 0, log(non_residential_consumer), 0),
-    any_residential_consumer = ifelse(residential_consumer > 0, 1, 0),
-    any_non_residential_consumer = ifelse(non_residential_consumer >0, 1, 0)
-  )
-  
-
-
 
 # 
 # earp_lm <- felm(EARP ~   cell_office + health_center+ primary_school+ secondary_school+ 
@@ -297,6 +299,13 @@ kable_output <- combined_diff %>%
     label = "tab:balance_fe_compare"
   ) %>%
   kable_styling(latex_options = c("hold_position", "scale_down", "scale_down"), full_width = FALSE)
+
+#################################
+# Add subdirectory for balance table outputs
+dir.create(file.path(output_path, "balance_table"), 
+           recursive = TRUE, 
+           showWarnings = FALSE)
+##################################
 
 # Save to file
 writeLines(kable_output,

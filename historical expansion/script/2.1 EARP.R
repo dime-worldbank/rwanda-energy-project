@@ -5,19 +5,22 @@
 ######################################################
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
+# getwd()
 
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
+# dropbox <- 'C:/Users/wb614406/Dropbox'
 
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
+
 
 #Read file-----
 
@@ -371,8 +374,10 @@ writeLines(c(
   extracted_terms_1$p1,
   extracted_terms_1$p2,
   "\\hline \\\\[-1.8ex]",
-  extracted_terms$obs,
-  extracted_terms$r2,
+  ############################### Change: extracted_terms to extracted_terms_1
+  extracted_terms_1$obs,
+  extracted_terms_1$r2,
+  ###################################
   "FE:Village & X & X & X & X & X & X & X & X \\\\",
   "FE:Cell\\_Year & X & X & X & X & X & X & X & X \\\\",
   "FE:Cell Offices\\_Year & X & X & X & X & X & X & X & X \\\\",
