@@ -68,7 +68,7 @@ rutsiro_0 <- hfc_constr_raw %>%
 
 screening_raw <- read_xlsx(file.path(hfc_output_path, "hfc_constr_0728.xlsx"))
 
-complete_status <- read_xlsx(path = file.path(data_path_2, "vulnerable households in sample villages.xlsx")) %>% 
+complete_status <- read_xlsx(path = file.path(data_path_2, "vulnerable households in sample villages_final.xlsx")) %>% 
   mutate(hh_head_name = paste0(first_name, " ", last_name))
 
 
@@ -336,6 +336,7 @@ writeLines(sub("\\\\begin\\{table\\}", "\\\\begin{table}[h!]",
 
 
 
+
 write_xlsx(complete_status, path = file.path(data_path_2, "vulnerable households in sample villages_final.xlsx")) 
 write_xlsx(complete_status, path = file.path(hfc_output_path, "vulnerable households in sample villages_final.xlsx")) 
 
@@ -346,6 +347,8 @@ write_xlsx(complete_status, path = file.path(hfc_output_path, "vulnerable househ
 
 
 district_treatment_matrix <- complete_status %>%
+  mutate(villageid_key = as.integer(villageid_key)) |> 
+  left_join(treatment) |> 
   group_by(district, treatment) %>%
   summarise(n_villages = n_distinct(village), .groups = "drop") %>%
   pivot_wider(
