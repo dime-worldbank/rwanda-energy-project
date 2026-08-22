@@ -149,7 +149,7 @@ hfc_constr_clean <- hfc_constr_clean %>%
 
 # 5. Willingness to Pay--------
 
-wtp_vars <- c("J1_final", "J2_1", "J3_1", "J4_2", "J5_2", "J6_1", "wtp_12", "wtp_24")
+wtp_var <- c("J1_final", "J2_1", "J3_1", "J4_2", "J5_2", "J6_1", "wtp_12", "wtp_24")
 
 hfc_constr_clean <- hfc_constr_clean %>%
   mutate(
@@ -281,3 +281,6 @@ hfc_constr_clean <- hfc_constr_clean %>%
 
 # hfc_constr_clean <- hfc_constr_clean %>%
 #   mutate(across(where(is.numeric), remove_outliers_3sd))
+
+write_xlsx(hfc_constr_clean, path = file.path(data_path, "baseline_1973_clean.xlsx"))
+write_xlsx(hfc_constr, path = file.path(data_path, "baseline_1973_raw.xlsx"))
