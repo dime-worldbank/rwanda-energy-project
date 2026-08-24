@@ -10,19 +10,21 @@
 
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
+# getwd()
 
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
+# dropbox <- 'C:/Users/wb614406/Dropbox'
 
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 
 
@@ -164,8 +166,10 @@ earp_did_isic <- earp_did_isic %>%
 
 # Private sector-------
 
-
-join_drop13 <- expansion_join_drop %>% 
+######################## expansion_join_drop object does not exists
+# Meant 'expansion_join' (14816 rows)? 
+# Aug-18-2026 Chose to input 'expansion_join'
+join_drop13 <- expansion_join %>% 
   select(`EARP`, village_id, cell_id, sector_id, cell_office, health_center, primary_school, secondary_school, 
          sector_district_office, market, industry, residential_consumer, non_residential_consumer, imidugudu, population, popdens, national_rd, dist_na_rd)
 
@@ -556,6 +560,12 @@ p_rulindo
 
 # --- 4. Save map output ---------------------------------------------------
 
+#################################
+# Add subdirectory for balance table outputs
+dir.create(file.path(output_path, "plot"), 
+           recursive = TRUE, 
+           showWarnings = FALSE)
+##################################
 ggsave(
   filename = file.path(output_path, "plot", "rulindo_earp_map.png"),
   plot = p_rulindo,

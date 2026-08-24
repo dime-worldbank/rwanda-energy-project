@@ -5,26 +5,27 @@
 ######################################################
 pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
 
-getwd()
+source(here("historical expansion/script/PATHS.R"))
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
-
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
-
-
-historical_data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical data"
-)
-
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
-
+# getwd()
+# 
+# dropbox <- 'C:/Users/wb614406/Dropbox'
+# 
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
+# 
+# 
+# historical_data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical data"
+# )
+# 
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 expansion_join <- read_xlsx(path = file.path(output_path, "expansion_join.xlsx"))
 
@@ -32,20 +33,14 @@ utility_2020 <- utility_long %>%
   filter(year == 2020) %>% 
   mutate(usage = usage/(100 *365))
 
-
-village_ntl_all <- read_xlsx(path = file.path(path = file.path(historical_data_path, "Nightlight", "data", "viirs_2014-2023(monthly&yearly).xlsx"))) %>% 
-  rename(village_id = Village_ID)
-
-
+village_ntl_all <- read_xlsx(path = file.path(historical_data_path, "Nightlight", "data", "viirs_2014-2023(monthly&yearly).xlsx"))
 
 # 2014 Results-------
-
 
 utility_2014 <- utility_long %>% 
   filter(year == 2014)
 
 # Prepare NTL 2014
-
 
 ntl_2014 <- village_ntl_all %>%
   pivot_longer(

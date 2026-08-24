@@ -4,29 +4,27 @@
 #Date: September 10th 2025
 ###################################################################
 
+pacman::p_load(here, knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
+source(here("historical expansion/script/PATHS.R"))
 
+# getwd()
 
+# dropbox <- 'C:/Users/wb614406/Dropbox' 
 
-pacman::p_load(knitr, lfe,fixest, modelsummary, stargazer, tidyverse, dplyr, here, sf, haven, ggplot2, readxl,  writexl, janitor, randomizr, RCT, purrr, RODBC, DBI)
+# historical_data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical data"
+# )
 
-getwd()
+# data_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
+# )
 
-dropbox <- 'C:/Users/wb614406/Dropbox'
-
-historical_data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical data"
-)
-
-data_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/data"
-)
-
-output_path <- file.path(
-  dropbox,
-  "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
-)
+# output_path <- file.path(
+#   dropbox,
+#   "Rwanda Energy/EAQIP/datawork/Historical Expansion/outputs"
+# )
 
 rwa_villages <- st_read(dsn = file.path(data_path, "rwa_villages", "Village.shp"))
 rwa_villages <- st_make_valid(rwa_villages)
@@ -185,7 +183,7 @@ consumer_join <- consumer %>%
 #Lot-----
 lot_sf <- st_read(dsn = file.path(data_path, "shapefiles", "lots.shp") )
 
-View(lot_sf)
+#View(lot_sf)
 
 lot <- st_transform(lot_sf , crs = st_crs(rwa_villages))
 
