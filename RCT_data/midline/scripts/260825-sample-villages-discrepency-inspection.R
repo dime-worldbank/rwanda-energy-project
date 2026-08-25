@@ -57,7 +57,8 @@ villages_181 = read.xlsx(
 # Filter out the mismatch village 
 villages_180 = baseline_1973 |> group_by(village) |> summarise(n=n()) |> ungroup()
   
-village_1 = villages_181 |> anti_join(villages_180 |> mutate(villageid_key = as.character(village)), by = "villageid_key") #32110109
+village_1 = villages_181 |> anti_join(villages_180 |> mutate(villageid_key = as.character(village)), by = "villageid_key") 
+#32110109, Rwamigega
 
 # Step 2 ####
 # Inspect the survey response from the villages 
