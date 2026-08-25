@@ -7,7 +7,7 @@
 # second, we pull treatment status of sample households and for SHS and SHS+Readyboard treatment arm, we want to encourage the eligible households to take up SHS subsidies in the next cycle. 
 
 # Input: 
-# Main functions:
+# Main functions: clean_phone
 # Output: 
 
 # Clear environment
@@ -21,12 +21,16 @@ here()
 source("PATHS.R")
 
 # Load Data 
-
-#baseline_hh_og   <- read.csv(file.path(DATA_CTO_BL, "REP_baseline_test_WIDE (2).csv"))
-
 vulnerable_hh <- openxlsx::read.xlsx(file.path(DATA_CTO_ML, "0-midline-vulnerable-household-sample.xlsx")) #contains NID, admin
 baseline_1973 <- read.xlsx(file.path(DATA_ANALYSIS, "baseline_1973_clean.xlsx")) #contains phone number
 baseline_treatment <- read.xlsx(file.path(DATA_CTO_BL, "scope_193_0807.xlsx")) #village treatment
+
+# Data source used in 0. complete status for EDCL.R 
+complete_status <- read_xlsx(path = file.path(DATA_SCOPE, "vulnerable households in sample villages_final.xlsx")) %>% 
+  mutate(hh_head_name = paste0(first_name, " ", last_name))
+# villages_181 is created using 'complete_status' and filtering for `Dropped from scope due to 15kv` == "No"
+villages_181 = read.xlsx(file.path(OUTPUT_ANALYSIS, "Surveyed 181 villages.xlsx")) # list of 181 villages 
+
 
 # 1. check distinctiveness of "hh_id" 
 sum(duplicated(baseline_1973$hh_id))
@@ -67,21 +71,41 @@ pre_load_data <- pre_load_phone |>
   )
 
 # Summary
-pre_load_data |> group_by(treat) |> count()
-# treat     n
-# <chr> <int>
-# 1 C       530 Control
-# 2 T1      537 Readyboard
-# 3 T2      483 Solar off grid
-# 4 T3      423 Readyboard & Solar off grid 
+pre_load_data |> group_by(treat) |> count() |> ungroup() |> mutate(pct = scales::percent(n/sum(n), accuracy = 0.1))
+# # A tibble: 4 × 3
+# treat     n pct  
+# <chr> <int> <chr>
+# 1 C       530 26.9% Control
+# 2 T1      537 27.2% Readyboard
+# 3 T2      483 24.5% Solar off grid
+# 4 T3      423 21.4% Readyboard & Solar off grid 
 
 n_distinct(pre_load_data$villageid_key) 
 # [1] 180
 
+villages_180 = pre_load_data |>
+  select(villageid_key) |>
+  distinct(villageid_key)
+
+village_1 = villages_181 |> anti_join(villages_180, by = "villageid_key") #32110109
+
+pre_load_data |> count(is.na(phone_clean), is.na(phone2_clean)) |>
+  mutate(pct = scales::percent(n / sum(n), accuracy = 0.1))
+# is.na(phone_clean) is.na(phone2_clean)   n   pct
+# 1              FALSE               FALSE 813 41.2%
+# 2              FALSE                TRUE 719 36.4%
+# 3               TRUE               FALSE  24  1.2%
+# 4               TRUE                TRUE 417 21.1%
+
 # Output
+write.csv(
+  villages_180, 
+  file = file.path(DATA_CTO_ML, "A-villages-180.csv")
+)
+
 write.csv( 
   pre_load_data, 
-  file = file.path(DATA_CTO_ML, "1-surveycto-preload-data.csv"),
+  file = file.path(DATA_CTO_ML, "A-surveycto-preload-data.csv"),
   row.names = TRUE
 )
   

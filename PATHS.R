@@ -2,13 +2,14 @@
 #### Master Paths Setup for Rwanda Energy Project	####
 #----------------------------------------------------------------------#
 
+# Housekeeping Rules
 # 0. Setup personal path to dropbox and Github
 # 1. Per project, it follows folders setup of data, script, and output 
 # Data and output folder is usually hosted on Dropbox while scripts are hosted on Github
 # 2. General naming convention is TYPE_PROJECT_MODULE 
 ## TYPE (DATA, SCRIPT, OUTPUT)
 ## PROJECT ()
-## MODULE (Baseline, Midline etc )
+## MODULE (Baseline, Midline etc)
 
 #--------------------------------------
 # 0. Dropbox and Github paths 
@@ -34,16 +35,17 @@ DATA_CTO <- file.path(DROPBOX, "EAQIP", "datawork", "HFC", "data")
 DATA_ANALYSIS <- file.path(DROPBOX, "EAQIP", "datawork", "baseline analysis", "data")
 DATA_CTO_BL <- file.path(DATA_CTO, "baseline-second-round")
 DATA_CTO_ML <- file.path(DATA_CTO, "midline")
+DATA_SCOPE <- file.path(DROPBOX,"/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households")
+DATA_SCREENING <- file.path(DROPBOX,"/EAQIP/datawork/Screening/data")
 
 #### Script Folder ####
 SCRIPT_CTO <- file.path(GITHUB, "RCT_data" )
-
 SCRIPT_CTO_BL <- file.path(SCRIPT_CTO, "HFC", "scripts")
-#SCRIPT_CTO_BL_ANALYSIS <- file.path()
 SCRIPT_CTO_ML <- file.path(SCRIPT_CTO, "midline", "scripts")
 
 #### Outputs Folder ####
-#OUTPUT_SURVEY <- file.path(DROPBOX, "" )
+OUTPUT_HFC <- file.path(DROPBOX,"/EAQIP/datawork/HFC/output")
+OUTPUT_ANALYSIS <- file.path(DROPBOX,"/EAQIP/datawork/baseline analysis/output") #previously titled output_path in Xiaoming's code
 
 #---------------------------------------
 # Historical Expansion

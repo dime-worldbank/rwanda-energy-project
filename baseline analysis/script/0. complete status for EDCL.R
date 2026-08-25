@@ -2,20 +2,26 @@
 #Author: Xiaoming Zhang
 #Date:8.5
 #Purpose: Completion status of survey for EDCL
+
+#Reviewer: Yeji Kim
+#Date: 2026-08-25
+#Purpose: Compare 181 villages from report with 180 villages from 1973 households
 #############
 
+# Clear environment
+rm(list = ls())
 
+# Libraries
 pacman::p_load(knitr, tidyverse, dplyr, here, sf, ggplot2, readxl, writexl, janitor, randomizr, RCT, purrr)
 library(googlesheets4)
 getwd()
 
-
-# Import Data ----
-dropbox <- 'C:/Users/wb614406/Dropbox'
+# Set path
+dropbox <- 'C:/Users/wb636130/Dropbox'
 
 hfc_data_path <- file.path(
   dropbox,
-  "Rwanda Energy/EAQIP/datawork/HFC/data"
+  "Rwanda Energy/EAQIP/datawork/HFC/data/baseline-second-round"
 )
 
 hfc_output_path <- file.path(
@@ -46,31 +52,40 @@ data_path_2 <- file.path(
 
 screening_data_path <- file.path(dropbox,   "Rwanda Energy/EAQIP/datawork/Screening/data")
 
-screening_raw <- read.csv(file.path(screening_data_path, "REP_screening_WIDE.csv"))
+# Import Data
+screening_raw_wide <- read.csv(file.path(screening_data_path, "REP_screening_WIDE.csv"))
 
 enumerator <- read.csv(file.path(screening_data_path, "pilot_enumerators.csv"))
 
-screening_enumerator <- left_join(screening_raw, enumerator, by = c("enumerator" = "enumeratorid_key")) %>% 
+screening_enumerator <- left_join(screening_raw_wide, enumerator, by = c("enumerator" = "enumeratorid_key")) %>% 
   select(hh_id, enumerator, enumerator_key) %>% 
   rename(enumerator_screening = enumerator,
          enumerator_key_screening = enumerator_key) %>% 
    mutate(hh_id = as.character(hh_id))
 
-
 hfc_constr_raw <- read_xlsx(file.path(hfc_output_path, "hfc_constr_0728.xlsx"))
+
+# 2026-08-25 Yeji: 
+# The below villages is in 'eligible 181 villages' but not in the analysis sample
+# This is because in 1. descriptives shorter.R, it is filtered out because of data imcompleteness
+
+# hfc_constr <- hfc_constr_raw %>% 
+#   filter(consent == 1) %>%
+#   filter(!is.na(A1_1)) %>%
+#   distinct(hh_head_name, hh_id, A1_2, A1_3, .keep_all = TRUE) %>%
+#   filter(village %in% village_181$villageid_key) %>%
+#   group_by(hh_id) %>%
+#   arrange(desc(hh_head_name %in% complete_status$hh_head_name)) %>% 
+#   slice(1) %>%
+#   ungroup()
 
 rutsiro_0 <- hfc_constr_raw %>% 
   filter(village == "32110109")
-
-
-
-
 
 screening_raw <- read_xlsx(file.path(hfc_output_path, "hfc_constr_0728.xlsx"))
 
 complete_status <- read_xlsx(path = file.path(data_path_2, "vulnerable households in sample villages_final.xlsx")) %>% 
   mutate(hh_head_name = paste0(first_name, " ", last_name))
-
 
 #Treatment=====
 treatment_raw <- read.csv(file.path(
@@ -83,8 +98,7 @@ treatment <-  read.csv(file.path(
   select(villageid_key, treatment)
 
 
-treatment_193 <- read_xlsx(path = file.path(data_path, "scope_193_0807.xlsx"))
-
+treatment_193 <- read_xlsx(path = file.path(hfc_data_path, "scope_193_0807.xlsx"))
 
 rand_newly_sum <- treatment_193 %>% 
   group_by(strata) %>% 
@@ -95,7 +109,6 @@ rand_newly_sum <- treatment_193 %>%
     T3 = sum(treat == "T3"),
     sum = n()
   ) 
-
 
 summarise_row <-rand_newly_sum %>% 
   summarise(
