@@ -14,7 +14,7 @@
 rm(list = ls())
 
 # Libraries
-pacman::p_load(here, openxlsx, dplyr, tidyr, stringr)
+pacman::p_load(here, openxlsx, dplyr, tidyr, stringr, readxl)
             
 # Set path
 here()
@@ -42,10 +42,20 @@ baseline_phone <- baseline_1973 |>
 
 # clean_phone function
 clean_phone <- function(x) {
-  digits <- str_remove_all(x, "[^0-9]")   # keep digits only → "O", spaces, "+", etc. gone
-  digits <- str_remove(digits, "^0+")     # rule 1: strip leading zero(s)
-  # rules 2 & 3: valid only if exactly 9 digits starting with 7, else NA
-  if_else(str_detect(digits, "^7[0-9]{8}$"), digits, NA_character_)
+  # keep digits only → "O", spaces, "+", etc. gone
+  digits <- str_remove_all(x, "[^0-9]")   
+  # Add leading 0 if number is in 9-digit format
+  digits <- if_else(
+    str_detect(digits, "^7[0-9]{8}$"), 
+    paste0("0", digits),
+    digits
+    )
+  # Keep only valid 10-digit Rwanda mobile number
+  if_else(
+    str_detect(digits, "^07[0-9]{8}$"),
+    digits,
+    NA_character_
+  )
 }
 
 # apply function
@@ -70,6 +80,13 @@ pre_load_data <- pre_load_phone |>
     baseline_treatment, by = join_by("villageid_key" == "village_id")
   )
 
+# order the preload data for the SurveyCTO format
+# The first row of each csv file should consist of a header 
+
+pre_load_data <- pre_load_data |>
+  rename(village_id = villageid_key,
+         household_id_ley = household_id)
+
 # Summary
 pre_load_data |> group_by(treat) |> count() |> ungroup() |> mutate(pct = scales::percent(n/sum(n), accuracy = 0.1))
 # # A tibble: 4 × 3
@@ -83,12 +100,6 @@ pre_load_data |> group_by(treat) |> count() |> ungroup() |> mutate(pct = scales:
 n_distinct(pre_load_data$villageid_key) 
 # [1] 180
 
-villages_180 = pre_load_data |>
-  select(villageid_key) |>
-  distinct(villageid_key)
-
-village_1 = villages_181 |> anti_join(villages_180, by = "villageid_key") #32110109
-
 pre_load_data |> count(is.na(phone_clean), is.na(phone2_clean)) |>
   mutate(pct = scales::percent(n / sum(n), accuracy = 0.1))
 # is.na(phone_clean) is.na(phone2_clean)   n   pct
@@ -97,17 +108,14 @@ pre_load_data |> count(is.na(phone_clean), is.na(phone2_clean)) |>
 # 3               TRUE               FALSE  24  1.2%
 # 4               TRUE                TRUE 417 21.1%
 
-# Output
-write.csv(
-  villages_180, 
-  file = file.path(DATA_CTO_ML, "A-villages-180.csv")
-)
-
 write.csv( 
   pre_load_data, 
   file = file.path(DATA_CTO_ML, "A-surveycto-preload-data.csv"),
   row.names = TRUE
 )
-  
-# Thoughts
-# For SurveyCTO phone numbers, we can apply constraint for a 9-digits number starting with 7 or 2
+
+write.csv( 
+  pre_load_data, 
+  file = file.path(DATA_ML, "A-surveycto-preload-data.csv"),
+  row.names = TRUE
+)

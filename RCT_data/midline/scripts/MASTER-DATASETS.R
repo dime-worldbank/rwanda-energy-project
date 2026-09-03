@@ -3,6 +3,19 @@
 # Prerequisite - run PATHS.R
 # Datapaths are defined at Github / rwanda-energy-project/PATHS.R
 
+#-------------------------
+# ADMIN RAW DATA
+#-------------------------
+
+# Complete National Villages List 
+
+villages_list <- read.xlsx(
+  file.path(DATA_RCT, "0.Rwanda-Villages-Masterfile.xlsx"))
+
+# NOT a cleaned list
+# villages_list <- read.xlsx( 
+#   file.path(DATA_RCT, "villages", "villages_boundaries.xlsx"))
+
 #--------------------------
 # BASELINE RAW DATA 
 #--------------------------
@@ -53,6 +66,10 @@ villages_181 = read.xlsx(
   # output of 0. Complete Status for EDCL.R 
   # Tabulation from here is used for the Baseline Analysis report 
   file.path(OUTPUT_ANALYSIS, "Surveyed 181 villages.xlsx")) # list of 181 villages 
+
+villages_180_full = read_xlsx(file.path(DATA_ML, "B.villages-180-coded.xlsx"))
+funny_names = read_xlsx(file.path(DATA_ML, "B.double-names-villages.xlsx"))
+
 
 #--------------------------
 # BASELINE FINAL DATA 

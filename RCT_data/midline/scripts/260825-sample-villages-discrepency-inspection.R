@@ -15,13 +15,16 @@
 # rm(list = ls())
 
 # Libraries 
-pacman::p_load(here, openxlsx, dplyr, tidyr, stringr)
+pacman::p_load(here, openxlsx, dplyr, tidyr, stringr, readr)
 
 # Set path
 here() #should be individual-path/github/rwanda-energy-project
 source("PATHS.R")
 
+#-----------#
 # Import Data ####
+#-----------#
+
 # Households ####
 complete_status <- read_xlsx(
   # Data source used in 0. complete status for EDCL.R 
@@ -56,7 +59,6 @@ villages_181 = read.xlsx(
 # Step 1 ####
 # Filter out the mismatch village 
 villages_180 = baseline_1973 |> group_by(village) |> summarise(n=n()) |> ungroup()
-  
 village_1 = villages_181 |> anti_join(villages_180 |> mutate(villageid_key = as.character(village)), by = "villageid_key") 
 #32110109, Rwamigega
 
