@@ -1,6 +1,7 @@
 #Author: Yeji Kim
 #Date: 2026-09-03
-#Purpose: 1. Sanity check, Ensure the villages lists are in line with villages_boundaries (national village list)
+#Key Functions: 
+# 1. Sanity check for unique assignment of IDs and village name variables
 # 2. Assign admin codes to village level 
 
 #----------------------------
@@ -19,9 +20,12 @@ villages_list <- read.xlsx(
   file.path(DATA_RCT, "0.Rwanda-Villages-Masterfile.xlsx"))
 
 # Sample Village List
-villages_180 <- read_csv(file.path(DATA_ML, "A-villages-180.csv"))
+villages_180 <- read_csv(file.path(DATA_ML_SCOPE, "A-villages-180.csv"))
 
-#Sanity Check for villages_list
+#----------------------------------
+# Sanity Check
+#----------------------------------
+# Is ID uniquely assigned for each administrative level?
 district_flag = villages_list |> group_by(District) |> 
   summarize(n = n_distinct(Distr_ID)) |> filter(n>1) # 0
 sector_flag = villages_list |> group_by(District, Sector) |> 
@@ -31,6 +35,7 @@ cell_flag = villages_list |> group_by(District, Sector, Cell) |>
 village_flag = villages_list |> group_by(District, Sector, Cell, Name) |> 
   summarize(n = n_distinct(Village_ID)) |> filter(n>1) # 6
 
+# One sector and 6 villages have more than one ID assigned
 village_flag = villages_list |>
   group_by(District, Sector, Cell, Name) |>
   summarise(n = n_distinct(Village_ID), 
@@ -58,7 +63,9 @@ villages_list_4d  = villages_list |>
 
 name_flag = villages_list_4d |> filter(Vill.name.flag > 0) # 8 observations 
 
+#--------------
 # Join
+#--------------
 # If villages_180 names are clean it should have 180 obs
 villages_ij = villages_list_4d |> 
   inner_join(villages_180 |> mutate(Village_ID = as.character(villageid_key))
@@ -75,19 +82,19 @@ villages_ij = villages_list_4d |>
 
 openxlsx::write.xlsx(
   villages_list_4d,
-  file.path(DATA_ML, "B.Rwanda-4-Districts-Villages-Masterfile.xlsx"),
+  file.path(DATA_ML_SCOPE, "B.Rwanda-4-Districts-Villages-Masterfile.xlsx"),
   overwrite = TRUE
 )
 
 openxlsx::write.xlsx(
   villages_ij,
-  file.path(DATA_ML, "B.villages-180-coded.xlsx"),
+  file.path(DATA_ML_SCOPE, "B.villages-180-coded.xlsx"),
   overwrite = TRUE
 )
 
 openxlsx::write.xlsx(
   name_flag,
-  file.path(DATA_ML, "B.double-names-villages.xlsx"),
+  file.path(DATA_ML_SCOPE, "B.double-names-villages.xlsx"),
   overwrite = TRUE
 )
 

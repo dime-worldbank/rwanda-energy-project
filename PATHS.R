@@ -31,15 +31,22 @@ if (Sys.getenv("USERNAME") == "wb636130"){
 #---------------------------------------
 
 #### Data Folder ####
-DATA_CTO <- file.path(DROPBOX, "EAQIP", "datawork", "HFC", "data")
-DATA_ANALYSIS <- file.path(DROPBOX, "EAQIP", "datawork", "baseline analysis", "data")
-DATA_CTO_BL <- file.path(DATA_CTO, "baseline-second-round")
-DATA_CTO_ML <- file.path(DATA_CTO, "midline")
-DATA_ML <- file.path(DROPBOX, "EAQIP/questionnaires/02-midline")
 
 DATA_RCT <- file.path(DROPBOX,"/EAQIP/datawork/RCT_data/baseline/data/data")
 DATA_SCOPE <- file.path(DROPBOX,"/EAQIP/datawork/RCT_data/baseline/data/Updated scope villages& households")
 DATA_SCREENING <- file.path(DROPBOX,"/EAQIP/datawork/Screening/data")
+
+DATA_ANALYSIS <- file.path(DROPBOX, "EAQIP", "datawork", "baseline analysis", "data")
+
+DATA_CTO <- file.path(DROPBOX, "EAQIP", "datawork", "HFC", "data")
+DATA_CTO_BL <- file.path(DATA_CTO, "baseline-second-round")
+DATA_CTO_ML <- file.path(DATA_CTO, "midline")
+
+DATA_ML <- file.path(DROPBOX, "EAQIP/questionnaires/02-midline")
+DATA_ML_ELIGIBILITY <- file.path(DATA_ML, "01-SHS-eligibility")
+DATA_ML_SCOPE <- file.path(DROPBOX, "EAQIP/questionnaires/02-midline/00-village-scope")
+DATA_ML_PRELOAD <-file.path(DROPBOX, "EAQIP/questionnaires/02-midline/02-CTO-preload")
+
 
 #### Script Folder ####
 SCRIPT_CTO <- file.path(GITHUB, "RCT_data" )

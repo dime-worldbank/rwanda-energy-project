@@ -1,10 +1,12 @@
 #----------------------------------------------------------------------
 #Author: Yeji Kim
 #Date: 2026-08-25
-#Purpose: inspect the discrepency in the number 181 sample villages 
-#in the baseline analysis report and 180 sample villages from tabulation of 
-#baseline_1973_clean (which was used for baseline analysis) AND will be the basis of 
-#samples of midline survey . 
+#Key Functions: 
+# 1. Inspect the discrepency villages sample size 
+# Context: There are 181 sample villages (baseline analysis report) yet tabulating baseline_1973_clean shows 180
+# Locating the cause of discrepency is central because these villages will be the basis of midline survey.
+# baseline_1973_clean is the output of the below scipt of cleaning pipeline 
+# https://github.com/dime-worldbank/rwanda-energy-project/blob/main/baseline%20analysis/script/1.%20descriptives%20shorter.R
 #----------------------------------------------------------------------
 
 #-----------#
@@ -77,6 +79,7 @@ flag = hfc_rutsiro_simple |> anti_join(complete_status, by = join_by("hh_id" == 
 
 # [H2] Were these answers not valid? 
 # In order to be considered valid, 
+# A1_1 How many people in total live in your household and use your household as primary residence?
 # A1_2 Does this hh has connection to the national grid?
 # A1_2_3month Was this hh connected to the grid in the last 3 months
 # A1_3 Does this household use off-grid solar systems? 

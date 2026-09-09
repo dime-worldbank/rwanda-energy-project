@@ -110,12 +110,6 @@ pre_load_data |> count(is.na(phone_clean), is.na(phone2_clean)) |>
 
 write.csv( 
   pre_load_data, 
-  file = file.path(DATA_CTO_ML, "A-surveycto-preload-data.csv"),
-  row.names = TRUE
-)
-
-write.csv( 
-  pre_load_data, 
-  file = file.path(DATA_ML, "A-surveycto-preload-data.csv"),
+  file = file.path(DATA_ML_PRELOAD, "surveycto-preload-data.csv"),
   row.names = TRUE
 )
