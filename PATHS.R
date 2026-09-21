@@ -72,3 +72,10 @@ data_path <- file.path( DROPBOX, "/EAQIP/datawork/Historical Expansion/data")
 # )
 
 output_path <- file.path(DROPBOX, "/EAQIP/datawork/Historical Expansion/outputs_replication")
+
+#---------------------------------------
+# Intervention Analysis 
+# --------------------------------------
+
+# Kazera's tracker of Readyboard Implementation by EDCL 
+READYBOARD_K <- file.path(DROPBOX, "EAQIP/intervention/Readyboard Implementation/Implementation tracker/Readyboard tracker by Village")

@@ -9,14 +9,14 @@
 #----------------------------
 rm(list = ls())
 library(pacman)
-pacman::p_load(here)
+pacman::p_load(here, readxl)
 source(here("PATHS.R"))
 
 #----------------------------
 # Import Data
 #----------------------------
 # Complete National Villages List 
-villages_list <- read.xlsx(
+villages_list <- read_excel(
   file.path(DATA_RCT, "0.Rwanda-Villages-Masterfile.xlsx"))
 
 # Sample Village List
@@ -69,12 +69,26 @@ name_flag = villages_list_4d |> filter(Vill.name.flag > 0) # 8 observations
 # If villages_180 names are clean it should have 180 obs
 villages_ij = villages_list_4d |> 
   inner_join(villages_180 |> mutate(Village_ID = as.character(villageid_key))
-             |> rename(District = district,
+             |> rename(
+                       District = district,
                        Sector = sector,
                        Cell = cell,
                        Village = village),
              by = c("District", "Sector", "Cell", "Village", "Village_ID")) |>
   select(-villageid_key)
+
+villages_scope = villages_ij |>
+  rename(provinceid_key = Prov_ID,
+         province_key = Province,
+         districtid_key = Distr_ID,
+         district_key = District,
+         sectorid_key = Sector_ID,
+         sector_key = Sector,
+         cellid_key = Cell_ID,
+         cell_key = Cell,
+         villageid_key = Village_ID,
+         village_key = Village) |>
+  select(-c(Village_unclean, Vill.name.flag))
 
 # a perfect match!
 
@@ -90,6 +104,11 @@ openxlsx::write.xlsx(
   villages_ij,
   file.path(DATA_ML_SCOPE, "B.villages-180-coded.xlsx"),
   overwrite = TRUE
+)
+
+write.csv(
+  villages_scope,
+  file.path(DATA_ML_PRELOAD, "scope_villages.csv")
 )
 
 openxlsx::write.xlsx(

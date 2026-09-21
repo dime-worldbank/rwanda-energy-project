@@ -8,7 +8,6 @@
 #-------------------------
 
 # Complete National Villages List 
-
 villages_list <- read.xlsx(
   file.path(DATA_RCT, "0.Rwanda-Villages-Masterfile.xlsx"))
 

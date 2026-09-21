@@ -78,14 +78,11 @@ baseline_treatment <- baseline_treatment |> select(village_id, treat)
 pre_load_data <- pre_load_phone |>
   left_join(
     baseline_treatment, by = join_by("villageid_key" == "village_id")
-  )
+  ) |>
+  rename(householdid_key = household_id)
 
 # order the preload data for the SurveyCTO format
 # The first row of each csv file should consist of a header 
-
-pre_load_data <- pre_load_data |>
-  rename(village_id = villageid_key,
-         household_id_ley = household_id)
 
 # Summary
 pre_load_data |> group_by(treat) |> count() |> ungroup() |> mutate(pct = scales::percent(n/sum(n), accuracy = 0.1))
@@ -108,8 +105,18 @@ pre_load_data |> count(is.na(phone_clean), is.na(phone2_clean)) |>
 # 3               TRUE               FALSE  24  1.2%
 # 4               TRUE                TRUE 417 21.1%
 
+# Select household heads only 
+household_head = pre_load_data |> 
+  select(villageid_key, village, cell, sector, district, householdid_key, first_name, last_name, nid) |>
+  mutate(household_id = householdid_key)
+  
 write.csv( 
   pre_load_data, 
-  file = file.path(DATA_ML_PRELOAD, "surveycto-preload-data.csv"),
+  file = file.path(DATA_ML_PRELOAD, "contact_info.csv"),
   row.names = TRUE
+)
+
+write.csv(
+  household_head,
+  file = file.path(DATA_ML_PRELOAD, "household_head.csv")
 )

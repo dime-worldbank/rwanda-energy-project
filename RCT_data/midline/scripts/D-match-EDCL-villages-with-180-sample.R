@@ -155,6 +155,20 @@ Rutsiro_EDCL_sample_households <- Rutsiro_EDCL_sample_match |>
 #---------------
 
 # EDCL sample list from EDCL list with candidates from master vill list
+EDCL_sample_v <- setNames(
+  lapply(districts, \(d) {
+    get(paste0(d, "_EDCL_sample_match")) |>
+      select(-any_of(c("Village_unclean", "Vill.name.flag")))  
+  }),
+  districts
+)
+
+writexl::write_xlsx(
+  EDCL_sample_v,
+  path = file.path(DATA_ML_ELIGIBILITY, "final", "D-EDCL-sample-villages-260909.xlsx")
+)
+
+# EDCL sample list from EDCL list with candidates from master vill list
 EDCL_sample_hh <- setNames(
   lapply(districts, \(d) {
     get(paste0(d, "_EDCL_sample_households")) |>
