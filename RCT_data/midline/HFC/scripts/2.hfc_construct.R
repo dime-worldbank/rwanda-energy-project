@@ -40,6 +40,14 @@ rep_rows <- cumsum(form_survey$type == "begin repeat") - cumsum(form_survey$type
 continuous_fields <- form_survey$name[word(form_survey$type, 1) %in% c("integer", "decimal")]
 repeat_fields     <- form_survey$name[rep_rows & !form_survey$type %in% c("begin repeat", "note")]
 
+# Yes/no follow-up asked right after each device question (e.g. meter_confirm_working); names read from the form
+FOLLOWUP <- map_chr(c(meter = "meter_confirm", readyboard = "readyboard_confirm",
+                      wiring = "additional_wire_confirm", shs = "shs_confirm"), \(p) {
+  x <- form_survey$name[form_survey$type == "select_one yesno" &
+                          str_detect(str_squish(coalesce(form_survey$relevance, "")), sprintf("^\\$\\{%s\\}\\s*=\\s*1$", p))]
+  if (length(x) == 0) NA_character_ else x[1]
+})
+
 raw <- read_csv(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
                 col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(ID_COLS)), ID_COLS)),
                 show_col_types = FALSE, guess_max = 10000)
@@ -51,6 +59,15 @@ contact_info <- read_preload("contact_info.csv") |> select(householdid_key, trea
 shs_eligible <- read_preload("shs_eligible.csv") |> select(householdid_key)
 
 message(sprintf("      export: %d submissions x %d columns", nrow(raw), ncol(raw)))
+
+# One-time preload check: SHS-eligible households must be in an SHS arm
+elig_wrong_arm <- shs_eligible |>
+  left_join(contact_info, by = "householdid_key") |>
+  filter(!treat %in% SHS_ARMS)
+if (nrow(elig_wrong_arm) > 0) {
+  warning(nrow(elig_wrong_arm), " household(s) in shs_eligible.csv are not in T2/T3: ",
+          paste(elig_wrong_arm$householdid_key, collapse = ", "), ". Check the preload.")
+}
 
 
 # ---- 4. Construct ------------------------------------------------------------
@@ -75,6 +92,8 @@ hfc_constr <- hfc_constr |>
   left_join(villages, by = c("village" = "villageid_key")) |>
   left_join(contact_info, by = c("hh_id" = "householdid_key")) |>
   mutate(preload_shs_eligible = hh_id %in% shs_eligible$householdid_key,
+         # SHS nudge asked (relevance of the form's nosolar group)
+         nudge_eligible = pull_shs_eligible %in% 1 & shs_confirm %in% 0 & electrified %in% 0,
          located = locate %in% 1,
          consented = consent %in% 1,
          complete = located & consented & finish %in% 1,
@@ -102,7 +121,8 @@ hfc_constr <- hfc_constr |>
 
 duration_data <- hfc_constr |>
   select(KEY, hh_id, submissiondate, district_key, sector_key, cell_key, village_key,
-         enumerator, enumerator_key, treat, consent, survey_min, all_of(dur_cols), negative_mods) |>
+         enumerator, enumerator_key, treat, consent, preload_shs_eligible, nudge_eligible,
+         survey_min, all_of(dur_cols), negative_mods) |>
   arrange(submissiondate)
 
 

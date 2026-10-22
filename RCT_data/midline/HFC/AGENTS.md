@@ -18,9 +18,12 @@ Author: Yeji (using Claude) · Last modified: 2026-10-21
 
 - **Never edit anything in `RCT_data/baseline/`.** Copy from it; build in `RCT_data/midline/HFC/`.
 - **No hard-coded user paths** (`C:/Users/...`). All paths come from `PATHS.R` objects (listed below).
-- **Code lives in the repo; data lives in Dropbox.** Never write data files (real or synthetic)
-  into the repo.
-- **Never put identifiable data anywhere outside Dropbox**: names, phone numbers, NID, GPS, photos, audio.
+- **Code lives in the repo; data lives in Dropbox or the WBG OneDrive.** Never write data files
+  (real or synthetic) into the repo.
+- **Identifiable data** (names, phone numbers, NID, GPS, photos, audio) may be stored only in Dropbox
+  and the WBG OneDrive (approved). Raw exports and media stay in Dropbox; HFC outputs for the
+  dashboard go to OneDrive. Share OneDrive folders with identifiable data only with the core team;
+  pages for wider audiences show IDs and aggregates only.
   Synthetic data must use invented names and numbers.
 - Do not change a variable definition (complete, eligible, etc.) without asking.
 - For multi-file tasks, show a plan first and wait for approval.
@@ -41,7 +44,9 @@ Author: Yeji (using Claude) · Last modified: 2026-10-21
 
 ## Paths
 
-- Midline HFC uses **one** object from `PATHS.R`: `DROPBOX_EAQIP` (the `Rwanda Energy/EAQIP` Dropbox folder).
+- Midline HFC uses **two** objects from `PATHS.R`: `DROPBOX_EAQIP` (the `Rwanda Energy/EAQIP` Dropbox
+  folder) and `ONEDRIVE_HFC_ML` (`OneDrive - WBG/Rwanda_Energy_Project/EAQIP_survey/HFC_26`, the
+  shared dashboard folder).
   Do not use or add any other `PATHS.R` objects for midline HFC.
 - Every path is written out in full from `DROPBOX_EAQIP`, **once**, in the config section of
   `1.hfc_main.R`. Scripts 2–9 use only the objects defined there and never build paths themselves.
@@ -54,12 +59,15 @@ Author: Yeji (using Claude) · Last modified: 2026-10-21
 | `media_dir` | test: `datawork/HFC_midline/test/synthetic_data/media` (none) · live: `datawork/HFC_midline/data/media` | SurveyCTO media (audio audits) |
 | `output_dir` | test: `datawork/HFC_midline/test/output` · live: `datawork/HFC_midline/output` | Local HFC outputs |
 | `audio_dir` | `output_dir` + `/audio_check` | Daily audio audit lists and copied audio files |
-| `sheet_url` | Google Sheet URL (live only) | `HFC_REP_26` |
+| `archive_dir` | `output_dir` + `/archive` | Previous versions of `hfc_constr.xlsx` and the dashboard |
+| `checks_dir` | `output_dir` + `/checks` | `hfc_flags.csv` (all flags; used by the test comparison) |
+| `share_dir` | `ONEDRIVE_HFC_ML` + test: `/test` · live: `/main` (`SHARE_FOLDER`; `pilot` pending, pilot not started) | Current dashboard, shared with the team and the firm |
+| `share_archive_dir` | `share_dir` + `/archive` | Previous shared dashboards |
 
 ## Run mode
 
 `HFC_MODE` (`"test"` or `"live"`) is set at the top of `1.hfc_main.R` and picks the paths above.
-Test mode **never writes to the Google Sheet**.
+Test-mode dashboards go to `HFC_26/test` only, never to `HFC_26/main`.
 
 ---
 
@@ -170,24 +178,26 @@ objects created earlier (`hfc_constr`, `duplicates`, length checks) and cannot r
 |---|---|---|
 | `1.hfc_main.R` | Runner: sets `HFC_MODE`, paths and config; sources 2–9; prints timing per script | — |
 | `2.hfc_construct.R` | Load export; parse dates; filter fieldwork start; codes → NA (continuous only); join enumerator + admin names; module durations; duplicates | `hfc_constr`, `duration_data`, `duplicates` |
-| `3.hfc_admin.R` | Progress by village, district, **treatment arm**: attempts, located, consented, completes, progress vs target, by-day counts | `village_data`, `district_data`, `treatment_data` |
+| `3.hfc_admin.R` | Progress by village, district, **treatment arm** (households: attempted = complete + not complete; `*_pct` as 0-100 numbers; T2/T3 nudge eligible / agreed / data consent); households not located | `village_data`, `district_data`, `treatment_data`, `not_located` |
 | `4.hfc_outliers.R` | ±3 SD on log(1+x) for amounts and counts (`mt_1`, `rb_1`, `iw_1`, `eu_1`, `eu_6`, `shs_1`, `shs_6`, `F2_4`, `hh_member_count`, `F1_1`) | `outlier_data` |
-| `5.hfc_logic.R` | Consistency checks (see below) | `logic_data`, `logic_summary` |
+| `5.hfc_logic.R` | Consistency checks (see below); summary by date (per enumerator: `n_logic_issue` in `enumerator_check`) | `logic_data`, `logic_summary` |
 | `6.hfc_enum.R` | Per enumerator: submissions/day, locate/consent/completion rates, duration, flags | `enumerator_check` |
-| `7.hfc_stats.R` | Descriptives for key variables, overall and by arm | `desc_stats_data` |
+| `7.hfc_stats.R` | Key variables (yes/no as % yes, with the base `asked_if`), choice frequencies, energy access; overall and by arm | `desc_stats_data`, `desc_cat_data`, `energy_access` |
 | `8.hfc_audio.R` | Daily audio audit sample (TBD: confirm). **No backcheck in midline**: no backcheck sample or comparison | `audio_sample` |
 | `9.hfc_shs.R` | **SHS nudge funnel** for T2/T3 (see below) | `shs_funnel`, `shs_funnel_village` |
+| `10.hfc_dashboard.R` | Excel dashboard workbook: "Dashboard" sheet (key rates vs targets, progress by arm + nudge, by district, logic issues, energy access, key variables, daily chart), then every output as a tab; definition row under each dashboard table | `HFC_midline_dashboard.xlsx` |
 
 ### Logic checks for script 5
 
-- Old form version (`formdef_version` < `CURRENT_FORMDEF`).
-- Start/end/submission date mismatches; negative module durations; survey outside `DURATION_MIN`–`DURATION_MAX`.
+- Start/end/submission date mismatches; negative module durations; consented survey outside
+  `DURATION_MIN`–`DURATION_MAX` (per submission).
 - Treatment compliance: readyboard reported in C/T2 villages; SHS-nudge block answered outside T2/T3.
 - Grid consistency: `electricity_usage_confirm == 1` but `meter_confirm == 0`;
   `observe_electricity_connection` disagrees with `meter_confirm`.
-- SHS consistency: `obs_shs == 1` but `shs_confirm == 0`; `shs_number` > 3.
-- Preload mismatch: household in `shs_eligible.csv` but `treat` (from `contact_info.csv`) not T2/T3.
-- Phone number changed from preload (count only, not an error).
+- SHS consistency: `obs_shs == 1` but `shs_confirm == 0`.
+- Removed 2026-10-22 (not daily logic issues): old form version, `shs_number` > 3, phone changed
+  from preload. Preload mismatch (`shs_eligible.csv` household not in T2/T3) is a one-time warning
+  in script 2.
 
 ### SHS funnel for script 9 (T2 + T3, by arm and village)
 
@@ -210,13 +220,21 @@ door-confirmed eligible (`pull_shs_eligible == 1 & shs_confirm == 0 & electrifie
 
 ## Outputs
 
-- Google Sheet `HFC_REP_26`, opened by URL: `googlesheets4::gs4_get(sheet_url)`; one tab per
-  output above, overwritten each run with `sheet_write()`. Live mode only.
-- Local copies in `output_dir` (live: `datawork/HFC_midline/output`; test: `datawork/HFC_midline/test/output`):
-  `hfc_constr_<YYYYMMDD>.xlsx` (constructed data), `hfc_outputs_<YYYYMMDD>.xlsx` (one sheet per
-  output + `run_info`), `hfc_flags_<YYYYMMDD>.csv` (all flags: `KEY, hh_id, enumerator, check, detail`;
-  check names match `expected_flags.csv`).
-- Shiny dashboard: planned; reads the HFC outputs, does not recompute checks.
+- `output_dir` (live: `datawork/HFC_midline/output`; test: `datawork/HFC_midline/test/output`) holds
+  only the current `hfc_constr.xlsx` (constructed data) and `HFC_midline_dashboard.xlsx`. Each run
+  first moves the previous versions to `archive_dir` (`output_dir/archive`), stamped with their
+  last-modified time (`_YYYYMMDD_HHMM`). If a file is open in Excel, a time-stamped copy is written
+  instead and a warning is shown.
+- `checks_dir` (`output_dir/checks`): `hfc_flags.csv`, all flags (`KEY, hh_id, enumerator, check,
+  detail`; check names match `expected_flags.csv`), read by `test/compare_expected_flags.R`.
+- Excel dashboard (`10.hfc_dashboard.R`, openxlsx): written to `output_dir`; reads the HFC outputs,
+  does not recompute checks. Tab order: Dashboard, enumerator_check, district_data, village_data,
+  duplicates, logic tabs, then the rest. Replaces the Google Sheet and the planned Shiny app.
+- Sharing (`share_dashboard()` in `1.hfc_main.R`): after each run the current dashboard is copied
+  to `share_dir` on the WBG OneDrive, and the previous one there is moved to `share_archive_dir`
+  (stamped `_YYYYMMDD_HHMM`, like the Dropbox archive). The team and the survey firm get the same
+  workbook. On Windows the move and copy run through `cmd`: once the HFC packages are loaded, the
+  R process itself cannot write into the OneDrive folder (likely an IT restriction).
 
 ## Data quality targets
 

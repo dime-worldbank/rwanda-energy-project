@@ -24,25 +24,21 @@ source("PATHS.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-data_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data")
-output_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output")
+data_dir     <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data")
+outputs_file <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/HFC_midline_dashboard.xlsx")
+flags_file   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/checks/hfc_flags.csv")
 
 
 # ---- 3. Helper functions -----------------------------------------------------
 
-latest <- function(pattern) {
-  f <- sort(list.files(output_dir, pattern = pattern, full.names = TRUE), decreasing = TRUE)
-  if (length(f) == 0) stop("No file matching ", pattern, " in ", output_dir, ": run 1.hfc_main.R first.")
-  f[1]
-}
 script_of <- function(check) str_extract(check, "^\\d+\\.hfc_\\w+")
 
 
 # ---- 4. Data loading ---------------------------------------------------------
 
+if (!all(file.exists(c(outputs_file, flags_file)))) stop("HFC outputs not found: run 1.hfc_main.R first.")
 expected <- read_csv(file.path(data_dir, "expected_flags.csv"), col_types = cols(.default = col_character()))
-flags    <- read_csv(latest("^hfc_flags_\\d{8}\\.csv$"), col_types = cols(.default = col_character()))
-outputs_file <- latest("^hfc_outputs_\\d{8}\\.xlsx$")
+flags    <- read_csv(flags_file, col_types = cols(.default = col_character()))
 run_info <- read_excel(outputs_file, "run_info")
 
 scripts_run <- str_remove(str_split_1(run_info$scripts_run, ", "), "\\.R$")

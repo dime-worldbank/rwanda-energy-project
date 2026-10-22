@@ -30,7 +30,7 @@ shs_hh <- hfc_constr |>
   summarise(located = any(located),
             consented = any(consented),
             preload_eligible = any(consented & preload_shs_eligible),
-            door_confirmed = any(pull_shs_eligible %in% 1 & shs_confirm %in% 0 & electrified %in% 0),
+            door_confirmed = any(nudge_eligible),
             willing_yes = any(shs_willing %in% 1),
             willing_no = any(shs_willing %in% 0),
             willing_notsure = any(shs_willing %in% -88),

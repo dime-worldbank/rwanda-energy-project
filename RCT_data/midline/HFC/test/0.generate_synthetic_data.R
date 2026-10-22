@@ -444,6 +444,8 @@ rel_to_r <- function(x) {
 con_to_r <- function(x) {
   x |>
     str_squish() |>
+    str_replace_all("format-date-time\\(", "format_date_time(") |>
+    str_replace_all("today\\(\\)", ".today") |>
     str_replace_all("(?<![\\w])\\.(?![\\w])", ".v") |>
     str_replace_all("\\bregex\\(", "str_detect(") |>
     str_replace_all("(?<![<>!=])=(?!=)", "==") |>
@@ -452,6 +454,8 @@ con_to_r <- function(x) {
 }
 eval_env <- rlang::new_environment(
   list(string_length = \(x) nchar(ifelse(is.na(x), "", as.character(x))),
+       # Dates in the export look like "Nov 1, 2024"; .today is a Date
+       format_date_time = \(x, fmt) format(if (inherits(x, "Date")) x else as.Date(mdy(x, quiet = TRUE)), fmt),
        str_detect = str_detect, coalesce = coalesce),
   parent = baseenv()
 )
@@ -892,7 +896,6 @@ plant_checks <- bind_rows(
     ~plant,                  ~check,                                      ~description,
     "dup_same_enum",         "2.hfc_construct: duplicate",                "Same hh_id, two consented submissions by the same enumerator",
     "dup_diff_enum",         "2.hfc_construct: duplicate",                "Same hh_id, two consented submissions by different enumerators",
-    "old_formdef",           "5.hfc_logic: old_formdef",                  sprintf("formdef_version %.0f < current %.0f", OLD_FORMDEF, CURRENT_FORMDEF),
     "start_end_date",        "5.hfc_logic: start_end_date",               "starttime 23:35, endtime next day",
     "end_submission_date",   "5.hfc_logic: end_submission_date",          "SubmissionDate the day after endtime",
     "negative_duration",     "5.hfc_logic: negative_module_duration",     "stamp_c_2 < stamp_c_1 (c_duration_min < 0)",
@@ -901,13 +904,12 @@ plant_checks <- bind_rows(
     "duration_long",         "5.hfc_logic: duration_long",                sprintf("Consented survey of %d min (> DURATION_MAX = %d)", DUR_LONG_PLANT, DURATION_MAX),
     "rb_compliance",         "5.hfc_logic: readyboard_in_C_T2",           "readyboard_confirm = 1 in a C or T2 village",
     "nudge_outside",         "5.hfc_logic: nudge_outside_T2T3",           "SHS nudge answered in a C household",
-    "nudge_outside",         "5.hfc_logic: preload_shs_eligible_not_T2T3", "C household listed in shs_eligible.csv",
     "grid_usage_no_meter",   "5.hfc_logic: usage_without_meter",          "electricity_usage_confirm = 1 with meter_confirm = 0",
     "grid_observe_mismatch", "5.hfc_logic: observe_vs_meter_confirm",     "observe_electricity_connection != meter_confirm",
-    "shs_obs_mismatch",      "5.hfc_logic: obs_shs_without_shs_confirm",  "obs_shs = 1 with shs_confirm = 0",
-    "shs_number_gt3",        "5.hfc_logic: shs_number_gt3",               "shs_number = 5",
-    "phone_changed",         "5.hfc_logic: phone_changed",                "confirm_phonenumber = 0, new number in phonenumber_revise (count only)"
+    "shs_obs_mismatch",      "5.hfc_logic: obs_shs_without_shs_confirm",  "obs_shs = 1 with shs_confirm = 0"
   ),
+  # Planted in the data but not HFC logic checks (removed 2026-10-22): old_formdef, shs_number_gt3,
+  # phone_changed, and the C household in shs_eligible.csv (a one-time preload warning in script 2).
   tibble(plant = paste0("outlier_", OUTLIER_VARS), check = paste0("4.hfc_outliers: outlier_", OUTLIER_VARS),
          description = map_chr(OUTLIER_VARS, \(x) sprintf("High %s = %s", x,
                                                           chr(coalesce(amounts$outlier[match(x, amounts$var)], COUNT_OUTLIERS[x])))))
@@ -1006,6 +1008,7 @@ validation <- map_dfr(seq_len(nrow(check_fields)), \(j) {
     con_ok <- rep(TRUE, nrow(d))
     if (f$constraint != "") {
       d$.v <- if (f$base %in% c("integer", "decimal")) num(val) else val
+      d$.today <- as.Date(mdy_hms(wide$starttime))   # today() = the day the form was filled in
       con_ok <- !(filled & rel) | eval_lgl(con_to_r(f$constraint), d)
     }
     choice_ok <- rep(TRUE, nrow(d))
@@ -1061,7 +1064,6 @@ neg_mod <- function(a, b) num(ref[[b]]) - num(ref[[a]]) < 0
 observed <- bind_rows(
   ref |> filter(consent == "1") |> filter(n() > 1, .by = hh_id) |> transmute(KEY, check = "2.hfc_construct: duplicate"),
   outlier_hits,
-  ref |> filter(num(formdef_version) < CURRENT_FORMDEF) |> transmute(KEY, check = "5.hfc_logic: old_formdef"),
   ref |> filter(start_d != end_d) |> transmute(KEY, check = "5.hfc_logic: start_end_date"),
   ref |> filter(end_d != sub_d) |> transmute(KEY, check = "5.hfc_logic: end_submission_date"),
   ref |> filter((neg_mod("stamp_a_1", "stamp_a_2") | neg_mod("stamp_b_1", "stamp_b_2") |
@@ -1071,12 +1073,9 @@ observed <- bind_rows(
   ref |> filter(consent == "1", dur > DURATION_MAX) |> transmute(KEY, check = "5.hfc_logic: duration_long"),
   ref |> filter(readyboard_confirm == "1", treat %in% c("C", "T2")) |> transmute(KEY, check = "5.hfc_logic: readyboard_in_C_T2"),
   ref |> filter(!is.na(shs_willing), !treat %in% c("T2", "T3")) |> transmute(KEY, check = "5.hfc_logic: nudge_outside_T2T3"),
-  ref |> filter(elig, !treat %in% c("T2", "T3")) |> transmute(KEY, check = "5.hfc_logic: preload_shs_eligible_not_T2T3"),
   ref |> filter(electricity_usage_confirm == "1", meter_confirm == "0") |> transmute(KEY, check = "5.hfc_logic: usage_without_meter"),
   ref |> filter(consent == "1", observe_electricity_connection != meter_confirm) |> transmute(KEY, check = "5.hfc_logic: observe_vs_meter_confirm"),
-  ref |> filter(obs_shs == "1", shs_confirm == "0") |> transmute(KEY, check = "5.hfc_logic: obs_shs_without_shs_confirm"),
-  ref |> filter(num(shs_number) > 3) |> transmute(KEY, check = "5.hfc_logic: shs_number_gt3"),
-  ref |> filter(confirm_phonenumber == "0" | confirm_second_phonenumber == "0") |> transmute(KEY, check = "5.hfc_logic: phone_changed")
+  ref |> filter(obs_shs == "1", shs_confirm == "0") |> transmute(KEY, check = "5.hfc_logic: obs_shs_without_shs_confirm")
 ) |> distinct()
 
 missed     <- anti_join(exp_records |> select(KEY, check), observed, by = c("KEY", "check"))
