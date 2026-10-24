@@ -88,3 +88,13 @@ output_path <- file.path(DROPBOX_EAQIP, "datawork/Historical Expansion/outputs_r
 # Kazera's tracker of Readyboard Implementation by EDCL 
 READYBOARD_K <- file.path(DROPBOX_EAQIP, "intervention/Readyboard Implementation/Implementation tracker/Readyboard tracker by Village")
 
+#---------------------------------------
+# ASCENT phone survey
+# --------------------------------------
+
+#### Data Folder ####
+DATA_ASCENT_PRELOAD <- file.path(DROPBOX_ASCENT, "questionnaires/preload")
+
+#### Script Folder ####
+SCRIPT_ASCENT_PS <- file.path(GITHUB, "ASCENT/phone_survey/script")
+
