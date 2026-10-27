@@ -13,19 +13,23 @@
 
 # ---- 1. Config / constants ---------------------------------------------------
 
-ID_COLS <- c("KEY", "hh_id", "district", "sector", "cell", "village", "enumerator", "deviceid",
-             "pull_phonenumber", "phonenumber", "phonenumber_revise",
-             "pull_second_phonenumber", "second_phonenumber", "second_phonenumber_revise",
-             "meter_number")
+# Deidentified HFC: retain household IDs and survey metadata only; drop names, phones, GPS and media.
+ID_COLS <- c("KEY", "hh_id", "district", "sector", "cell", "village", "enumerator")
+DROP_IDENTIFYING_COLS <- c("first_name", "last_name", "hh_head_name", "deviceid",
+                          "devicephonenum", "pull_phonenumber", "phonenumber", "phonenumber_revise",
+                          "pull_second_phonenumber", "second_phonenumber", "second_phonenumber_revise",
+                          "meter_number", "meter_photo", "readyboard_photo", "shs_photo",
+                          "audio", "text_audit", "location", "obs_gps", "location-Accuracy", "obs_gps-Accuracy")
 MODULES <- c(a = "stamp_a", b = "stamp_b", c = "stamp_c", nudge = "stamp_nudge")
 
 
 # ---- 2. Helper functions -----------------------------------------------------
 
 read_preload <- function(file) {
-  read_csv(file.path(preload_dir, file), col_types = cols(.default = col_character()),
-           show_col_types = FALSE, name_repair = "unique_quiet") |>
+  df <- read_csv(file.path(preload_dir, file), col_types = cols(.default = col_character()),
+                 show_col_types = FALSE, name_repair = "unique_quiet") |>
     select(-starts_with("..."))
+  df |> select(-any_of(DROP_IDENTIFYING_COLS))
 }
 
 
@@ -50,7 +54,8 @@ FOLLOWUP <- map_chr(c(meter = "meter_confirm", readyboard = "readyboard_confirm"
 
 raw <- read_csv(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
                 col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(ID_COLS)), ID_COLS)),
-                show_col_types = FALSE, guess_max = 10000)
+                show_col_types = FALSE, guess_max = 10000) |>
+  select(-any_of(DROP_IDENTIFYING_COLS))
 
 enumerators  <- read_preload(ENUM_FILE) |> select(enumeratorid_key, enumerator_key)
 villages     <- read_preload("scope_villages.csv") |>
@@ -132,14 +137,14 @@ duration_data <- hfc_constr |>
 # door differs between submissions (likely a wrong hh_id) vs. a true repeat interview.
 duplicates <- hfc_constr |>
   filter(consented) |>
-  mutate(n = n(), name_differs = n_distinct(str_to_lower(paste(first_name, last_name))) > 1, .by = hh_id) |>
+  mutate(n = n(), .by = hh_id) |>
   filter(n > 1) |>
-  select(KEY, hh_id, n, name_differs, first_name, last_name, enumerator, enumerator_key,
+  select(KEY, hh_id, n, enumerator, enumerator_key,
          district_key, sector_key, cell_key, village_key, starttime, submissiondate) |>
   arrange(hh_id, starttime)
 
 add_flags(duplicates, "2.hfc_construct: duplicate",
-          detail = if_else(duplicates$name_differs, "head name differs", "same head name"))
+          detail = "multiple consented submissions for hh_id")
 
 hfc_outputs$duration_data <- duration_data
 hfc_outputs$duplicates    <- duplicates

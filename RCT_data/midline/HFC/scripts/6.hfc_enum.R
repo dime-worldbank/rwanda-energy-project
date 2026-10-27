@@ -2,8 +2,8 @@
 # 6.hfc_enum.R
 # Midline HFC: enumerator checks. Submissions per day, locate / consent /
 # completion rates, durations, and counts of duplicates, logic issues,
-# outliers and low-accuracy GPS points. Flags a consent rate below
-# CONSENT_TARGET and many short surveys.
+# and outliers. GPS accuracy is not used in deidentified HFCs. Flags a consent
+# rate below CONSENT_TARGET and many short surveys.
 #
 # Column names carry their thresholds (e.g. consent_rate_below_95), built from
 # the constants in 1.hfc_main.R.
@@ -20,7 +20,6 @@
 
 COL_SHORT       <- sprintf("n_short_under_%gmin", DURATION_MIN)
 COL_LONG        <- sprintf("n_long_over_%gmin", DURATION_MAX)
-COL_GPS         <- sprintf("n_gps_accuracy_over_%gm", GPS_ACCURACY_MAX)
 COL_LOW_CONSENT <- sprintf("consent_rate_below_%g", 100 * CONSENT_TARGET)
 COL_MANY_SHORT  <- sprintf("short_surveys_%d_or_more", SHORT_SURVEYS_ENUM_MIN)
 
@@ -32,11 +31,6 @@ enumerator_day <- hfc_constr |>
   arrange(submissiondate) |>
   mutate(submissiondate = format(submissiondate)) |>
   pivot_wider(names_from = submissiondate, values_from = n, values_fill = 0)
-
-# GPS accuracy (information only): observation point if consented, refusal point otherwise
-gps_low <- hfc_constr |>
-  mutate(accuracy = coalesce(`obs_gps-Accuracy`, `location-Accuracy`)) |>
-  filter(accuracy > GPS_ACCURACY_MAX)
 
 count_by_enum <- function(df, name) df |> count(enumerator, name = name)
 
@@ -60,8 +54,7 @@ enumerator_check <- hfc_constr |>
   left_join(count_by_enum(distinct(duplicates, enumerator, KEY), "n_duplicates"), by = "enumerator") |>
   left_join(count_by_enum(distinct(logic_data, enumerator, KEY), "n_logic_issue"), by = "enumerator") |>
   left_join(count_by_enum(distinct(outlier_data, enumerator, KEY), "n_outlier"), by = "enumerator") |>
-  left_join(count_by_enum(gps_low, "n_gps"), by = "enumerator") |>
-  mutate(across(c(n_duplicates, n_logic_issue, n_outlier, n_gps), \(x) coalesce(x, 0L)),
+  mutate(across(c(n_duplicates, n_logic_issue, n_outlier), \(x) coalesce(x, 0L)),
          flag_low_consent = consent_pct < 100 * CONSENT_TARGET,
          flag_many_short = n_short >= SHORT_SURVEYS_ENUM_MIN) |>
   left_join(enumerator_day, by = "enumerator") |>
@@ -74,7 +67,7 @@ add_flags(enumerator_check |> filter(flag_many_short), "6.hfc_enum: many_short_s
 
 # Explicit column names with their thresholds
 enumerator_check <- enumerator_check |>
-  rename(!!COL_SHORT := n_short, !!COL_LONG := n_long, !!COL_GPS := n_gps,
+  rename(!!COL_SHORT := n_short, !!COL_LONG := n_long,
          !!COL_LOW_CONSENT := flag_low_consent, !!COL_MANY_SHORT := flag_many_short)
 
 

@@ -72,7 +72,7 @@ hh_frame <- read_preload("contact_info.csv") |>
   left_join(admin_names, by = "villageid_key")
 
 hh_contacts <- read_preload("contact_info.csv") |>
-  select(hh_id = householdid_key, first_name, last_name, phone_clean, phone2_clean)
+  select(hh_id = householdid_key)
 
 nolocate_labels <- read_excel(form_path, "choices", col_types = "text", .name_repair = "unique_quiet") |>
   filter(list_name == "nolocate") |>
@@ -119,13 +119,12 @@ not_located <- hfc_constr |>
   filter(!any(located), .by = hh_id) |>
   arrange(hh_id, desc(starttime)) |>
   summarise(n_attempts = n(), last_attempt = first(submissiondate), last_enumerator = first(enumerator_key),
-            nolocate = first(nolocate), nolocate_other = first(nolocate_other), KEY = first(KEY), .by = hh_id) |>
+            nolocate = first(nolocate), KEY = first(KEY), .by = hh_id) |>
   left_join(nolocate_labels, by = "nolocate") |>
   left_join(hh_frame |> select(hh_id, treat, district_key, sector_key, cell_key, village_key), by = "hh_id") |>
-  left_join(hh_contacts, by = "hh_id") |>
-  select(hh_id, district_key, sector_key, cell_key, village_key, treat, first_name, last_name,
-         phone_clean, phone2_clean, n_attempts, last_attempt, last_enumerator,
-         nolocate, nolocate_label, nolocate_other, KEY) |>
+  select(hh_id, district_key, sector_key, cell_key, village_key, treat,
+         n_attempts, last_attempt, last_enumerator,
+         nolocate, nolocate_label, KEY) |>
   arrange(district_key, village_key, hh_id)
 
 

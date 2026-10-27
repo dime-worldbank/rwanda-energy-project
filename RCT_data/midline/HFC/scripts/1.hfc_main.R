@@ -36,34 +36,40 @@ source("PATHS.R")
 HFC_MODE <- "test"                               # "test" or "live"
 stopifnot(HFC_MODE %in% c("test", "live"))
 
-# Paths (only DROPBOX_EAQIP and ONEDRIVE_HFC_ML from PATHS.R; scripts 2-10 never build paths)
+FORM_ID     <- "REP_readyboard_test"             # TBD: production form id
+ENUM_FILE   <- if (HFC_MODE == "test") "test_enumerators.csv" else "enumerators.csv"
+
+# Deidentified HFC inputs are written by 0.hfc_deidentify.R and read here.
 form_path <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx")
 if (HFC_MODE == "test") {
-  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data")
-  preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data/preload")
-  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data/media")
+  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified")
+  preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified/preload")
+  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified/media")
   output_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output")
   archive_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/archive")
   checks_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/checks")
-  audio_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/audio_check")
 } else {
-  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/data")
-  preload_dir <- file.path(DROPBOX_EAQIP, "questionnaires/02-midline/02-CTO-preload")
-  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/data/media")
+  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified")
+  preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified/preload")
+  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified/media")
   output_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output")
   archive_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output/archive")
   checks_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output/checks")
-  audio_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output/audio_check")
+}
+if (!all(file.exists(c(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
+                      file.path(preload_dir, "scope_villages.csv"),
+                      file.path(preload_dir, "contact_info.csv"),
+                      file.path(preload_dir, "shs_eligible.csv"),
+                      file.path(preload_dir, ENUM_FILE))))) {
+  stop("Deidentified HFC inputs missing. Run RCT_data/midline/HFC/scripts/0.hfc_deidentify.R first.")
 }
 CONSTR_FILE <- file.path(output_dir, "hfc_constr.xlsx")             # current version only; old ones -> archive_dir
 DASH_FILE   <- file.path(output_dir, "HFC_midline_dashboard.xlsx")  # current version only; old ones -> archive_dir
-SHARE_FOLDER      <- c(test = "test", live = "main")                 # OneDrive folder per mode (pilot: TBD)
-share_dir         <- file.path(ONEDRIVE_HFC_ML, SHARE_FOLDER[[HFC_MODE]])  # shared dashboard (WBG OneDrive)
+SHARE_FOLDER      <- c(test = "test_deidentified", live = "main_deidentified")
+share_dir         <- file.path(ONEDRIVE_HFC_ML, SHARE_FOLDER[[HFC_MODE]])
 share_archive_dir <- file.path(share_dir, "archive")
 script_dir <- "RCT_data/midline/HFC/scripts"
 
-FORM_ID     <- "REP_readyboard_test"             # TBD: production form id
-ENUM_FILE   <- "test_enumerators.csv"            # TBD: rename to production file before launch
 TZ          <- "Africa/Kigali"                   # TBD: confirm export timezone on a real midline export
 
 if (HFC_MODE == "test") {
@@ -89,18 +95,15 @@ CONSENT_TARGET         <- 0.95                   # consent rate target (among lo
 COMPLETION_TARGET      <- 0.90
 LOGIC_TARGET           <- 0.05                   # share of submissions with a logic issue
 SHORT_SURVEYS_ENUM_MIN <- 3                      # TBD: "many short surveys" = at least this many per enumerator
-GPS_ACCURACY_MAX       <- 8                      # TBD: metres; information column only
-AUDIO_SAMPLE_N         <- 20                     # TBD: audio audits per day
 
 SPECIAL_CODES <- c(-77, -88)                     # set to NA in continuous variables only
 ARMS          <- c("C", "T1", "T2", "T3")
 RB_ARMS       <- c("T1", "T3")                   # arms offered the readyboard
 SHS_ARMS      <- c("T2", "T3")                   # arms offered the SHS nudge
 
-# Scripts, in run order
+# Scripts, in run order. Audio is disabled for deidentified HFCs.
 HFC_SCRIPTS <- c("2.hfc_construct.R", "3.hfc_admin.R", "4.hfc_outliers.R", "5.hfc_logic.R",
-                 "6.hfc_enum.R", "7.hfc_stats.R", "8.hfc_audio.R", "9.hfc_shs.R",
-                 "10.hfc_dashboard.R")
+                 "6.hfc_enum.R", "7.hfc_stats.R", "9.hfc_shs.R", "10.hfc_dashboard.R")
 
 
 # ---- 3. Helper functions -----------------------------------------------------
