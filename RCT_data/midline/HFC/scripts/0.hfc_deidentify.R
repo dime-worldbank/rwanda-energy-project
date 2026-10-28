@@ -31,7 +31,7 @@ t_start <- Sys.time()
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "test"                               # "test" or "live" (same as in 1.hfc_main.R)
+HFC_MODE <- "live"                               # "test" or "live" (same as in 1.hfc_main.R)
 stopifnot(HFC_MODE %in% c("test", "live"))
 
 FORM_ID   <- "REP_readyboard_test"               # TBD: production form id
