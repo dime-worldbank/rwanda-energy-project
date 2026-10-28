@@ -9,7 +9,7 @@
 #----------------------------
 rm(list = ls())
 library(pacman)
-pacman::p_load(here, readxl)
+pacman::p_load(here, readxl, readr)
 source(here("PATHS.R"))
 
 #----------------------------

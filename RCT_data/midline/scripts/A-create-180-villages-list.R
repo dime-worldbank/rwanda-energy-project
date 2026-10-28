@@ -13,8 +13,7 @@
 rm(list = ls())
 
 # Libraries 
-pacman::p_load(here, openxlsx, dplyr, tidyr, stringr, readr, knitr)
-
+pacman::p_load(here, openxlsx, dplyr, tidyr, stringr, readr, knitr, kableExtra)
 # Set path
 here() #should be individual-path/github/rwanda-energy-project
 source(here("PATHS.R"))
@@ -46,6 +45,9 @@ baseline_treatment <- read.xlsx(
 #-----------#
 # Analysis
 #-----------#
+
+# Step 0 ####
+# Breakdown of the treatment assignments of villages and households by district
 
 # Step 1 ####
 # Pull sample villages from baseline sample
@@ -120,3 +122,25 @@ writeLines(
     ),
   file.path(DATA_ML_SCOPE, "A-treatment-distribution.tex")
 )
+
+# Baseline - taking from midline column but named baseline 
+# because in the end the baseline (after attrition) have data for 180
+tbl <- treatment_dist %>%
+  select(treat, midline) %>%
+  kbl(
+    format    = "latex",
+    booktabs  = TRUE,
+    col.names = c("Treatment", "Baseline"),
+    align     = "lr"
+  ) %>%
+  row_spec(4, hline_after = TRUE)
+
+doc <- c(
+  "\\documentclass{standalone}",
+  "\\usepackage{booktabs}",
+  "\\begin{document}",
+  as.character(tbl),
+  "\\end{document}"
+)
+
+writeLines(doc, file.path(DATA_ML_SCOPE, "180-vill-treat-distribution.tex"))

@@ -108,8 +108,8 @@ villages_180 <- read.csv (
   file.path(DATA_CTO_ML, "A-villages-180.csv")
 )
 
-preload_data <- read.csv(
+pre_load_data <- read.csv(
   # n=1973, 1973 unique households across 180 villages 
   # output of A-create-primary-phone-preload.R
-  file.path(DATA_CTO_ML, "A-surveycto-preload-data.csv"))
+  file.path(DATA_ML_PRELOAD, "contact_info.csv"))
 
