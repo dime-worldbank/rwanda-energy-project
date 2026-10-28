@@ -34,7 +34,7 @@ source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "test"                               # "test" or "live"
+HFC_MODE <- "live"                               # "test" or "live"
 stopifnot(HFC_MODE %in% c("test", "live"))
 
 FORM_ID     <- "REP_readyboard_test"             # TBD: production form id
