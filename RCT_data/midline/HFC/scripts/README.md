@@ -9,8 +9,14 @@ Rscript RCT_data/midline/HFC/scripts/1.hfc_main.R      # from the repo root
 
 Set `HFC_MODE` at the top of `1.hfc_main.R`: `"test"` reads the synthetic data
 (see [../test/README.md](../test/README.md)), `"live"` reads the real export.
-The pipeline reads deidentified inputs written by `0.hfc_deidentify.R`, which
-keeps `hh_id` and strips names, phone numbers, GPS and media paths.
+The pipeline reads deidentified inputs written by `0.hfc_deidentify.R` (rules in `hfc_privacy.R`).
+It uses an **allowlist**: only form fields that are numbers, dates, choices or calculates are kept.
+Names, phones, GPS (including `-Latitude`-style sub-columns), other free text (`comment`), audio,
+photos, text audits and device ids are dropped. `hh_id` and the treatment arm are kept. The preload
+files are cut to the columns the HFC needs (`household_frame.csv`: `householdid_key`, `villageid_key`,
+`treat`). Scripts 1-10 stop if an input still has an identifying column. "Other (specify)" text
+fields (`*_other`) are kept on purpose.
+Run `0.hfc_deidentify.R` first, and again after each new export.
 All paths, targets and thresholds are set in `1.hfc_main.R`.
 
 ## What each script does

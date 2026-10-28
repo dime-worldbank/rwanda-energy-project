@@ -13,23 +13,18 @@
 
 # ---- 1. Config / constants ---------------------------------------------------
 
-# Deidentified HFC: retain household IDs and survey metadata only; drop names, phones, GPS and media.
 ID_COLS <- c("KEY", "hh_id", "district", "sector", "cell", "village", "enumerator")
-DROP_IDENTIFYING_COLS <- c("first_name", "last_name", "hh_head_name", "deviceid",
-                          "devicephonenum", "pull_phonenumber", "phonenumber", "phonenumber_revise",
-                          "pull_second_phonenumber", "second_phonenumber", "second_phonenumber_revise",
-                          "meter_number", "meter_photo", "readyboard_photo", "shs_photo",
-                          "audio", "text_audit", "location", "obs_gps", "location-Accuracy", "obs_gps-Accuracy")
 MODULES <- c(a = "stamp_a", b = "stamp_b", c = "stamp_c", nudge = "stamp_nudge")
 
 
 # ---- 2. Helper functions -----------------------------------------------------
 
+# Reads a deidentified preload file (from 0.hfc_deidentify.R); stops if it holds identifying columns
 read_preload <- function(file) {
   df <- read_csv(file.path(preload_dir, file), col_types = cols(.default = col_character()),
-                 show_col_types = FALSE, name_repair = "unique_quiet") |>
-    select(-starts_with("..."))
-  df |> select(-any_of(DROP_IDENTIFYING_COLS))
+                 show_col_types = FALSE, name_repair = "unique_quiet")
+  assert_no_identifying_cols(names(df), file)
+  df
 }
 
 
@@ -52,22 +47,23 @@ FOLLOWUP <- map_chr(c(meter = "meter_confirm", readyboard = "readyboard_confirm"
   if (length(x) == 0) NA_character_ else x[1]
 })
 
-raw <- read_csv(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
+export_path <- file.path(data_dir, paste0(FORM_ID, "_WIDE.csv"))
+assert_no_identifying_cols(names(read_csv(export_path, n_max = 0, show_col_types = FALSE)), "Survey export")
+raw <- read_csv(export_path,
                 col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(ID_COLS)), ID_COLS)),
-                show_col_types = FALSE, guess_max = 10000) |>
-  select(-any_of(DROP_IDENTIFYING_COLS))
+                show_col_types = FALSE, guess_max = 10000)
 
-enumerators  <- read_preload(ENUM_FILE) |> select(enumeratorid_key, enumerator_key)
+enumerators  <- read_preload("enumerators.csv") |> select(enumeratorid_key, enumerator_key)
 villages     <- read_preload("scope_villages.csv") |>
   select(villageid_key, district_key, sector_key, cell_key, village_key)
-contact_info <- read_preload("contact_info.csv") |> select(householdid_key, treat)
+household_frame <- read_preload("household_frame.csv") |> select(householdid_key, treat)
 shs_eligible <- read_preload("shs_eligible.csv") |> select(householdid_key)
 
 message(sprintf("      export: %d submissions x %d columns", nrow(raw), ncol(raw)))
 
 # One-time preload check: SHS-eligible households must be in an SHS arm
 elig_wrong_arm <- shs_eligible |>
-  left_join(contact_info, by = "householdid_key") |>
+  left_join(household_frame, by = "householdid_key") |>
   filter(!treat %in% SHS_ARMS)
 if (nrow(elig_wrong_arm) > 0) {
   warning(nrow(elig_wrong_arm), " household(s) in shs_eligible.csv are not in T2/T3: ",
@@ -95,7 +91,7 @@ hfc_constr <- hfc_constr |>
 hfc_constr <- hfc_constr |>
   left_join(enumerators, by = c("enumerator" = "enumeratorid_key")) |>
   left_join(villages, by = c("village" = "villageid_key")) |>
-  left_join(contact_info, by = c("hh_id" = "householdid_key")) |>
+  left_join(household_frame, by = c("hh_id" = "householdid_key")) |>
   mutate(preload_shs_eligible = hh_id %in% shs_eligible$householdid_key,
          # SHS nudge asked (relevance of the form's nosolar group)
          nudge_eligible = pull_shs_eligible %in% 1 & shs_confirm %in% 0 & electrified %in% 0,
@@ -105,7 +101,7 @@ hfc_constr <- hfc_constr |>
          survey_min = survey_duration / 60)
 
 n_no_arm <- sum(is.na(hfc_constr$treat))
-if (n_no_arm > 0) warning(n_no_arm, " submissions have an hh_id not found in contact_info.csv (no treatment arm).")
+if (n_no_arm > 0) warning(n_no_arm, " submissions have an hh_id not found in household_frame.csv (no treatment arm).")
 
 
 # ---- 5. Module durations -----------------------------------------------------

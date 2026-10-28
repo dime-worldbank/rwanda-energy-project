@@ -43,7 +43,7 @@ A test run passes when the HFC flags match `expected_flags.csv`: no missed flags
 - `DURATION_MIN = 15`, `DURATION_MAX = 90` minutes, on `survey_duration / 60`, consented submissions only.
 - Outliers: |z| > 3 on log(1 + x), pooled over all submissions (`F2_4` over all repeat instances).
 - Enumerator flags: consent rate among located < 95%; at least 3 consented surveys < `DURATION_MIN`.
-- Treatment arm is not in the export: join `treat` from `preload/contact_info.csv` on `hh_id = householdid_key`.
+- Treatment arm is not in the export: join `treat` from the deidentified `preload/household_frame.csv` (made by `scripts/0.hfc_deidentify.R` from `contact_info.csv`) on `hh_id = householdid_key`.
 - Datetimes use the SurveyCTO export format `Oct 12, 2026 8:03:11 AM` (parse with `mdy_hms()`); dates `Nov 1, 2024`.
 - One household refuses and completes on a revisit: not a duplicate (only one consented submission).
 

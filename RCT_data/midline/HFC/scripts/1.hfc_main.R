@@ -29,6 +29,7 @@ options(scipen = 999)
 
 if (!file.exists("PATHS.R")) stop("Run this script from the repo root (PATHS.R not found).")
 source("PATHS.R")
+source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 
 # ---- 2. Config / constants ---------------------------------------------------
@@ -37,7 +38,6 @@ HFC_MODE <- "test"                               # "test" or "live"
 stopifnot(HFC_MODE %in% c("test", "live"))
 
 FORM_ID     <- "REP_readyboard_test"             # TBD: production form id
-ENUM_FILE   <- if (HFC_MODE == "test") "test_enumerators.csv" else "enumerators.csv"
 
 # Deidentified HFC inputs are written by 0.hfc_deidentify.R and read here.
 form_path <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx")
@@ -58,9 +58,9 @@ if (HFC_MODE == "test") {
 }
 if (!all(file.exists(c(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
                       file.path(preload_dir, "scope_villages.csv"),
-                      file.path(preload_dir, "contact_info.csv"),
+                      file.path(preload_dir, "household_frame.csv"),
                       file.path(preload_dir, "shs_eligible.csv"),
-                      file.path(preload_dir, ENUM_FILE))))) {
+                      file.path(preload_dir, "enumerators.csv"))))) {
   stop("Deidentified HFC inputs missing. Run RCT_data/midline/HFC/scripts/0.hfc_deidentify.R first.")
 }
 CONSTR_FILE <- file.path(output_dir, "hfc_constr.xlsx")             # current version only; old ones -> archive_dir
