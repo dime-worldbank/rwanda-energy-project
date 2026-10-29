@@ -4,29 +4,39 @@ High-frequency checks for the midline SurveyCTO survey.
 It is ran everyday to ensure quality data collection, monitoring possible errors, and performance. 
 This README.md includes steps on how to run HFCs and create dashboard, and summaries for each scripts. 
 
-```
-How to run HFC
-```
+## How to run HFC
+
 When running it for the first time on your local computers, follow below steps. 
 
-(1) Ensure relative folder paths are defined. 
+### (1) Define path
+Ensure relative folder paths are defined. 
 Go to `Github/rwanda-energy-project/PATHS.R` to define DROPBOX, GITHUB, ONEDRIVE paths reflecting the local file system.
 The macro folder paths are used throughout the scripts, so without it, it will show the PATHS does not exist.
 
-(2) Download the Survey in WIDE format.
+###(2) Download the Survey response in WIDE format.
+
 Go to SurveyCTO website, choose 4. Export tab, and download data for REP_readyboard_test. 
 When downloading choose 'Wide format(default)' and REP_readyboard_test.csv will download.
-(For data of 'actual data collection period' and not pilot period) Move this data to below folder 
+
+(For data of 'actual data collection period' and not pilot period) 
+Move this data to below folder 
 `C:\Users\wbXXXXXX\Dropbox\Rwanda Energy\EAQIP\datawork\HFC_midline\data`
 
-You may see a downloaded data of previous date exists in the folder. In that case move any previous data (indicated by the date in title) to `_!-archived` folder.  
+You may see a downloaded data of previous date exists in the folder. 
+In that case move any previous data (indicated by the date in title) to `_!-archived` folder.  
+
 Only the most up-to-date data should live under data folder, and change the most recent csv file name to 'REP_readyboard_test_WIDE_YYMMDD.csv'.
 YYMMDD should be the latest data collection date. 
 
-(3) Now we run two HFC scripts `0.hfc_deidentify.R` and `1.hfc_main.R`. 
+###(3) Now we run two HFC scripts 
+
+`0.hfc_deidentify.R` and `1.hfc_main.R`. 
 As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as phone numbers and enumerator name) and script 1 runs all the other scripts from 2 to 10, creating midline dashboard. 
 
-(4) Midline dashboard can be found at 
+### (4) Midline dashboard
+
+The output will be saved in below folder in excel sheets titled `HFC_midline_dashboard.xlsx`.
+
 `C:\Users\wbXXXXXX\Dropbox\Rwanda Energy\EAQIP\datawork\HFC_midline\output`
 
 Only the most up-to-date dashboard will be found under `output` folder and the script will automatically move outdated dashboard to `output\archive` folder.
