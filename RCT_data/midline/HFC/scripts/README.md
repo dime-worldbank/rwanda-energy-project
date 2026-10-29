@@ -31,7 +31,30 @@ YYMMDD should be the latest data collection date.
 ### (3) Now we run two HFC scripts 
 
 `0.hfc_deidentify.R` and `1.hfc_main.R`. 
-As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as phone numbers and enumerator name) and script 1 runs all the other scripts from 2 to 10, creating midline dashboard. 
+
+For each script, Section 2 (Config/ constants) sets one of the three possible HFCs mode -- test, pilot, and live -- that one should adjust as per purpose of the checks. 
+
+-- Test (no longer needed) mode was used to test the pipeline in pre-pilot period. It used synthetic data and the dashboard does not indicate pipeline malfunctions and since have been archived. 
+
+-- Pilot (October 27th, 28th) mode read and produced dashboard for 75 survey data from two days of survey pilot, which happened in Gicumbi province.
+
+-- Live (Actual data collection, from October 29th) mode sets the data path for actual data collection by the survey firm. This mode is what should be selected in Section 2. Ensure that HFC_MODE is set to live in this case. 
+
+```
+# ---- 2. Config / constants ---------------------------------------------------
+
+HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 29 -) "
+stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
+
+FORM_ID <- "REP_readyboard_test"
+
+
+```
+
+As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as names, phone numbers, national IDs, GPS coordinates -- full list of deidentified variables are in `hfc_privacy.R`). 
+
+Script 1 runs all the other scripts from 2 to 10, creating midline dashboard tracking aggergated data collection and breakdown by variables of interest.
+
 
 ### (4) Midline dashboard
 
