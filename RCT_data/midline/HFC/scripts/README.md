@@ -13,7 +13,7 @@ Ensure relative folder paths are defined.
 Go to `Github/rwanda-energy-project/PATHS.R` to define DROPBOX, GITHUB, ONEDRIVE paths reflecting the local file system.
 The macro folder paths are used throughout the scripts, so without it, it will show the PATHS does not exist.
 
-###(2) Download the Survey response in WIDE format.
+### (2) Download the Survey response in WIDE format.
 
 Go to SurveyCTO website, choose 4. Export tab, and download data for REP_readyboard_test. 
 When downloading choose 'Wide format(default)' and REP_readyboard_test.csv will download.
@@ -28,7 +28,7 @@ In that case move any previous data (indicated by the date in title) to `_!-arch
 Only the most up-to-date data should live under data folder, and change the most recent csv file name to 'REP_readyboard_test_WIDE_YYMMDD.csv'.
 YYMMDD should be the latest data collection date. 
 
-###(3) Now we run two HFC scripts 
+### (3) Now we run two HFC scripts 
 
 `0.hfc_deidentify.R` and `1.hfc_main.R`. 
 As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as phone numbers and enumerator name) and script 1 runs all the other scripts from 2 to 10, creating midline dashboard. 
