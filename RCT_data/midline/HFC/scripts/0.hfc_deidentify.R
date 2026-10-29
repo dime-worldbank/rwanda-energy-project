@@ -31,13 +31,8 @@ t_start <- Sys.time()
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-<<<<<<< Updated upstream
-HFC_MODE <- "live"                               # "test" or "live" (same as in 1.hfc_main.R)
-stopifnot(HFC_MODE %in% c("test", "live"))
-=======
-HFC_MODE <- "pilot"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 29 -) "
+HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 29 -) "
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
->>>>>>> Stashed changes
 
 FORM_ID <- "REP_readyboard_test"
 

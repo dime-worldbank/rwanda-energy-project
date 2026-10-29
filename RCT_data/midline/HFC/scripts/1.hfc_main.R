@@ -34,13 +34,8 @@ source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-<<<<<<< Updated upstream
-HFC_MODE <- "live"                               # "test" or "live"
-stopifnot(HFC_MODE %in% c("test", "live"))
-=======
 HFC_MODE <- "pilot"                    # "test", "pilot", or "live"
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
->>>>>>> Stashed changes
 
 FORM_ID <- "REP_readyboard_test"
 
