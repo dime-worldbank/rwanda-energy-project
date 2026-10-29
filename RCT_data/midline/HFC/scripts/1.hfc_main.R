@@ -11,7 +11,7 @@
 #
 # Test mode reads the synthetic data (RCT_data/midline/HFC/test/README.md).
 #
-# Author: Yeji (using Claude) · Last modified: 2026-10-22
+# Author: Yeji (using Claude) · Last modified: 2026-10-29
 # ==============================================================================
 
 
@@ -34,77 +34,330 @@ source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
+<<<<<<< Updated upstream
 HFC_MODE <- "live"                               # "test" or "live"
 stopifnot(HFC_MODE %in% c("test", "live"))
+=======
+HFC_MODE <- "pilot"                    # "test", "pilot", or "live"
+stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
+>>>>>>> Stashed changes
 
-FORM_ID     <- "REP_readyboard_test"             # TBD: production form id
+FORM_ID <- "REP_readyboard_test"
 
-# Deidentified HFC inputs are written by 0.hfc_deidentify.R and read here.
-form_path <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx")
-if (HFC_MODE == "test") {
-  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified")
-  preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified/preload")
-  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/deidentified/media")
-  output_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output")
-  archive_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/archive")
-  checks_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/checks")
-} else {
-  data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified")
-  preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified/preload")
-  media_dir   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/deidentified/media")
-  output_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output")
-  archive_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output/archive")
-  checks_dir  <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/output/checks")
+
+# ---- 2.1 Helper: locate active live form definition --------------------------
+
+find_active_live_form <- function() {
+  
+  form_dir <- file.path(
+    DROPBOX_EAQIP,
+    "questionnaires/02-midline"
+  )
+  
+  form_pattern <- paste0(
+    "^REP_questionnaire_SurveyCTO_prep_",
+    "[0-9]{6}",
+    "\\.xlsx$"
+  )
+  
+  active_forms <- list.files(
+    form_dir,
+    pattern = form_pattern,
+    full.names = TRUE,
+    recursive = FALSE
+  )
+  
+  if (length(active_forms) == 0) {
+    stop(
+      "No active live form definition found in:\n",
+      form_dir,
+      "\nExpected filename like:\n",
+      "REP_questionnaire_SurveyCTO_prep_261028.xlsx"
+    )
+  }
+  
+  if (length(active_forms) > 1) {
+    stop(
+      "Multiple active live form definitions found in:\n",
+      form_dir,
+      "\nMove all older forms to !-archived-survey:\n",
+      paste(
+        paste0("  - ", basename(active_forms)),
+        collapse = "\n"
+      )
+    )
+  }
+  
+  active_forms[[1]]
 }
-if (!all(file.exists(c(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")),
-                      file.path(preload_dir, "scope_villages.csv"),
-                      file.path(preload_dir, "household_frame.csv"),
-                      file.path(preload_dir, "shs_eligible.csv"),
-                      file.path(preload_dir, "enumerators.csv"))))) {
-  stop("Deidentified HFC inputs missing. Run RCT_data/midline/HFC/scripts/0.hfc_deidentify.R first.")
-}
-CONSTR_FILE <- file.path(output_dir, "hfc_constr.xlsx")             # current version only; old ones -> archive_dir
-DASH_FILE   <- file.path(output_dir, "HFC_midline_dashboard.xlsx")  # current version only; old ones -> archive_dir
-SHARE_FOLDER      <- c(test = "test_deidentified", live = "main_deidentified")
-share_dir         <- file.path(ONEDRIVE_HFC_ML, SHARE_FOLDER[[HFC_MODE]])
-share_archive_dir <- file.path(share_dir, "archive")
+
+
+# ---- 2.2 Mode-specific configuration -----------------------------------------
+
+MODE_CONFIG <- switch(
+  HFC_MODE,
+  
+  test = list(
+    form_path = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx"
+    ),
+    
+    data_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/test/deidentified"
+    ),
+    
+    output_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/test/output"
+    ),
+    
+    share_folder = "test_deidentified",
+    
+    fieldwork_start = as.Date("2026-10-12"),
+    
+    expected_formdef = NA_real_
+  ),
+  
+  pilot = list(
+    form_path = file.path(
+      DROPBOX_EAQIP,
+      paste0(
+        "questionnaires/02-midline/!-archived-survey/",
+        "REP_questionnaire_SurveyCTO_26102027.xlsx"
+      )
+    ),
+    
+    data_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/pilot/deidentified"
+    ),
+    
+    output_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/pilot/output"
+    ),
+    
+    share_folder = "pilot_deidentified",
+    
+    fieldwork_start = as.Date("2026-10-27"),
+    
+    expected_formdef = 2610271341
+  ),
+  
+  live = list(
+    form_path = find_active_live_form(),
+    
+    data_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/deidentified"
+    ),
+    
+    output_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/output"
+    ),
+    
+    share_folder = "main_deidentified",
+    
+    fieldwork_start = as.Date("2026-10-28"),
+    
+    # Read the current version directly from the active live form definition.
+    expected_formdef = NA_real_
+  )
+)
+
+
+# ---- 2.3 Apply selected configuration ----------------------------------------
+
+form_path <- MODE_CONFIG$form_path
+
+data_dir <- MODE_CONFIG$data_dir
+preload_dir <- file.path(data_dir, "preload")
+media_dir <- file.path(data_dir, "media")
+
+output_dir <- MODE_CONFIG$output_dir
+archive_dir <- file.path(output_dir, "archive")
+checks_dir <- file.path(output_dir, "checks")
+
+share_dir <- file.path(
+  ONEDRIVE_HFC_ML,
+  MODE_CONFIG$share_folder
+)
+
+share_archive_dir <- file.path(
+  share_dir,
+  "archive"
+)
+
 script_dir <- "RCT_data/midline/HFC/scripts"
 
-TZ          <- "Africa/Kigali"                   # TBD: confirm export timezone on a real midline export
+FIELDWORK_START <- MODE_CONFIG$fieldwork_start
 
-if (HFC_MODE == "test") {
-  # Test values assumed by the synthetic answer key (test/README.md)
-  FIELDWORK_START <- as.Date("2026-10-12")
-  CURRENT_FORMDEF <- as.numeric(read_excel(form_path, "settings", col_types = "text")$version[1])
-  DURATION_MIN    <- 15
-  DURATION_MAX    <- 90
-} else {
-  FIELDWORK_START <- as.Date(NA)                 # TBD (date)
-  CURRENT_FORMDEF <- NA_real_                    # TBD (numeric, yymmddHHMM)
-  DURATION_MIN    <- NA_real_                    # TBD from pilot (minutes)
-  DURATION_MAX    <- NA_real_                    # TBD from pilot (minutes)
+TZ <- "Africa/Kigali"
+
+DURATION_MIN <- 15
+DURATION_MAX <- 90
+
+
+# ---- 2.4 Validate form definition --------------------------------------------
+
+if (!file.exists(form_path)) {
+  stop(
+    "Form definition not found:\n",
+    form_path
+  )
 }
-if (anyNA(c(FIELDWORK_START, CURRENT_FORMDEF, DURATION_MIN, DURATION_MAX))) {
-  stop("Config constants still TBD for HFC_MODE = '", HFC_MODE, "'.")
+
+message(
+  "      form definition: ",
+  basename(form_path)
+)
+
+CURRENT_FORMDEF <- suppressWarnings(
+  as.numeric(
+    read_excel(
+      form_path,
+      sheet = "settings",
+      col_types = "text"
+    )$version[1]
+  )
+)
+
+if (is.na(CURRENT_FORMDEF)) {
+  stop(
+    "Could not read the form version from:\n",
+    form_path
+  )
 }
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-OUTLIER_SD             <- 3                      # +-3 SD on log(1 + x)
-LOCATE_TARGET          <- 0.90                   # data quality targets (AGENTS.md)
-CONSENT_TARGET         <- 0.95                   # consent rate target (among located), also per enumerator
-COMPLETION_TARGET      <- 0.90
-LOGIC_TARGET           <- 0.05                   # share of submissions with a logic issue
-SHORT_SURVEYS_ENUM_MIN <- 3                      # TBD: "many short surveys" = at least this many per enumerator
+EXPECTED_FORMDEF <- MODE_CONFIG$expected_formdef
 
-SPECIAL_CODES <- c(-77, -88)                     # set to NA in continuous variables only
-ARMS          <- c("C", "T1", "T2", "T3")
-RB_ARMS       <- c("T1", "T3")                   # arms offered the readyboard
-SHS_ARMS      <- c("T2", "T3")                   # arms offered the SHS nudge
+if (
+  !is.na(EXPECTED_FORMDEF) &&
+  CURRENT_FORMDEF != EXPECTED_FORMDEF
+) {
+  stop(
+    "Unexpected form version. Expected ",
+    EXPECTED_FORMDEF,
+    "; found ",
+    CURRENT_FORMDEF,
+    " in:\n",
+    form_path
+  )
+}
 
-# Scripts, in run order. Audio is disabled for deidentified HFCs.
-HFC_SCRIPTS <- c("2.hfc_construct.R", "3.hfc_admin.R", "4.hfc_outliers.R", "5.hfc_logic.R",
-                 "6.hfc_enum.R", "7.hfc_stats.R", "9.hfc_shs.R", "10.hfc_dashboard.R")
 
+# ---- 2.5 Validate deidentified HFC inputs ------------------------------------
+
+required_inputs <- c(
+  file.path(
+    data_dir,
+    paste0(FORM_ID, "_WIDE.csv")
+  ),
+  file.path(
+    preload_dir,
+    "scope_villages.csv"
+  ),
+  file.path(
+    preload_dir,
+    "household_frame.csv"
+  ),
+  file.path(
+    preload_dir,
+    "shs_eligible.csv"
+  ),
+  file.path(
+    preload_dir,
+    "enumerators.csv"
+  )
+)
+
+missing_inputs <- required_inputs[
+  !file.exists(required_inputs)
+]
+
+if (length(missing_inputs) > 0) {
+  stop(
+    "Deidentified HFC inputs missing:\n",
+    paste(
+      paste0("  - ", missing_inputs),
+      collapse = "\n"
+    ),
+    "\nRun RCT_data/midline/HFC/scripts/",
+    "0.hfc_deidentify.R first."
+  )
+}
+
+if (
+  is.na(FIELDWORK_START) ||
+  anyNA(
+    c(
+      CURRENT_FORMDEF,
+      DURATION_MIN,
+      DURATION_MAX
+    )
+  )
+) {
+  stop(
+    "Config constants still TBD for HFC_MODE = '",
+    HFC_MODE,
+    "'."
+  )
+}
+
+
+# ---- 2.6 Output paths ---------------------------------------------------------
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+CONSTR_FILE <- file.path(
+  output_dir,
+  "hfc_constr.xlsx"
+)
+
+DASH_FILE <- file.path(
+  output_dir,
+  "HFC_midline_dashboard.xlsx"
+)
+
+
+# ---- 2.7 HFC constants --------------------------------------------------------
+
+OUTLIER_SD <- 3
+
+LOCATE_TARGET <- 0.90
+CONSENT_TARGET <- 0.95
+COMPLETION_TARGET <- 0.90
+LOGIC_TARGET <- 0.05
+
+SHORT_SURVEYS_ENUM_MIN <- 3
+
+SPECIAL_CODES <- c(-77, -88)
+
+ARMS <- c("C", "T1", "T2", "T3")
+RB_ARMS <- c("T1", "T3")
+SHS_ARMS <- c("T2", "T3")
+
+
+# ---- 2.8 Scripts to run -------------------------------------------------------
+
+# Audio is disabled for deidentified HFCs, so 8.hfc_audio.R is omitted.
+HFC_SCRIPTS <- c(
+  "2.hfc_construct.R",
+  "3.hfc_admin.R",
+  "4.hfc_outliers.R",
+  "5.hfc_logic.R",
+  "6.hfc_enum.R",
+  "7.hfc_stats.R",
+  "9.hfc_shs.R",
+  "10.hfc_dashboard.R"
+)
 
 # ---- 3. Helper functions -----------------------------------------------------
 
