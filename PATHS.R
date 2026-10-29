@@ -26,6 +26,9 @@ if (Sys.getenv("USERNAME") == "wb636130"){
   ONEDRIVE <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda_Energy_Project")
 }
 
+# Tanay
+# TBD
+
 DROPBOX_EAQIP <- file.path(DROPBOX, "EAQIP")
 DROPBOX_ASCENT <- file.path(DROPBOX, "ASCENT")
 
