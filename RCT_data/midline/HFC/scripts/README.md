@@ -45,10 +45,6 @@ For each script, Section 2 (Config/ constants) sets one of the three possible HF
 
 HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 29 -) "
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
-
-FORM_ID <- "REP_readyboard_test"
-
-
 ```
 
 As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as names, phone numbers, national IDs, GPS coordinates -- full list of deidentified variables are in `hfc_privacy.R`). 
@@ -64,21 +60,7 @@ The output will be saved in below folder in excel sheets titled `HFC_midline_das
 
 Only the most up-to-date dashboard will be found under `output` folder and the script will automatically move outdated dashboard to `output\archive` folder.
 
-```
-Rscript RCT_data/midline/HFC/scripts/1.hfc_main.R      # from the repo root
-```
-
-Set `HFC_MODE` at the top of `1.hfc_main.R`: `"test"` reads the synthetic data
-(see [../test/README.md](../test/README.md)), `"live"` reads the real export.
-The pipeline reads deidentified inputs written by `0.hfc_deidentify.R` (rules in `hfc_privacy.R`).
-It uses an **allowlist**: only form fields that are numbers, dates, choices or calculates are kept.
-Names, phones, GPS (including `-Latitude`-style sub-columns), other free text (`comment`), audio,
-photos, text audits and device ids are dropped. `hh_id` and the treatment arm are kept. The preload
-files are cut to the columns the HFC needs (`household_frame.csv`: `householdid_key`, `villageid_key`,
-`treat`). Scripts 1-10 stop if an input still has an identifying column. "Other (specify)" text
-fields (`*_other`) are kept on purpose.
-Run `0.hfc_deidentify.R` first, and again after each new export.
-All paths, targets and thresholds are set in `1.hfc_main.R`.
+(TODO - add folder structure) 
 
 ## What each script does
 
