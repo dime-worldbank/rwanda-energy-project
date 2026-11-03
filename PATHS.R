@@ -24,12 +24,26 @@ if (Sys.getenv("USERNAME") == "wb636130"){
   DROPBOX <- file.path("C:/Users/wb636130/Dropbox/Rwanda Energy")
   GITHUB <- file.path("C:/Users/wb636130/OneDrive - WBG/Documents/Github/rwanda-energy-project")
   ONEDRIVE <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda_Energy_Project")
+  SHARED_EAQIP <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared")
 }
 
-# Tanay
-# TBD
+# Tanay work (no Dropbox on WBG machines; midline HFC data is in SHARED_EAQIP)
+if (Sys.getenv("USERNAME") == "wb513278"){
+  DROPBOX <- NA_character_
+  GITHUB <- file.path("C:/Users/wb513278/OneDrive - WBG/Documents/GitHub/main/rwanda-energy-project")
+  ONEDRIVE <- file.path("C:/Users/wb513278/OneDrive - WBG/Rwanda Energy Project")
+  SHARED_EAQIP <- file.path(ONEDRIVE, "EAQIP_HFC_shared")
+}
+
+if (!exists("GITHUB")) {
+  stop("No paths set for user '", Sys.getenv("USERNAME"), "'. Add a block for this user in PATHS.R.")
+}
 
 DROPBOX_EAQIP <- file.path(DROPBOX, "EAQIP")
+
+# Shared OneDrive folder for the midline HFC (same subfolders as DROPBOX_EAQIP).
+# Users who have not set SHARED_EAQIP above keep reading from Dropbox.
+if (!exists("SHARED_EAQIP")) SHARED_EAQIP <- DROPBOX_EAQIP
 DROPBOX_ASCENT <- file.path(DROPBOX, "ASCENT")
 
 # WBG OneDrive: files shared with the team and the survey firm

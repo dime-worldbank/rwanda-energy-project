@@ -75,7 +75,7 @@ if (nrow(elig_wrong_arm) > 0) {
 
 # Dates (bug 3 fixed: one documented format; TBD confirm on a real midline export)
 hfc_constr <- raw |>
-  mutate(across(c(SubmissionDate, starttime, endtime), \(x) mdy_hms(x, tz = TZ)),
+  mutate(across(c(SubmissionDate, starttime, endtime), \(x) with_tz(mdy_hms(x, tz = EXPORT_TZ), TZ)),
          submissiondate = as_date(SubmissionDate),
          startdate = as_date(starttime),
          enddate = as_date(endtime)) |>

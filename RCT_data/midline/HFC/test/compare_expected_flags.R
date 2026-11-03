@@ -24,9 +24,9 @@ source("PATHS.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-data_dir     <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data")
-outputs_file <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/HFC_midline_dashboard.xlsx")
-flags_file   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/output/checks/hfc_flags.csv")
+data_dir     <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/synthetic_data")
+outputs_file <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/output/HFC_midline_dashboard.xlsx")
+flags_file   <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/output/checks/hfc_flags.csv")
 
 
 # ---- 3. Helper functions -----------------------------------------------------
