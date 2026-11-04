@@ -41,6 +41,7 @@ A test run passes when the HFC flags match `expected_flags.csv`: no missed flags
 - `CURRENT_FORMDEF` = the form's `settings$version` (format `yymmddHHMM`, must be above the
   planted old version 2610150900).
 - `DURATION_MIN = 15`, `DURATION_MAX = 90` minutes, on `survey_duration / 60`, consented submissions only.
+- `UPLOAD_DELAY_DAYS = 2`: `SubmissionDate` 2 or more days after `endtime` is flagged (next-day upload is not).
 - Outliers: |z| > 3 on log(1 + x), pooled over all submissions (`F2_4` over all repeat instances).
 - Enumerator flags: consent rate among located < 95%; at least 3 consented surveys < `DURATION_MIN`.
 - Treatment arm is not in the export: join `treat` from the deidentified `preload/household_frame.csv` (made by `scripts/0.hfc_deidentify.R` from `contact_info.csv`) on `hh_id = householdid_key`.

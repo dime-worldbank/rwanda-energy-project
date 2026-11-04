@@ -31,7 +31,7 @@ t_start <- Sys.time()
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 29 -) "
+HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 31 -) "
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
 
 FORM_ID <- "REP_readyboard_test"
@@ -43,22 +43,22 @@ MODE_CONFIG <- switch(
     enum_file = "test_enumerators.csv",
     
     form_path = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx"
     ),
     
     raw_data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/synthetic_data"
     ),
     
     raw_preload_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/synthetic_data/preload"
     ),
     
     deid_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/deidentified"
     ),
     
@@ -69,7 +69,7 @@ MODE_CONFIG <- switch(
     enum_file = "test_enumerators.csv",
     
     form_path = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       paste0(
         "questionnaires/02-midline/!-archived-survey/",
         "REP_questionnaire_SurveyCTO_26102027.xlsx"
@@ -77,17 +77,17 @@ MODE_CONFIG <- switch(
     ),
     
     raw_data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/pilot/data"
     ),
     
     raw_preload_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "questionnaires/02-midline/02-CTO-preload/pilot"
     ),
     
     deid_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/pilot/deidentified"
     ),
     
@@ -99,7 +99,7 @@ MODE_CONFIG <- switch(
     
     # Update after the final live form definition is cleaned
     form_path = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       paste0(
         "questionnaires/02-midline/",
         "REP_questionnaire_SurveyCTO_LIVE.xlsx"
@@ -107,17 +107,17 @@ MODE_CONFIG <- switch(
     ),
     
     raw_data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/data"
     ),
     
     raw_preload_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "questionnaires/02-midline/02-CTO-preload"
     ),
     
     deid_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/deidentified"
     ),
     

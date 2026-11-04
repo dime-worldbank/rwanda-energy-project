@@ -40,10 +40,10 @@ step <- function(i, msg) {
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-# Paths (only DROPBOX_EAQIP from PATHS.R)
-form_path   <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx")
-data_dir    <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data")
-preload_dir <- file.path(DROPBOX_EAQIP, "datawork/HFC_midline/test/synthetic_data/preload")
+# Paths (only SHARED_EAQIP from PATHS.R)
+form_path   <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx")
+data_dir    <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/synthetic_data")
+preload_dir <- file.path(SHARED_EAQIP, "datawork/HFC_midline/test/synthetic_data/preload")
 
 FORM_ID         <- "REP_readyboard_test"         # TBD: production form id
 FIELDWORK_DAYS  <- as.Date("2026-10-12") + 0:4   # static on purpose: fixed test fieldwork week (Mon-Fri)
@@ -51,6 +51,7 @@ FIELDWORK_START <- min(FIELDWORK_DAYS)
 OLD_FORMDEF     <- 2610150900                    # planted "old form version"
 DURATION_MIN    <- 15                            # TBD: test value (minutes); use the same in 1.hfc_main.R
 DURATION_MAX    <- 90                            # TBD: test value (minutes); use the same in 1.hfc_main.R
+UPLOAD_DELAY_DAYS <- 2                          # upload delay (days) that is flagged; use the same in 1.hfc_main.R
 OUTLIER_SD      <- 3                             # +-3 SD on log(1 + x), as in script 4
 CONSENT_TARGET  <- 0.95                          # enumerator consent rate target (among located)
 SHORT_SURVEYS_ENUM_MIN <- 3                      # TBD: "many short surveys" = at least this many per enumerator
@@ -799,7 +800,7 @@ subs <- subs |>
     submitted = end + runif(n(), 300, 5400),
     submitted = if_else(as.Date(submitted) != as.Date(end), end + 60, submitted),
     submitted = if_else(map_lgl(plants, \(p) "end_submission_date" %in% p),
-                        as.POSIXct(as.Date(end) + 1, tz = "UTC") + 7.5 * 3600 + runif(n(), 0, 1800), submitted),
+                        as.POSIXct(as.Date(end) + UPLOAD_DELAY_DAYS, tz = "UTC") + 7.5 * 3600 + runif(n(), 0, 1800), submitted),
     formdef_version = if_else(map_lgl(plants, \(p) "old_formdef" %in% p), OLD_FORMDEF, CURRENT_FORMDEF),
     KEY = make_uuid(n())
   ) |>
@@ -897,7 +898,7 @@ plant_checks <- bind_rows(
     "dup_same_enum",         "2.hfc_construct: duplicate",                "Same hh_id, two consented submissions by the same enumerator",
     "dup_diff_enum",         "2.hfc_construct: duplicate",                "Same hh_id, two consented submissions by different enumerators",
     "start_end_date",        "5.hfc_logic: start_end_date",               "starttime 23:35, endtime next day",
-    "end_submission_date",   "5.hfc_logic: end_submission_date",          "SubmissionDate the day after endtime",
+    "end_submission_date",   "5.hfc_logic: end_submission_date",          sprintf("SubmissionDate %d days after endtime", UPLOAD_DELAY_DAYS),
     "negative_duration",     "5.hfc_logic: negative_module_duration",     "stamp_c_2 < stamp_c_1 (c_duration_min < 0)",
     "duration_short",        "5.hfc_logic: duration_short",               sprintf("Consented survey of %d min (< DURATION_MIN = %d)", DUR_SHORT_PLANT, DURATION_MIN),
     "e04_short",             "5.hfc_logic: duration_short",               sprintf("Short survey (10-14 min) by enumerator %d", ENUM_SHORT),
@@ -1065,7 +1066,7 @@ observed <- bind_rows(
   ref |> filter(consent == "1") |> filter(n() > 1, .by = hh_id) |> transmute(KEY, check = "2.hfc_construct: duplicate"),
   outlier_hits,
   ref |> filter(start_d != end_d) |> transmute(KEY, check = "5.hfc_logic: start_end_date"),
-  ref |> filter(end_d != sub_d) |> transmute(KEY, check = "5.hfc_logic: end_submission_date"),
+  ref |> filter(as.numeric(sub_d - end_d) >= UPLOAD_DELAY_DAYS) |> transmute(KEY, check = "5.hfc_logic: end_submission_date"),
   ref |> filter((neg_mod("stamp_a_1", "stamp_a_2") | neg_mod("stamp_b_1", "stamp_b_2") |
                    neg_mod("stamp_c_1", "stamp_c_2") | neg_mod("stamp_nudge_1", "stamp_nudge_2")) %in% TRUE) |>
     transmute(KEY, check = "5.hfc_logic: negative_module_duration"),

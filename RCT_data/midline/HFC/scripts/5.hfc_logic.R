@@ -27,7 +27,8 @@ flag_rows <- function(check, issue, cond) {
 logic_data <- bind_rows(
   # Dates and durations
   flag_rows("start_end_date", "End date differs from start date", startdate != enddate),
-  flag_rows("end_submission_date", "Submission date differs from end date", enddate != submissiondate),
+  flag_rows("end_submission_date", sprintf("Uploaded %g or more days after the survey ended", UPLOAD_DELAY_DAYS),
+            as.numeric(submissiondate - enddate) >= UPLOAD_DELAY_DAYS),
   flag_rows("negative_module_duration", "Negative module duration (stamp_*_2 < stamp_*_1)", !is.na(negative_mods)),
   flag_rows("duration_short", sprintf("Consented survey shorter than %g min", DURATION_MIN),
             consented & survey_min < DURATION_MIN),

@@ -34,7 +34,7 @@ source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "pilot"                    # "test", "pilot", or "live"
+HFC_MODE <- "live"                     # "test", "pilot", or "live"
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
 
 FORM_ID <- "REP_readyboard_test"
@@ -45,7 +45,7 @@ FORM_ID <- "REP_readyboard_test"
 find_active_live_form <- function() {
   
   form_dir <- file.path(
-    DROPBOX_EAQIP,
+    SHARED_EAQIP,
     "questionnaires/02-midline"
   )
   
@@ -94,17 +94,17 @@ MODE_CONFIG <- switch(
   
   test = list(
     form_path = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/0_REP_SurveyCTO_Test_Form.xlsx"
     ),
     
     data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/deidentified"
     ),
     
     output_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/test/output"
     ),
     
@@ -117,7 +117,7 @@ MODE_CONFIG <- switch(
   
   pilot = list(
     form_path = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       paste0(
         "questionnaires/02-midline/!-archived-survey/",
         "REP_questionnaire_SurveyCTO_26102027.xlsx"
@@ -125,12 +125,12 @@ MODE_CONFIG <- switch(
     ),
     
     data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/pilot/deidentified"
     ),
     
     output_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/pilot/output"
     ),
     
@@ -145,18 +145,18 @@ MODE_CONFIG <- switch(
     form_path = find_active_live_form(),
     
     data_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/deidentified"
     ),
     
     output_dir = file.path(
-      DROPBOX_EAQIP,
+      SHARED_EAQIP,
       "datawork/HFC_midline/output"
     ),
     
     share_folder = "main_deidentified",
     
-    fieldwork_start = as.Date("2026-10-28"),
+    fieldwork_start = as.Date("2026-10-31"),   # live data collection start (Rwanda time); earlier submissions are pilot/test and dropped
     
     # Read the current version directly from the active live form definition.
     expected_formdef = NA_real_
@@ -192,8 +192,16 @@ FIELDWORK_START <- MODE_CONFIG$fieldwork_start
 
 TZ <- "Africa/Kigali"
 
+# SurveyCTO writes export times in the time zone of the computer that downloaded the
+# data, so they are read in EXPORT_TZ and converted to TZ (Rwanda time) in script 2.
+# Assumes the export is downloaded on the computer that runs the HFC.
+EXPORT_TZ <- Sys.timezone()
+
 DURATION_MIN <- 15
 DURATION_MAX <- 90
+
+# Flag uploads this many days or more after the survey ended (next-day sync is normal)
+UPLOAD_DELAY_DAYS <- 2
 
 
 # ---- 2.4 Validate form definition --------------------------------------------
