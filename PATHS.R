@@ -112,12 +112,12 @@ output_path <- file.path(DROPBOX_EAQIP, "datawork/Historical Expansion/outputs_r
 READYBOARD_K <- file.path(DROPBOX_EAQIP, "intervention/Readyboard Implementation/Implementation tracker/Readyboard tracker by Village")
 
 #---------------------------------------
-# ASCENT phone survey
+# ASCENT usage survey: preload
 # --------------------------------------
 
 #### Data Folder ####
 DATA_ASCENT_PRELOAD <- file.path(DROPBOX_ASCENT, "questionnaires/preload")
 
 #### Script Folder ####
-SCRIPT_ASCENT_PS <- file.path(GITHUB, "ASCENT/phone_survey/script")
+SCRIPT_ASCENT_PRELOAD <- file.path(GITHUB, "ASCENT/usage_survey/preload")
 
