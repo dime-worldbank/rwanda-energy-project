@@ -5,7 +5,7 @@ beneficiary households with LPG, PAYG smart LPG or electric pressure cooker (EPC
 structure and conventions as the EAQIP midline HFC (`RCT_data/midline/HFC/AGENTS.md`): read that
 file for the shared rules on privacy, paths, coding style and testing.
 
-Author: Tanay (using Claude) · Last modified: 2026-11-04
+Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: updated to the 2026-11-04 form revision)
 
 ## Rules (in addition to the root CLAUDE.md)
 
@@ -48,13 +48,28 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 ## Strata and key definitions
 
 - Stratum = preload stove type (`beneficiary-list-intermediate.csv`, `stove_type`): 1 LPG, 2 PAYG LPG, 3 EPC.
-- Complete = located, consented and `finish = 1`. Duplicate = more than one consented submission per `hh_id`.
+- Complete = located, consented and `observe_stoves` answered (the form has no `finish` field; `observe_stoves`
+  is the last required question). Duplicate = more than one consented submission per `hh_id`.
 - Program stove answers (`prog_*`) come from the stove-loop instance whose `stove_type = program_stove_type`.
-- Operational days per year = `months_regular_use` x `days_week_typical` x 52/12 (0 if never used).
+- Operational days per year = program stove `days_used_7d` x 365/7 (0 if not used; no seasonality in the form).
+- Primary stove = the program stove has the highest `cooking_share` among stoves used in the last 7 days (ties count).
+- Decisions behind these definitions, and the check list: `README.md`, "Decision log".
+
+## Form structure (2026-11-04 revision)
+
+- Roster: `A1_1` members, repeat `hh_roster` (`rel_to_hhh`, `member_gender`, `member_dob`, `member_age`; names and
+  DOB are dropped by `0.hfc_deidentify.R`).
+- Stoves: repeat `stove_loop` (one instance per `stoves_used`), with the **nested** repeat `stove_fuel_loop`
+  (one instance per `stove_fuels`). WIDE columns: `<field>_<stove>` and `<field>_<stove>_<fuel>`.
+- Time use: `members_cooking` -> repeat `cooking_time_loop` (`cooking_hours_7d`); `members_firewood` -> repeat
+  `firewood_time_loop` (`firewood_hours_7d`).
+- Repeat columns are read at their exact depth (`rep_cols()` / `rep_long()` in `2.hfc_construct.R`), so
+  SurveyCTO's 0/1 columns per `select_multiple` choice are ignored. Confirm the naming on the first pilot export.
 
 ## TBD before live
 
-- `fieldwork_start` for pilot and live (`hfc_config.R`); `DURATION_MIN` / `DURATION_MAX` from the pilot (`1.hfc_main.R`).
+- `fieldwork_start` for pilot and live (`hfc_config.R`); `DURATION_MIN` / `DURATION_MAX` / `CHILD_COOK_AGE` from the pilot (`1.hfc_main.R`).
+- Form `settings` version must be numeric (currently `261104_activity_first_timeuse`; the HFC warns).
 - Production enumerator list name (the form searches `test_enumerators`).
 - Contact column names in `household_head.csv` (`CONTACT_COLS` in `11.hfc_backcheck.R`).
 - `stove_type` in the beneficiary list must hold codes 1/2/3, not labels (the form converts codes to labels).

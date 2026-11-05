@@ -38,8 +38,8 @@ EXPORT_TZ <- Sys.timezone()
 CONTACT_COLS <- c(hh_head_name = "hh_head_name", primary_phone = "phone_clean", secondary_phone = "phone2_clean")
 
 # Lowest number first; then the survey with most flags; then at random (seeded)
-FLAG_PRIORITY <- c(program_stove_never_used = 1, program_stove_not_confirmed = 1, program_stove_not_observed = 2,
-                   program_stove_not_used_30d = 2, duplicate = 3, outlier = 4, typical_vs_7d_days = 5,
+FLAG_PRIORITY <- c(program_stove_not_used_30d = 1, program_stove_not_confirmed = 1, program_stove_not_observed = 2,
+                   used_but_not_working = 2, duplicate = 3, outlier = 4, child_cook = 5,
                    duration_short = 9)
 OTHER_PRIORITY <- 7
 SEED <- 20261104

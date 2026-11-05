@@ -3,8 +3,13 @@
 # Synthetic SurveyCTO export, preload files and answer key for testing the clean
 # cooking HFC (ASCENT/usage_survey/HFC/scripts).
 #
-# SYNTHETIC DATA ONLY: every name, phone number and ID is invented here. No real
-# household data is read; only the form definition (choice codes, version).
+# SYNTHETIC DATA ONLY: every name, date of birth, phone number and ID is invented
+# here. No real household data is read; only the form definition (choice codes,
+# field names, version).
+#
+# Follows the form structure of clean_cooking_questionnaire (2026-11-04 revision):
+#   hh_roster (A1_1 members), stove_loop with a nested stove_fuel_loop (WIDE
+#   columns <field>_<stove>_<fuel>), cooking_time_loop and firewood_time_loop.
 #
 # Every clean household is internally consistent, so it raises no flag. Problems
 # are planted one per household (scenario table below) and written to the answer
@@ -14,7 +19,7 @@
 # Run from the repo root (writes to the test folders of SHARED_ASCENT_CC):
 #   Rscript ASCENT/usage_survey/HFC/test/0.generate_synthetic_data.R
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -38,13 +43,15 @@ FIELDWORK_DAYS <- as.Date("2026-11-09") + 0:4      # static: synthetic fieldwork
 stopifnot(min(FIELDWORK_DAYS) == FIELDWORK_START)
 TZ <- "Africa/Kigali"
 OUTLIER_SD <- 3; MIN_GROUP_N <- 10                 # as in 4.hfc_outliers.R
+CHILD_COOK_AGE <- 10                               # as in 1.hfc_main.R
 N_PER_STOVE <- 40                                  # households per preload stove type (1 LPG, 2 PAYG, 3 EPC)
 N_ENUM <- 6
 ENUM_LOW_CONSENT <- "6"                            # gets every refusal
 ENUM_SHORT <- "3"                                  # gets the 'many short surveys'
 
-form_version <- as.numeric(read_excel(form_path, "settings", col_types = "text")$version[1])
+form_version <- read_excel(form_path, "settings", col_types = "text")$version[1]   # as in the form (should be numeric)
 choices <- read_excel(form_path, "choices", col_types = "text") |> filter(!is.na(list_name))
+form_survey <- read_excel(form_path, "survey", col_types = "text") |> filter(!is.na(type))
 
 districts <- tibble(districtid_key = c("31", "36"), district_key = c("Karongi", "Rusizi"))
 villages <- expand_grid(districts, v = 1:6) |>
@@ -63,7 +70,7 @@ scenarios <- tribble(
   "not_attempted",                    6, NA,
   "not_located",                      3, NA,
   "refused",                          3, NA,
-  "partial",                          1, NA,
+  "partial",                          1, NA,     # consented, stopped after the roster (not complete)
   "duplicate",                        1, "1",
   "many_short",                       4, NA,
   "duration_short",                   1, NA,
@@ -74,21 +81,20 @@ scenarios <- tribble(
   "outlier_events",                   1, NA,
   "outlier_gas_qty",                  1, "1",
   "outlier_gas_spend",                1, "2",
-  "multiple_primary",                 1, NA,
   "share_sum_off",                    1, NA,
   "share_all_with_other_stove",       1, NA,
-  "primary_stove_not_used",           1, NA,
-  "no_regular_months_but_used",       1, NA,
-  "typical_vs_7d_days",               1, NA,
-  "heads_not_one",                    1, NA,
-  "children_mismatch",                1, NA,
-  "nobody_cooks",                     1, NA,
-  "cook_hours_high",                  1, NA,
-  "firewood_not_source",              1, NA,
+  "events_below_days",                1, NA,
+  "stove_fuel_mismatch",              1, "3",    # EPC used with gas only
+  "used_but_not_working",             1, NA,
   "fuel_unit_kwh_not_electricity",    1, "1",
   "fuel_unit_cylinder_not_gas",       1, "3",
+  "fuel_own_above_qty",               1, NA,
+  "heads_not_one",                    1, NA,
+  "nobody_cooks",                     1, NA,
+  "cook_hours_high",                  1, NA,
+  "child_cook",                       1, NA,
+  "firewood_not_source",              1, NA,
   "program_stove_not_confirmed",      1, "1",
-  "program_stove_never_used",         1, NA,
   "program_stove_not_used_30d",       1, NA,
   "program_stove_not_observed",       1, NA
 )
@@ -96,14 +102,14 @@ scenarios <- tribble(
 EXPECTED_LOGIC <- c(
   duration_short = "duration_short", many_short = "duration_short", duration_long = "duration_long",
   start_end_date = "start_end_date", end_submission_date = "end_submission_date",
-  multiple_primary = "multiple_primary", share_sum_off = "share_sum_off",
-  share_all_with_other_stove = "share_all_with_other_stove", primary_stove_not_used = "primary_stove_not_used",
-  no_regular_months_but_used = "no_regular_months_but_used", typical_vs_7d_days = "typical_vs_7d_days",
-  heads_not_one = "heads_not_one", children_mismatch = "children_mismatch", nobody_cooks = "nobody_cooks",
-  cook_hours_high = "cook_hours_high", firewood_not_source = "firewood_not_source",
+  share_sum_off = "share_sum_off", share_all_with_other_stove = "share_all_with_other_stove",
+  events_below_days = "events_below_days", stove_fuel_mismatch = "stove_fuel_mismatch",
+  used_but_not_working = "used_but_not_working",
   fuel_unit_kwh_not_electricity = "fuel_unit_kwh_not_electricity",
-  fuel_unit_cylinder_not_gas = "fuel_unit_cylinder_not_gas",
-  program_stove_not_confirmed = "program_stove_not_confirmed", program_stove_never_used = "program_stove_never_used",
+  fuel_unit_cylinder_not_gas = "fuel_unit_cylinder_not_gas", fuel_own_above_qty = "fuel_own_above_qty",
+  heads_not_one = "heads_not_one", nobody_cooks = "nobody_cooks", cook_hours_high = "cook_hours_high",
+  child_cook = "child_cook", firewood_not_source = "firewood_not_source",
+  program_stove_not_confirmed = "program_stove_not_confirmed",
   program_stove_not_used_30d = "program_stove_not_used_30d", program_stove_not_observed = "program_stove_not_observed"
 )
 FIRST <- c("Alice", "Jean", "Marie", "Eric", "Claudine", "Patrick", "Diane", "Olivier", "Grace", "Emmanuel")
@@ -148,9 +154,9 @@ preload <- list(
 
 # ---- 4. One submission -------------------------------------------------------
 
-lbl <- function(list, code) choices$`label:English`[choices$list_name == list & choices$value == code][1]
 u <- function(a, b) round(runif(1, a, b))
 FUEL_OF <- c("1" = "3", "2" = "3", "3" = "6")       # program stove -> energy source (gas / electricity)
+UNIT_OF <- c("3" = "1", "6" = "6", "1" = "3")       # energy source -> usual unit (kg / kWh / bundle)
 
 make_sub <- function(h, day, start_hm, dur_min, k = 1) {
   sc <- h$scenario; p <- h$stove_type
@@ -163,123 +169,124 @@ make_sub <- function(h, day, start_hm, dur_min, k = 1) {
             deviceid = paste0("dev", u(1e5, 9e5)), subscriberid = "fake", simid = "fake", devicephonenum = "0700000000",
             survey_duration = dur_min * 60, enumerator = h$enumerator, district = h$districtid_key,
             sector = substr(h$villageid_key, 1, 4), cell = substr(h$villageid_key, 1, 6), village = h$villageid_key,
-            hh_id = h$householdid_key, audio = "media/fake_audio.m4a")
-  if (sc == "not_located") {
-    s$locate <- "0"; s$nolocate <- if (k == 1 && h$householdid_key == first_nolocate) "-77" else "1"
-    if (s$nolocate == "-77") s$nolocate_other <- "Moved away"
-    return(s)
-  }
+            hh_id = h$householdid_key)
+  if (sc == "not_located") { s$locate <- "0"; return(s) }
   s$locate <- "1"
-  if (sc == "refused") { s$consent <- "0"; s$no_consent_reason <- "2"; return(s) }
+  if (sc == "refused") { s$consent <- "0"; return(s) }
   s$consent <- "1"
 
-  # Household and roster
+  # Section A: roster. Head first, then children, then adults (spouse first)
   m <- if (sc == "outlier_members") 19 else u(2, 7)
   c_n <- u(0, m - 1)
-  s$hh_member_count <- m
-  s$hh_child_count <- if (sc == "children_mismatch") c_n + 1 else c_n
-  if (sc == "children_mismatch" && s$hh_child_count > m) { c_n <- c_n - 1; s$hh_child_count <- c_n + 1 }
+  if (sc == "child_cook") c_n <- max(1, c_n)
+  n_ad <- m - 1 - c_n
+  rel <- c("1", rep("3", c_n), rep(c("2", "8"), length.out = n_ad)[seq_len(n_ad)])
+  if (sc == "heads_not_one") rel[m] <- "1"
+  age <- c(u(30, 70), round(runif(c_n, 3, 17)), round(runif(n_ad, 18, 60)))
+  if (sc == "child_cook") age[2] <- CHILD_COOK_AGE - 2
+  dob <- as.Date(day) - round(age * 365.25 + runif(m, 10, 300))
+  age <- floor(as.numeric(as.Date(day) - dob) / 365.25)       # as the form's member_age calculate
+  sex <- c("2", as.character(sample(1:2, m - 1, TRUE)))
+  first <- sample(FIRST, m, TRUE); last <- sample(LAST, 1)
 
-  # Program stove and stacking
+  s$A1_1 <- m
+  s$respondent_selection <- "1"
+  for (j in seq_len(m)) {
+    s[[paste0("member_firstname_", j)]] <- first[j]
+    s[[paste0("member_lastname_", j)]] <- last
+    s[[paste0("member_name_", j)]] <- paste(first[j], last)
+    s[[paste0("rel_to_hhh_", j)]] <- rel[j]
+    s[[paste0("member_gender_", j)]] <- sex[j]
+    s[[paste0("member_dob_", j)]] <- format(dob[j], "%b %d, %Y")
+    s[[paste0("member_age_", j)]] <- age[j]
+  }
+  if (sc == "partial") return(s)
+
+  # Section B: program stove, stacking, stove loop with nested fuel loop
   confirm <- sc != "program_stove_not_confirmed"
   prog <- if (confirm) p else setdiff(c("1", "2", "3"), p)[1]
-  started <- sc != "program_stove_never_used"
-  in_loop <- started && sc != "program_stove_not_used_30d"
-  stack <- in_loop && (runif(1) < 0.5 || sc %in% c("multiple_primary", "share_all_with_other_stove"))
-  stack <- stack && !sc %in% c("share_sum_off", "firewood_not_source")
+  in_loop <- sc != "program_stove_not_used_30d"
+  stack <- in_loop && (runif(1) < 0.5 || sc == "share_all_with_other_stove") &&
+    !sc %in% c("share_sum_off", "firewood_not_source")
   uses_firewood <- stack || !in_loop
 
-  s$pull_stovetype <- p; s$pull_stove_label <- lbl("cookingmethods", p)
+  s$pull_stovetype <- p
   s$ascent_confirm <- if (confirm) "1" else "0"
   if (!confirm) s$received_stove_type <- prog
-  s$program_stove_type <- prog; s$program_stove_label <- lbl("cookingmethods", prog)
-  s$started_program_stove <- if (started) "1" else "0"
+  s$program_stove_type <- prog
 
   stoves <- c(if (in_loop) prog, if (uses_firewood) "5")
   s$stoves_used <- paste(stoves, collapse = " ")
   for (j in seq_along(stoves)) {
     st <- stoves[j]; is_prog <- st == prog
+    sx <- \(f) paste0(f, "_", j)
     days <- if (is_prog) u(3, 7) else u(1, 3)
-    if (is_prog && sc == "typical_vs_7d_days") days <- 2
-    events <- if (sc == "outlier_events" && is_prog) 95 else days * u(1, 2)
+    events <- if (sc == "outlier_events" && is_prog) 95 else if (sc == "events_below_days" && is_prog) days - 1 else days * u(1, 2)
     share <- if (is_prog) {
       if (sc == "share_sum_off") "4" else if (sc == "share_all_with_other_stove") "7" else if (stack) "5" else "7"
     } else if (!in_loop) "7" else if (sc == "share_all_with_other_stove") "2" else "3"
-    role <- if (is_prog || sc == "multiple_primary" || !in_loop) "1" else "2"
-    s[[paste0("stove_type_", j)]] <- st; s[[paste0("stove_label_", j)]] <- lbl("cookingmethods", st)
-    s[[paste0("stove_working_", j)]] <- "1"
-    s[[paste0("days_used_7d_", j)]] <- days
-    s[[paste0("cooking_events_7d_", j)]] <- events
-    s[[paste0("stove_role_", j)]] <- role
-    s[[paste0("cooking_share_", j)]] <- share
-    s[[paste0("cooking_purpose_", j)]] <- if (is_prog) "1 2 3" else "5"
-    yest <- days >= 4
-    s[[paste0("used_yesterday_", j)]] <- if (yest) "1" else "0"
-    if (yest) s[[paste0("events_yesterday_", j)]] <- min(2, events)
-  }
-  s$current_season <- "2"
-  if (started) {
-    s$seasonal_change <- "0"
-    s$months_regular_use <- if (sc == "no_regular_months_but_used") 0 else if (in_loop) 12 else 6
-    if (s$months_regular_use > 0) {
-      s$days_week_typical <- if (sc == "typical_vs_7d_days") 7 else if (in_loop) s[["days_used_7d_1"]] else 3
-    }
+    fuel <- if (st == "5") "1" else if (sc == "stove_fuel_mismatch" && is_prog) "3" else FUEL_OF[[prog]]
+
+    s[[sx("stove_type")]] <- st
+    s[[sx("stove_working")]] <- if (sc == "used_but_not_working" && is_prog) "0" else "1"
+    s[[sx("days_used_7d")]] <- days
+    s[[sx("cooking_events_7d")]] <- events
+    s[[sx("cooking_share")]] <- share
+    s[[sx("cooking_purpose")]] <- if (is_prog) "1 2 3" else "5"
+    s[[sx("stove_fuels")]] <- fuel
+
+    # stove_fuel_loop: one fuel per stove (instance <stove>_1)
+    fx <- \(f) paste0(f, "_", j, "_1")
+    unit <- UNIT_OF[[fuel]]
+    if (sc == "fuel_unit_kwh_not_electricity" && fuel == "3") unit <- "6"
+    if (sc == "fuel_unit_cylinder_not_gas" && fuel == "6") unit <- "5"
+    qty <- switch(fuel, "3" = u(2, 4), "6" = u(15, 30), "1" = u(2, 4))
+    if (sc == "outlier_gas_qty" && fuel == "3") qty <- 60
+    spend <- switch(fuel, "3" = u(4000, 7000), "6" = u(3000, 5000), "1" = u(0, 500))
+    if (sc == "outlier_gas_spend" && fuel == "3") spend <- 400000
+    own <- if (fuel == "1") qty else 0
+    if (sc == "fuel_own_above_qty" && is_prog) own <- qty + 1
+    s[[fx("fuel_type")]] <- fuel
+    s[[fx("fuel_qty_7d")]] <- qty
+    s[[fx("fuel_unit")]] <- unit
+    s[[fx("fuel_spend_7d")]] <- spend
+    s[[fx("fuel_own_7d")]] <- own
   }
 
-  # Cooking practices and fuels
-  s$primary_stove <- if (sc == "primary_stove_not_used") "4" else stoves[1]
-  s$cook_where <- "1"
-  fuels <- c(if (in_loop) FUEL_OF[[prog]], if (uses_firewood) "1")
-  s$energy_sources <- paste(fuels, collapse = " ")
-  for (j in seq_along(fuels)) {
-    f <- fuels[j]
-    unit <- switch(f, "3" = "1", "6" = "6", "1" = "3")
-    if (sc == "fuel_unit_kwh_not_electricity" && f == "3") unit <- "6"
-    if (sc == "fuel_unit_cylinder_not_gas" && f == "6") unit <- "5"
-    qty <- switch(f, "3" = u(2, 4), "6" = u(15, 30), "1" = u(2, 4))
-    if (sc == "outlier_gas_qty" && f == "3") qty <- 60
-    spend <- switch(f, "3" = u(4000, 7000), "6" = u(3000, 5000), "1" = u(0, 500))
-    if (sc == "outlier_gas_spend" && f == "3") spend <- 400000
-    s[[paste0("fuel_type_", j)]] <- f; s[[paste0("fuel_label_", j)]] <- lbl("energysource", f)
-    s[[paste0("fuel_stove_type_", j)]] <- if (f == "1") "5" else prog
-    s[[paste0("fuel_unit_", j)]] <- unit
-    s[[paste0("fuel_qty_7d_", j)]] <- qty
-    s[[paste0("fuel_spend_7d_", j)]] <- spend
-    if (f == "1") s[[paste0("fuel_own_7d_", j)]] <- qty
-  }
-
-  # Time-use roster: head, children, then adults (spouse first)
-  rel <- c("1", rep("3", c_n), rep(c("2", "8"), length.out = m - 1 - c_n)[seq_len(m - 1 - c_n)])
-  if (sc == "heads_not_one") rel[length(rel)] <- "1"
-  age <- c(u(30, 70), round(runif(c_n, 3, 17)), round(runif(m - 1 - c_n, 18, 60)))
-  cook_j <- if (sc == "nobody_cooks") integer() else c(1L, if (m - 1 - c_n > 0) c_n + 2L)
+  # Section D: time use (members picked from the roster)
+  cook_j <- if (sc == "nobody_cooks") integer() else c(1L, if (n_ad > 0) c_n + 2L, if (sc == "child_cook") 2L)
   fw_j <- if (uses_firewood || sc == "firewood_not_source") 1L else integer()
-  for (j in seq_len(m)) {
-    s[[paste0("tu_pos_", j)]] <- j
-    s[[paste0("tu_rel_", j)]] <- rel[j]
-    s[[paste0("tu_sex_", j)]] <- if (j == 1) "2" else as.character(u(1, 2))
-    s[[paste0("tu_age_", j)]] <- age[j]
-    s[[paste0("tu_label_", j)]] <- sprintf("member %d (%s, %s, age %d)", j, lbl("relation", rel[j]),
-                                           lbl("sex", s[[paste0("tu_sex_", j)]]), age[j])
-    cooks <- j %in% cook_j; fw <- j %in% fw_j
-    s[[paste0("tu_firewood_", j)]] <- if (fw) "1" else "0"
-    if (fw) s[[paste0("tu_firewood_hours_", j)]] <- u(2, 10)
-    s[[paste0("tu_cook_", j)]] <- if (cooks) "1" else "0"
-    if (cooks) s[[paste0("tu_cook_hours_", j)]] <- if (sc == "cook_hours_high" && j == 1) 84 else u(5, 20)
+  s$members_cooking <- paste(cook_j, collapse = " ")
+  for (k2 in seq_along(cook_j)) {
+    j <- cook_j[k2]; cx <- \(f) paste0(f, "_", k2)
+    s[[cx("cooking_member_index")]] <- j
+    s[[cx("cooking_member_name")]] <- paste(first[j], last)
+    s[[cx("cooking_member_gender")]] <- sex[j]
+    s[[cx("cooking_member_age")]] <- age[j]
+    s[[cx("cooking_member_rel")]] <- rel[j]
+    s[[cx("cooking_hours_7d")]] <- if (sc == "cook_hours_high" && k2 == 1) 84 else u(5, 20)
+  }
+  s$members_firewood <- paste(fw_j, collapse = " ")
+  for (k2 in seq_along(fw_j)) {
+    j <- fw_j[k2]; wx <- \(f) paste0(f, "_", k2)
+    s[[wx("firewood_member_index")]] <- j
+    s[[wx("firewood_member_name")]] <- paste(first[j], last)
+    s[[wx("firewood_member_gender")]] <- sex[j]
+    s[[wx("firewood_member_age")]] <- age[j]
+    s[[wx("firewood_member_rel")]] <- rel[j]
+    s[[wx("firewood_hours_7d")]] <- u(2, 10)
   }
 
+  # Section E: validation
   s$observe_stoves <- "1"
   s$program_stove_seen <- if (sc == "program_stove_not_observed") "3" else "1"
   s$usage_comment <- "Free text that the HFC must drop"
-  s$finish <- if (sc == "partial") "0" else "1"
-  s$comment <- "Free text that the HFC must drop"
   s
 }
 
 
 # ---- 5. Build the export -----------------------------------------------------
 
-first_nolocate <- hh$householdid_key[hh$scenario == "not_located"][1]
 attempted <- hh |> filter(scenario != "not_attempted")
 days <- sample(FIELDWORK_DAYS, nrow(attempted), replace = TRUE)
 subs <- map(seq_len(nrow(attempted)), \(i) {
@@ -307,20 +314,35 @@ export <- map_dfr(subs, \(s) {
 
 # ---- 6. Validate against the form --------------------------------------------
 
-form_survey <- read_excel(form_path, "survey", col_types = "text") |> filter(!is.na(type))
+# Form field of an export column: strip repeat suffixes (_i, _i_j) until a form name matches.
+# (A1_1 is itself a form name, so it is not stripped.)
+known <- c("KEY", "SubmissionDate", form_survey$name, "formdef_version")
+base_of <- function(cols) map_chr(cols, \(x) {
+  b <- x
+  while (!b %in% known && str_detect(b, "_\\d+$")) b <- str_remove(b, "_\\d+$")
+  b
+})
+col_base <- base_of(names(export))
+
+unknown <- setdiff(col_base, known)
+if (length(unknown) > 0) stop("Synthetic columns not in the form: ", paste(unknown, collapse = ", "))
+
 sel <- form_survey |> filter(str_starts(type, "select_one")) |> transmute(name, list = word(type, 2))
 bad <- map_dfr(seq_len(nrow(sel)), \(i) {
-  cols <- str_subset(names(export), paste0("^", sel$name[i], "(_\\d+)?$"))
-  vals <- unique(na.omit(unlist(export[cols])))
+  vals <- unique(na.omit(unlist(export[names(export)[col_base == sel$name[i]]])))
   ok <- choices$value[choices$list_name == sel$list[i]]
   if (length(vals) == 0 || sel$list[i] %in% c("enumerator", "district", "sector", "cell", "village", "hh_id")) return(NULL)
   tibble(field = sel$name[i], value = as.character(setdiff(vals, ok)))
 })
 if (nrow(bad) > 0) { print(bad); stop("Synthetic values not in the form's choice lists.") }
-unknown <- setdiff(str_remove(names(export), "_\\d+$"), c(form_survey$name, "KEY", "SubmissionDate", "formdef_version"))
-if (length(unknown) > 0) stop("Synthetic columns not in the form: ", paste(unknown, collapse = ", "))
-order_key <- match(str_remove(names(export), "_\\d+$"), c("KEY", "SubmissionDate", form_survey$name, "formdef_version"))
-export <- export[, order(order_key, as.integer(coalesce(str_extract(names(export), "(?<=_)\\d+$"), "0")))]
+
+# Column order: form order, then repeat instance
+sfx_key <- map_chr(str_sub(names(export), nchar(col_base) + 1), \(x) {
+  p <- str_split_1(x, "_")[-1]
+  paste(sprintf("%03d", as.integer(p)), collapse = "_")
+})
+export <- export[, order(match(col_base, known), sfx_key)]
+col_base <- base_of(names(export))
 
 
 # ---- 7. Answer key -------------------------------------------------------------
@@ -331,21 +353,22 @@ logic_exp <- imap_dfr(EXPECTED_LOGIC, \(chk, sc) key_of(sc) |>
 dup_exp <- key_of("duplicate") |> mutate(check = "2.hfc_construct: duplicate", description = "scenario duplicate")
 
 # Outliers: same rule as 4.hfc_outliers.R, computed independently
-num_long <- function(field) {
-  export |> select(KEY, hh_id, matches(paste0("^", field, "(_\\d+)?$"))) |>
-    pivot_longer(-c(KEY, hh_id), names_to = "col", values_to = "value") |>
-    mutate(instance = str_extract(col, "(?<=_)\\d+$"), value = as.numeric(value)) |>
-    filter(!is.na(value))
+field_long <- function(field) {
+  cols <- names(export)[col_base == field]
+  export |> select(KEY, hh_id, all_of(cols)) |>
+    pivot_longer(all_of(cols), names_to = "col", values_to = "value") |>
+    mutate(instance = str_sub(col, nchar(field) + 1)) |>
+    filter(!is.na(value)) |>
+    select(-col)
 }
+num_long <- \(field) field_long(field) |> mutate(value = as.numeric(value)) |> filter(!is.na(value))
 zflag <- \(d) d |> mutate(lv = log1p(value), z = (lv - mean(lv)) / sd(lv)) |> filter(abs(z) > OUTLIER_SD)
-pooled <- c("hh_member_count", "cooking_events_7d", "events_yesterday", "tu_cook_hours", "tu_firewood_hours")
+pooled <- c("A1_1", "cooking_events_7d", "cooking_hours_7d", "firewood_hours_7d")
 out_exp <- bind_rows(
   map_dfr(pooled, \(v) zflag(num_long(v)) |> mutate(var = v)),
   {
-    ft <- export |> select(KEY, matches("^fuel_type_\\d+$")) |>
-      pivot_longer(-KEY, values_to = "fuel") |> mutate(instance = str_extract(name, "\\d+$")) |> select(-name)
-    fu <- export |> select(KEY, matches("^fuel_unit_\\d+$")) |>
-      pivot_longer(-KEY, values_to = "unit") |> mutate(instance = str_extract(name, "\\d+$")) |> select(-name)
+    ft <- field_long("fuel_type") |> transmute(KEY, instance, fuel = value)
+    fu <- field_long("fuel_unit") |> transmute(KEY, instance, unit = value)
     q <- num_long("fuel_qty_7d") |> left_join(ft, by = c("KEY", "instance")) |> left_join(fu, by = c("KEY", "instance")) |>
       filter(n() >= MIN_GROUP_N, .by = c(fuel, unit)) |> group_by(fuel, unit) |> group_modify(\(d, g) zflag(d)) |>
       ungroup() |> mutate(var = "fuel_qty_7d")
@@ -357,7 +380,7 @@ out_exp <- bind_rows(
 ) |>
   distinct(KEY, hh_id, var) |>
   transmute(KEY, hh_id, check = paste0("4.hfc_outliers: outlier_", var), description = "computed outlier")
-planted_out <- c(outlier_members = "hh_member_count", outlier_events = "cooking_events_7d",
+planted_out <- c(outlier_members = "A1_1", outlier_events = "cooking_events_7d",
                  outlier_gas_qty = "fuel_qty_7d", outlier_gas_spend = "fuel_spend_7d")
 for (sc in names(planted_out)) {
   if (!any(out_exp$hh_id %in% key_of(sc)$hh_id & str_ends(out_exp$check, planted_out[[sc]]))) {

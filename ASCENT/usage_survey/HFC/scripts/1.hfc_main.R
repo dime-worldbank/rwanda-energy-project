@@ -64,7 +64,7 @@ TRADITIONAL_STOVES <- c("4", "5", "6")           # charcoal, firewood, briquette
 SHARE_MID <- c("1" = 5, "2" = 15, "3" = 25, "4" = 50, "5" = 75, "6" = 95, "7" = 100)
 SHARE_SUM_RANGE <- c(60, 140)    # sum of shares across stoves used in the last 7 days
 COOK_HOURS_MAX <- 70             # weekly cooking hours of one member worth verifying
-TYPICAL_VS_7D_GAP <- 4           # |typical days/week - days used last 7 days| worth verifying
+CHILD_COOK_AGE <- 10             # TBD: a cooking member younger than this is worth verifying
 
 if (is.na(FIELDWORK_START) || anyNA(c(DURATION_MIN, DURATION_MAX))) {
   stop("Config constants still TBD for HFC_MODE = '", HFC_MODE, "' (FIELDWORK_START in hfc_config.R).")
@@ -78,8 +78,12 @@ if (length(missing_inputs) > 0) {
        "\nRun ASCENT/usage_survey/HFC/scripts/0.hfc_deidentify.R first.")
 }
 
-CURRENT_FORMDEF <- suppressWarnings(as.numeric(read_excel(form_path, "settings", col_types = "text")$version[1]))
-if (is.na(CURRENT_FORMDEF)) stop("Could not read a numeric form version from ", basename(form_path))
+FORM_VERSION_TEXT <- read_excel(form_path, "settings", col_types = "text")$version[1]
+CURRENT_FORMDEF <- suppressWarnings(as.numeric(FORM_VERSION_TEXT))
+if (is.na(CURRENT_FORMDEF)) {
+  warning("Form version '", FORM_VERSION_TEXT, "' in ", basename(form_path), " is not numeric. SurveyCTO needs a ",
+          "numeric version (e.g. 2611041500): fix the settings sheet before deploying.", call. = FALSE)
+}
 
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 CONSTR_FILE <- file.path(output_dir, "hfc_constr.xlsx")

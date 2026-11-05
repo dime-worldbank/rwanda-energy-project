@@ -1,4 +1,4 @@
-# Clean cooking HFC privacy rules (copy of RCT_data/midline/HFC/scripts/hfc_privacy.R), shared by
+# Clean cooking HFC privacy rules (adapted from RCT_data/midline/HFC/scripts/hfc_privacy.R), shared by
 # 0.hfc_deidentify.R and 1.hfc_main.R. Defines objects only; reads no data.
 
 # Form field types the HFC may use. Free text, geopoints, audio, images, text audits and device ids
@@ -8,10 +8,11 @@ HFC_KEEP_TYPES <- c("integer", "decimal", "date", "select_one", "select_multiple
 # SurveyCTO columns that are not form fields
 HFC_META_COLS <- c("KEY", "SubmissionDate", "starttime", "endtime", "formdef_version")
 
-# Column-name patterns that must never reach the HFC (names, phones, GPS, device ids, media, free-text comments)
-HFC_BLOCK_REGEX <- paste(c("phone", "(^|_)name$", "latitude", "longitude", "altitude", "accuracy", "gps",
-                           "(^|_)nid$", "audio", "photo", "text_audit", "^simid$", "subscriber", "deviceid",
-                           "meter_number", "comment"), collapse = "|")
+# Column-name patterns that must never reach the HFC (names, dates of birth, phones, GPS, device ids,
+# media, free-text comments). (_[0-9]+)* covers repeat instances (member_name_1, member_dob_2, ...).
+HFC_BLOCK_REGEX <- paste(c("phone", "name(_[0-9]+)*$", "(^|_)dob(_[0-9]+)*$", "latitude", "longitude",
+                           "altitude", "accuracy", "gps", "(^|_)nid$", "audio", "photo", "text_audit",
+                           "^simid$", "subscriber", "deviceid", "meter_number", "comment"), collapse = "|")
 
 # "Other (specify)" text fields are kept (not deidentified), including repeat instances (F2_2_other_1, ...)
 HFC_OTHER_REGEX <- "_other$"

@@ -25,3 +25,68 @@ This master script will run five main subscripts
 
 
 
+
+## Decision log
+
+Decisions that change what the HFC measures. Newest first. Each entry says what changed, why, and
+where it lives in the code, so a reviewer can check it without rereading the scripts.
+
+### 2026-11-05 — HFC updated to the 2026-11-04 form revision (Yeji)
+
+**Context.** The active form (`clean_cooking_questionnaire_261104.xlsx`, saved 4:04 PM) restructured
+the survey; the scripts had been written for the earlier version now in `questionnaires/archive/`.
+Fields were dropped on purpose (confirmed by Yeji). Changes in the form:
+
+| Area | Before (archived form) | Now (active form) |
+|---|---|---|
+| Roster | `hh_member_count`, `hh_child_count`, `tu_*` roster | `A1_1`, repeat `hh_roster` (`rel_to_hhh`, `member_gender`, `member_dob`, `member_age`), `respondent_selection` |
+| Time use | inside the `tu_*` roster | `members_cooking` -> `cooking_time_loop`; `members_firewood` -> `firewood_time_loop` |
+| Fuels | household `energy_sources` + fuel loop | per stove: `stove_fuels` -> nested `stove_fuel_loop` (WIDE: `<field>_<stove>_<fuel>`) |
+| Removed | `started_program_stove`, `months_regular_use`, `days_week_typical`, `seasonal_change`, `current_season`, `primary_stove`, `stove_role`, `used_yesterday`, `events_yesterday`, `cook_where`, `nolocate`, `no_consent_reason`, `audio`, `finish`, `comment` | |
+
+**Definitions changed** (all in `scripts/2.hfc_construct.R`, used by 3, 6, 9, 10):
+
+| Definition | Before | Now | Why |
+|---|---|---|---|
+| Complete | located + consented + `finish = 1` | located + consented + `observe_stoves` answered | No `finish` field; `observe_stoves` is the last required question, so a form saved part-way does not count. |
+| Operational days per year (`op_days_year`) | `months_regular_use` x `days_week_typical` x 52/12 | program stove `days_used_7d` x 365/7 | Seasonality questions removed. **Caveat:** a 7-day snapshot, annualised; it does not capture seasonal non-use. |
+| Primary stove (`primary_stove` in usage params) | `stove_role = 1` for the program stove | program stove has the highest `cooking_share` among stoves used in the last 7 days (ties count) | `stove_role` removed. |
+| `started_use` (usage param) | `started_program_stove = 1` | dropped | Field removed; `used_7d` remains. |
+
+**Logic checks** (`scripts/5.hfc_logic.R`):
+
+- Dropped (fields removed): `multiple_primary`, `primary_stove_not_used`, `no_regular_months_but_used`,
+  `typical_vs_7d_days`, `program_stove_never_used`, `children_mismatch`.
+- Rewired to new fields: `heads_not_one` (`rel_to_hhh`), `nobody_cooks` (stove used but `members_cooking`
+  empty; now complete surveys only), `cook_hours_high` (`cooking_hours_7d`), `firewood_not_source` (firewood
+  collected but no stove lists firewood in `stove_fuels`), `program_stove_not_used_30d` (program stove not in
+  `stoves_used`; no longer conditional on `started_program_stove`).
+- New:
+
+| Check | Kind | Rule |
+|---|---|---|
+| `events_below_days` | inconsistent | a stove's `cooking_events_7d` < `days_used_7d` |
+| `stove_fuel_mismatch` | inconsistent | LPG / PAYG LPG stove used without gas, or EPC used without electricity, in its `stove_fuels` |
+| `fuel_own_above_qty` | inconsistent | `fuel_own_7d` > `fuel_qty_7d` |
+| `used_but_not_working` | verify | `days_used_7d` > 0 but `stove_working = 0` |
+| `child_cook` | verify | a cooking member younger than `CHILD_COOK_AGE` (10, TBD from pilot; `1.hfc_main.R`) |
+
+**Other changes.**
+
+- Outliers (`4.hfc_outliers.R`): `A1_1`, `cooking_events_7d`, `cooking_hours_7d`, `firewood_hours_7d`; fuel
+  quantity and spending as before (within fuel / unit). `events_yesterday` dropped.
+- Not-located list (`3.hfc_admin.R`): no reason column (`nolocate` removed from the form).
+- Privacy (`hfc_privacy.R`, `0.hfc_deidentify.R`): member names and `member_dob` are blocked; only
+  `member_age` reaches the HFC. Repeat columns are kept at their exact nesting depth.
+- Back-check priority (`11.hfc_backcheck.R`): `program_stove_not_used_30d` replaces `program_stove_never_used`
+  at priority 1; `used_but_not_working` 2; `child_cook` replaces `typical_vs_7d_days` at 5.
+- Synthetic data (`test/0.generate_synthetic_data.R`) rebuilt for the new structure, one planted household per
+  check. `run_test.R` passes: 34/34 expected results matched.
+
+**Open items.**
+
+- The form's `settings` version is `261104_activity_first_timeuse`, not a number. SurveyCTO needs a numeric
+  version; the HFC now warns instead of stopping. Fix in the form before deploying.
+- Confirm on the first pilot export that nested repeats are named `<field>_<stove>_<fuel>` and that SurveyCTO's
+  0/1 columns per `select_multiple` choice are ignored (the parser reads repeat fields at their exact depth).
+- `CHILD_COOK_AGE`, `DURATION_MIN`, `DURATION_MAX`: set from the pilot.

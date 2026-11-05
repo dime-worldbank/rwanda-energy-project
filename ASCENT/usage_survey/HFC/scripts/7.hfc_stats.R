@@ -9,20 +9,19 @@
 #   and last 7 days), by preload stove type: the stacking picture.
 #
 # Sourced by 1.hfc_main.R after 2.hfc_construct.R (uses hfc_constr, form_survey,
-# repeat_fields, and the S / D matrices built there).
+# rep_cols() and stoves_long built there).
 # Outputs: desc_stats_data, desc_cat_data, stove_use
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
 # ---- 1. Config / constants ---------------------------------------------------
 
 DESC_VARS <- c(
-  "ascent_confirm", "started_program_stove",
-  "hh_member_count", "hh_child_count",
-  "seasonal_change", "months_regular_use", "days_week_typical",
-  "observe_stoves", "finish",
+  "ascent_confirm",
+  "A1_1",
+  "observe_stoves",
   "survey_min"
 )
 CAT_EXCLUDE <- c("enumerator", "district", "sector", "cell", "village", "hh_id")  # dynamic lists
@@ -32,8 +31,8 @@ GROUPS <- unname(STOVE_TYPES)
 # ---- 2. Helper functions -----------------------------------------------------
 
 field_long <- function(x, data = hfc_constr) {
-  cols <- if (x %in% repeat_fields) str_subset(names(data), paste0("^", x, "_\\d+$")) else x
-  if (length(cols) == 0) return(NULL)   # repeat field never answered yet
+  cols <- rep_cols(names(data), x)
+  if (length(cols) == 0) return(NULL)   # field not in the export (e.g. repeat never answered yet)
   data |>
     select(KEY, stove_group, all_of(cols)) |>
     pivot_longer(all_of(cols), names_to = "column", values_to = "value", values_transform = as.character) |>
@@ -107,7 +106,6 @@ desc_stats_data <- desc_long |>
 ## 4.2 Categorical frequencies (all submissions; select_multiple split; -77 / -88 kept)
 desc_cat_data <- cat_fields |>
   pmap_dfr(\(var, multiple, list_name) {
-    if (!var %in% names(hfc_constr) && !var %in% repeat_fields) return(NULL)
     d <- field_long(var)
     if (is.null(d)) return(NULL)
     if (multiple) d <- d |> separate_longer_delim(value, " ")
@@ -124,15 +122,14 @@ desc_cat_data <- cat_fields |>
 
 ## 4.3 Stove use (consented households, first consented submission per household)
 first_sub <- hfc_constr |>
-  mutate(row = row_number()) |>
   filter(consented) |>
   arrange(hh_id, starttime) |>
   distinct(hh_id, .keep_all = TRUE)
 
 stove_labels <- form_choices |> filter(list_name == "cookingmethods") |> select(stove = code, stove_label = label)
-use_long <- map_dfr(seq_len(ncol(S)), \(j) tibble(hh_id = first_sub$hh_id, stove_group = first_sub$stove_group,
-                                                  stove = S[first_sub$row, j], days = D[first_sub$row, j])) |>
-  filter(!is.na(stove))
+use_long <- stoves_long |>
+  inner_join(first_sub |> select(KEY, hh_id, stove_group), by = "KEY") |>
+  transmute(hh_id, stove_group, stove = stove_type, days)
 
 households <- bind_rows(first_sub, first_sub |> mutate(stove_group = "All")) |> count(stove_group, name = "households")
 stove_use <- bind_rows(use_long, use_long |> mutate(stove_group = "All")) |>

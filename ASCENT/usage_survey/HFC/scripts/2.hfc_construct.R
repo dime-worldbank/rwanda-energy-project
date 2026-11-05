@@ -8,19 +8,29 @@
 # All survey columns are read as text; continuous fields are converted to
 # numbers. Choice codes stay text ("1", "0", "-77"), so checks compare to strings.
 #
+# Repeat groups in the WIDE export: <field>_i (stove_loop, hh_roster,
+# cooking_time_loop, firewood_time_loop) and <field>_i_j for the nested
+# stove_fuel_loop (i = stove instance, j = fuel instance). rep_long() reads a
+# field at its exact depth into a long table (KEY, i1[, i2], value).
+#
 # Derived variables (one row per submission):
+#   complete          located, consented and observe_stoves answered (last required question)
 #   prog_*            answers for the program stove, taken from the stove loop
 #                     instance whose stove_type = program_stove_type
+#   prog_top_share    program stove used and its cooking share is the highest
+#                     among the stoves used in the last 7 days (ties count)
+#   op_days_year      program stove days used in the last 7 days x 365/7
 #   n_stoves_used_7d  stoves with days_used_7d > 0
 #   share_sum         sum of cooking_share midpoints (SHARE_MID) over those stoves
-#   n_primary         stoves reported as primary
 #   trad_used_7d      traditional stoves (TRADITIONAL_STOVES) used in the last 7 days
-#   n_heads, n_child_roster, any_cook, max_cook_hours, any_firewood   (time-use roster)
-#   kwh_nonelec, cyl_nongas   fuel instances with a unit that does not fit the fuel
+#   n_events_below_days, n_used_not_working, n_stove_fuel_mismatch   (stove loop)
+#   kwh_nonelec, cyl_nongas, n_own_above_qty                         (fuel loop)
+#   n_roster, n_heads                                                (hh_roster)
+#   any_cook, max_cook_hours, n_child_cook, any_firewood             (time use)
 #
-# Sourced by 1.hfc_main.R. Outputs: hfc_constr, duration_data, duplicates
+# Sourced by 1.hfc_main.R. Outputs: hfc_constr, stoves_long, duration_data, duplicates
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -33,35 +43,51 @@ read_preload <- function(file) {
   df
 }
 
-# Number of instances of a repeat field in the wide export (<field>_1 .. <field>_k)
-n_inst <- function(df, field) {
-  k <- as.integer(str_extract(str_subset(names(df), paste0("^", field, "_\\d+$")), "\\d+$"))
-  max(c(1L, k))
+# Export columns of a form field: the field itself, or its repeat instances at its exact depth
+rep_cols <- function(cols, field) {
+  d <- field_depth[field]
+  d <- if (is.na(d)) 0L else d
+  str_subset(cols, paste0("^", field, strrep("_\\d+", d), "$"))
 }
 
-# n x k text matrix of a repeat field; instances missing from the export are NA
-rep_mat <- function(df, field, k) {
-  out <- matrix(NA_character_, nrow(df), k)
-  for (j in seq_len(k)) {
-    col <- paste0(field, "_", j)
-    if (col %in% names(df)) out[, j] <- as.character(df[[col]])
+# Long table of a repeat field: KEY, i1 (, i2), <field>; answered instances only
+rep_long <- function(df, field) {
+  d <- field_depth[[field]]
+  idx <- paste0("i", seq_len(d))
+  cols <- rep_cols(names(df), field)
+  if (length(cols) == 0) {
+    return(tibble(KEY = character(), !!!set_names(rep(list(integer()), d), idx), !!field := character()))
   }
-  out
+  long <- df |>
+    select(KEY, all_of(cols)) |>
+    pivot_longer(all_of(cols), names_to = "column", values_to = field) |>
+    filter(!is.na(.data[[field]]), as.character(.data[[field]]) != "")
+  sfx <- str_split_fixed(str_sub(long$column, nchar(field) + 2), "_", d)
+  for (k in seq_len(d)) long[[idx[k]]] <- as.integer(sfx[, k])
+  long |> select(KEY, all_of(idx), all_of(field))
 }
-num <- function(m) { storage.mode(m) <- "double"; m }
-row_max <- function(m) { x <- suppressWarnings(apply(m, 1, max, na.rm = TRUE)); x[!is.finite(x)] <- NA; x }
+
+# Several fields of the same repeat group side by side
+rep_wide <- function(df, fields) {
+  idx <- paste0("i", seq_len(field_depth[[fields[1]]]))
+  map(fields, \(f) rep_long(df, f)) |> reduce(full_join, by = c("KEY", idx))
+}
+
 has_code <- function(multi, code) map_lgl(str_split(coalesce(multi, ""), " "), \(x) code %in% x)
+n_inst   <- function(long, i = "i1") if (nrow(long) == 0) 0L else max(long[[i]])
 
 
 # ---- 2. Data loading ---------------------------------------------------------
 
 form_survey <- read_excel(form_path, "survey", col_types = "text", .name_repair = "unique_quiet") |>
   filter(!is.na(type)) |>
-  mutate(type = str_squish(type), name = str_squish(name))
+  mutate(type = str_squish(type), name = str_squish(name),
+         depth = cumsum(type == "begin repeat") - cumsum(type == "end repeat"))
 
-rep_rows <- cumsum(form_survey$type == "begin repeat") - cumsum(form_survey$type == "end repeat") > 0
+form_fields_only  <- form_survey |> filter(!type %in% c("begin repeat", "end repeat", "begin group", "end group", "note"))
+field_depth       <- set_names(as.integer(form_fields_only$depth), form_fields_only$name)
 continuous_fields <- form_survey$name[word(form_survey$type, 1) %in% c("integer", "decimal")]
-repeat_fields     <- form_survey$name[rep_rows & !form_survey$type %in% c("begin repeat", "note")]
+repeat_fields     <- names(field_depth)[field_depth > 0]
 
 export_path <- file.path(data_dir, paste0(FORM_ID, "_WIDE.csv"))
 raw <- read_csv(export_path, col_types = cols(.default = col_character()), show_col_types = FALSE)
@@ -85,8 +111,7 @@ hfc_constr <- raw |>
   filter(startdate >= FIELDWORK_START)
 
 # Continuous fields (and their repeat instances) -> numbers; special codes -> NA
-cont_cols <- names(hfc_constr)[names(hfc_constr) %in% continuous_fields |
-                                 str_remove(names(hfc_constr), "_\\d+$") %in% intersect(continuous_fields, repeat_fields)]
+cont_cols <- unlist(map(continuous_fields, \(f) rep_cols(names(hfc_constr), f)))
 hfc_constr <- hfc_constr |>
   mutate(across(all_of(cont_cols), \(x) { v <- suppressWarnings(as.numeric(x)); if_else(v %in% SPECIAL_CODES, NA_real_, v) }),
          survey_duration = suppressWarnings(as.numeric(survey_duration)),
@@ -99,7 +124,8 @@ hfc_constr <- hfc_constr |>
   mutate(stove_group = unname(STOVE_TYPES[stove_type]),
          located = locate %in% "1",
          consented = consent %in% "1",
-         complete = located & consented & finish %in% "1",
+         # The form has no finish field: observe_stoves is the last required question
+         complete = located & consented & !is.na(observe_stoves),
          survey_min = survey_duration / 60)
 
 n_no_stratum <- sum(is.na(hfc_constr$stove_group))
@@ -108,62 +134,74 @@ if (n_no_stratum > 0) warning(n_no_stratum, " submission(s) have an hh_id not in
 
 # ---- 4. Derived variables from the repeat groups ------------------------------
 
-n <- nrow(hfc_constr)
-K_STOVE <- n_inst(hfc_constr, "stove_type")
-K_FUEL  <- n_inst(hfc_constr, "fuel_type")
-K_TU    <- n_inst(hfc_constr, "tu_rel")
+## 4.1 Stove loop (one row per submission x stove)
+stoves_long <- rep_wide(hfc_constr, c("stove_type", "stove_working", "days_used_7d", "cooking_events_7d",
+                                      "cooking_share", "stove_fuels")) |>
+  filter(!is.na(stove_type)) |>
+  left_join(hfc_constr |> select(KEY, program_stove_type), by = "KEY") |>
+  mutate(days = as.numeric(days_used_7d), events = as.numeric(cooking_events_7d),
+         used = coalesce(days, 0) > 0,
+         share_mid = unname(SHARE_MID[cooking_share]),
+         is_prog = stove_type == coalesce(program_stove_type, ""),
+         fuel_mismatch = used & !is.na(stove_fuels) &
+           ((stove_type %in% c("1", "2") & !has_code(stove_fuels, "3")) |
+              (stove_type == "3" & !has_code(stove_fuels, "6"))))
 
-S  <- rep_mat(hfc_constr, "stove_type", K_STOVE)
-D  <- num(rep_mat(hfc_constr, "days_used_7d", K_STOVE))
-E  <- num(rep_mat(hfc_constr, "cooking_events_7d", K_STOVE))
-SH <- rep_mat(hfc_constr, "cooking_share", K_STOVE)
-R  <- rep_mat(hfc_constr, "stove_role", K_STOVE)
-W  <- rep_mat(hfc_constr, "stove_working", K_STOVE)
+stove_hh <- stoves_long |>
+  summarise(n_stoves_used_7d      = sum(used),
+            share_sum             = if (any(used)) sum(share_mid[used], na.rm = TRUE) else NA_real_,
+            max_share_used        = if (any(used)) max(share_mid[used], na.rm = TRUE) else NA_real_,
+            any_share_all         = any(cooking_share %in% "7" & used),
+            trad_used_7d          = any(stove_type %in% TRADITIONAL_STOVES & used),
+            firewood_source       = any(has_code(stove_fuels, "1")),
+            n_events_below_days   = sum(used & !is.na(events) & events < days),
+            n_used_not_working    = sum(used & stove_working %in% "0"),
+            n_stove_fuel_mismatch = sum(fuel_mismatch),
+            .by = KEY)
 
-# Loop instance of the program stove (first match)
-prog <- hfc_constr$program_stove_type
-prog_j <- rep(NA_integer_, n)
-for (j in seq_len(K_STOVE)) prog_j[is.na(prog_j) & !is.na(prog) & !is.na(S[, j]) & S[, j] == prog] <- j
-prog_val <- function(m) m[cbind(seq_len(n), prog_j)]
+prog_hh <- stoves_long |>
+  filter(is_prog) |>
+  arrange(KEY, i1) |>
+  distinct(KEY, .keep_all = TRUE) |>
+  transmute(KEY, prog_in_loop = TRUE, prog_working = stove_working, prog_days_7d = days,
+            prog_events_7d = events, prog_share = share_mid)
 
-SHN <- matrix(unname(SHARE_MID[SH]), n, K_STOVE)
-used <- !is.na(D) & D > 0
+## 4.2 Fuel loop, nested in the stove loop (one row per submission x stove x fuel)
+fuels_long <- rep_wide(hfc_constr, c("fuel_type", "fuel_unit", "fuel_qty_7d", "fuel_spend_7d", "fuel_own_7d")) |>
+  mutate(qty = as.numeric(fuel_qty_7d), own = as.numeric(fuel_own_7d))
+fuel_hh <- fuels_long |>
+  summarise(kwh_nonelec     = sum(fuel_unit %in% "6" & !fuel_type %in% "6"),
+            cyl_nongas      = sum(fuel_unit %in% "5" & !fuel_type %in% "3"),
+            n_own_above_qty = sum(!is.na(own) & !is.na(qty) & own > qty),
+            .by = KEY)
 
-REL  <- rep_mat(hfc_constr, "tu_rel", K_TU)
-AGE  <- num(rep_mat(hfc_constr, "tu_age", K_TU))
-COOK <- rep_mat(hfc_constr, "tu_cook", K_TU)
-CH   <- num(rep_mat(hfc_constr, "tu_cook_hours", K_TU))
-FW   <- rep_mat(hfc_constr, "tu_firewood", K_TU)
+## 4.3 Household roster and time use
+roster_long <- rep_wide(hfc_constr, c("rel_to_hhh", "member_gender", "member_age"))
+roster_hh <- roster_long |>
+  summarise(n_roster = n(), n_heads = sum(rel_to_hhh %in% "1"), .by = KEY)
 
-FT <- rep_mat(hfc_constr, "fuel_type", K_FUEL)
-FU <- rep_mat(hfc_constr, "fuel_unit", K_FUEL)
+cook_long <- rep_wide(hfc_constr, c("cooking_member_index", "cooking_member_age", "cooking_hours_7d"))
+cook_hh <- cook_long |>
+  summarise(max_cook_hours = suppressWarnings(max(as.numeric(cooking_hours_7d), na.rm = TRUE)),
+            n_child_cook = sum(as.numeric(cooking_member_age) < CHILD_COOK_AGE, na.rm = TRUE),
+            .by = KEY) |>
+  mutate(max_cook_hours = if_else(is.finite(max_cook_hours), max_cook_hours, NA_real_))
 
+## 4.4 Back to one row per submission
 hfc_constr <- hfc_constr |>
-  mutate(prog_in_loop     = !is.na(prog_j),
-         prog_working     = prog_val(W),
-         prog_days_7d     = prog_val(D),
-         prog_events_7d   = prog_val(E),
-         prog_share       = unname(SHARE_MID[prog_val(SH)]),
-         prog_role        = prog_val(R),
-         n_stoves_used_7d = rowSums(used),
-         share_sum        = if_else(n_stoves_used_7d > 0, rowSums(SHN * used, na.rm = TRUE), NA_real_),
-         any_share_all    = rowSums(SH == "7" & used, na.rm = TRUE) > 0,
-         n_primary        = rowSums(R == "1", na.rm = TRUE),
-         trad_used_7d     = rowSums(matrix(S %in% TRADITIONAL_STOVES, n, K_STOVE) & used) > 0,
-         primary_in_loop  = map2_lgl(primary_stove, str_split(coalesce(stoves_used, ""), " "), \(p, s) p %in% s),
-         firewood_source  = has_code(energy_sources, "1"),
-         n_roster         = rowSums(!is.na(REL)),
-         n_heads          = rowSums(REL == "1", na.rm = TRUE),
-         n_child_roster   = rowSums(AGE < 18, na.rm = TRUE),
-         any_cook         = rowSums(COOK == "1", na.rm = TRUE) > 0,
-         max_cook_hours   = row_max(CH),
-         any_firewood     = rowSums(FW == "1", na.rm = TRUE) > 0,
-         kwh_nonelec      = rowSums(FU == "6" & FT != "6", na.rm = TRUE),
-         cyl_nongas       = rowSums(FU == "5" & FT != "3", na.rm = TRUE),
-         # Operational days per year from the seasonality block (0 if the stove was never used)
-         op_days_year     = case_when(started_program_stove %in% "0" ~ 0,
-                                      months_regular_use %in% 0 ~ 0,
-                                      .default = months_regular_use * days_week_typical * 52 / 12))
+  left_join(stove_hh, by = "KEY") |>
+  left_join(prog_hh, by = "KEY") |>
+  left_join(fuel_hh, by = "KEY") |>
+  left_join(roster_hh, by = "KEY") |>
+  left_join(cook_hh, by = "KEY") |>
+  mutate(across(c(n_stoves_used_7d, n_events_below_days, n_used_not_working, n_stove_fuel_mismatch,
+                  kwh_nonelec, cyl_nongas, n_own_above_qty, n_roster, n_heads, n_child_cook), \(x) coalesce(x, 0L)),
+         across(c(any_share_all, trad_used_7d, firewood_source, prog_in_loop), \(x) coalesce(x, FALSE)),
+         prog_top_share = coalesce(prog_days_7d > 0 & prog_share >= max_share_used, FALSE),
+         any_cook       = coalesce(members_cooking, "") != "",
+         any_firewood   = coalesce(members_firewood, "") != "",
+         # Operational days per year, annualised from the last 7 days (no seasonality in the form)
+         op_days_year   = coalesce(prog_days_7d, 0) * 365 / 7)
 
 
 # ---- 5. Durations and duplicates ---------------------------------------------
@@ -186,6 +224,6 @@ add_flags(duplicates, "2.hfc_construct: duplicate", detail = "multiple consented
 hfc_outputs$duration_data <- duration_data
 hfc_outputs$duplicates    <- duplicates
 
-message(sprintf("      %d submissions after %s; %d duplicate submissions (%d households); repeats: %d stoves, %d fuels, %d members",
+message(sprintf("      %d submissions after %s; %d duplicate submissions (%d households); repeats: %d stoves, %d fuels per stove, %d members",
                 nrow(hfc_constr), FIELDWORK_START, nrow(duplicates), n_distinct(duplicates$hh_id),
-                K_STOVE, K_FUEL, K_TU))
+                n_inst(stoves_long), n_inst(fuels_long, "i2"), n_inst(roster_long)))

@@ -12,7 +12,7 @@
 # Sourced by 1.hfc_main.R after 2.hfc_construct.R.
 # Outputs: usage_params (also written to output_dir/usage_params.csv by 1.hfc_main.R)
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form; definitions in README.md "Decision log")
 # ==============================================================================
 
 
@@ -22,17 +22,16 @@
 USAGE_PARAMS <- tribble(
   ~parameter,            ~definition,                                                       ~base,
   "confirmed_stove",     "% confirming the stove type on the beneficiary list",             "consented",
-  "started_use",         "% that ever started using the program stove",                     "consented",
   "used_7d",             "% that used the program stove in the last 7 days",                "consented",
   "days_used_7d",        "Days the program stove was used in the last 7 days (0 if not)",   "consented",
   "events_7d",           "Uses of the program stove in the last 7 days (0 if not)",          "consented",
   "share_of_cooking",    "% of cooking done on the program stove, last 7 days (midpoints)", "consented",
-  "primary_stove",       "% with the program stove as primary stove, last 7 days",          "consented",
-  "op_days_year",        "Operational days per year: months of regular use x days/week x 52/12", "consented",
+  "primary_stove",       "% where the program stove has the highest cooking share among stoves used, last 7 days (ties count)", "consented",
+  "op_days_year",        "Operational days per year, annualised from the last 7 days: days used x 365/7 (no seasonality)", "consented",
   "stacking_traditional","% using a traditional stove (charcoal, firewood, briquettes) in the last 7 days", "consented",
   "observed_usable",     "% where the program stove was observed and usable",               "stoves observed"
 )
-PCT_PARAMS <- c("confirmed_stove", "started_use", "used_7d", "primary_stove", "stacking_traditional", "observed_usable")
+PCT_PARAMS <- c("confirmed_stove", "used_7d", "primary_stove", "stacking_traditional", "observed_usable")
 
 
 # ---- 2. Household values -------------------------------------------------------
@@ -43,12 +42,11 @@ hh_values <- hfc_constr |>
   distinct(hh_id, .keep_all = TRUE) |>
   transmute(hh_id, stove_group,
             confirmed_stove      = ascent_confirm %in% "1",
-            started_use          = started_program_stove %in% "1",
             used_7d              = coalesce(prog_days_7d, 0) > 0,
             days_used_7d         = coalesce(prog_days_7d, 0),
             events_7d            = coalesce(prog_events_7d, 0),
             share_of_cooking     = coalesce(prog_share, 0),
-            primary_stove        = prog_role %in% "1",
+            primary_stove        = prog_top_share,
             op_days_year         = op_days_year,
             stacking_traditional = trad_used_7d,
             observed_usable      = if_else(observe_stoves %in% "1", program_stove_seen %in% "1", NA))

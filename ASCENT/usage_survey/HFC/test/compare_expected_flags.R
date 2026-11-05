@@ -65,7 +65,10 @@ enum <- bind_rows(
 
 ## Privacy: the deidentified export must not hold the planted free text / device columns
 deid_cols <- names(read_csv(file.path(data_dir, paste0(FORM_ID, "_WIDE.csv")), n_max = 0, show_col_types = FALSE))
-leaked <- intersect(deid_cols, c("deviceid", "subscriberid", "simid", "devicephonenum", "audio", "usage_comment", "comment"))
+PRIVATE_FIELDS <- c("deviceid", "subscriberid", "simid", "devicephonenum", "audio", "usage_comment", "comment",
+                    "member_firstname", "member_lastname", "member_name", "member_dob",
+                    "cooking_member_name", "firewood_member_name")
+leaked <- str_subset(deid_cols, paste0("^(", paste(PRIVATE_FIELDS, collapse = "|"), ")(_\\d+)*$"))
 privacy <- tibble(check = "0.hfc_deidentify: dropped_columns", result = if (length(leaked)) "missed" else "matched")
 
 

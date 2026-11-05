@@ -5,11 +5,12 @@
 # compared only within the same fuel (and, for quantities, the same unit):
 # 2 kg of LPG and 2 bundles of firewood are not comparable.
 #
-# Sourced by 1.hfc_main.R after 2.hfc_construct.R (uses hfc_constr, repeat_fields).
+# Sourced by 1.hfc_main.R after 2.hfc_construct.R (uses hfc_constr, rep_cols()).
 # Special codes are already NA in continuous variables (script 2).
+# `instance` is the repeat suffix: "2" (stove 2, member 2) or "1_2" (stove 1, fuel 2).
 # Outputs: outlier_data
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -17,25 +18,24 @@
 
 # Pooled over all submissions (and repeat instances)
 OUTLIER_VARS <- c(
-  "hh_member_count",     # household size
+  "A1_1",                # household size
   "cooking_events_7d",   # uses of a stove in the last 7 days (stove loop)
-  "events_yesterday",    # uses of a stove yesterday (stove loop)
-  "tu_cook_hours",       # weekly cooking hours of one member (time-use roster)
-  "tu_firewood_hours"    # weekly firewood collection hours of one member (time-use roster)
+  "cooking_hours_7d",    # weekly cooking hours of one member (cooking_time_loop)
+  "firewood_hours_7d"    # weekly firewood collection hours of one member (firewood_time_loop)
 )
-# Within fuel (and unit): fuel loop
+# Within fuel (and unit): fuel loop (nested in the stove loop)
 FUEL_OUTLIER_VARS <- c(fuel_qty_7d = "fuel_unit", fuel_spend_7d = NA)
 MIN_GROUP_N <- 10         # skip fuel / unit groups with fewer values
 
 
 # ---- 2. Helper functions -----------------------------------------------------
 
-long_of <- function(x, extra = character()) {
-  cols <- if (x %in% repeat_fields) str_subset(names(hfc_constr), paste0("^", x, "_\\d+$")) else x
+long_of <- function(x) {
+  cols <- rep_cols(names(hfc_constr), x)
   hfc_constr |>
     select(KEY, hh_id, enumerator, enumerator_key, village_key, submissiondate, all_of(cols)) |>
     pivot_longer(all_of(cols), names_to = "column", values_to = "value") |>
-    mutate(var = x, instance = if (x %in% repeat_fields) as.integer(str_extract(column, "\\d+$")) else NA_integer_) |>
+    mutate(var = x, instance = na_if(str_remove(column, paste0("^", x, "_?")), "")) |>
     filter(!is.na(value))
 }
 

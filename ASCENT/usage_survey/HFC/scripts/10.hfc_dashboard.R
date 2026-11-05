@@ -35,7 +35,7 @@ DEF_PROGRESS <- c(
   stove_group = "Stove type on the beneficiary list", district_key = "District",
   target = "Households in the preload (sample)",
   hh_attempted = "Households with at least one submitted form",
-  hh_complete = "Households located, consented and finished (counted once)",
+  hh_complete = "Households located, consented and reaching the last question, observe_stoves (counted once)",
   complete_of_target_pct = "Progress: hh_complete / target",
   located_of_attempted_pct = "Households located / hh_attempted",
   consented_of_located_pct = "Households consented / households located",

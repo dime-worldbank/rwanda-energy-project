@@ -1,7 +1,8 @@
 # ==============================================================================
 # 3.hfc_admin.R
 # Clean cooking HFC: fieldwork progress by village, district and stove type
-# (preload stratum), and the list of households not located.
+# (preload stratum), and the list of households not located (the form records
+# no reason for not locating a household).
 #
 # Counts are households (a household counts once, whatever its number of
 # submissions), except `submissions`. hh_attempted = hh_complete + hh_not_complete.
@@ -10,7 +11,7 @@
 # Sourced by 1.hfc_main.R after 2.hfc_construct.R.
 # Outputs: village_data, district_data, stove_data, not_located
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -63,10 +64,6 @@ hh_frame <- read_preload("household_frame.csv") |>
   mutate(stove_group = unname(STOVE_TYPES[stove_type])) |>
   left_join(admin_names, by = "villageid_key")
 
-nolocate_labels <- read_excel(form_path, "choices", col_types = "text", .name_repair = "unique_quiet") |>
-  filter(list_name == "nolocate") |>
-  transmute(nolocate = value, nolocate_label = `label:English`)
-
 status <- hh_status(hfc_constr)
 
 not_in_frame <- setdiff(status$hh_id, hh_frame$hh_id)
@@ -95,11 +92,10 @@ not_located <- hfc_constr |>
   filter(!any(located), .by = hh_id) |>
   arrange(hh_id, desc(starttime)) |>
   summarise(n_attempts = n(), last_attempt = first(submissiondate), last_enumerator = first(enumerator_key),
-            nolocate = first(nolocate), nolocate_other = first(nolocate_other), KEY = first(KEY), .by = hh_id) |>
-  left_join(nolocate_labels, by = "nolocate") |>
+            KEY = first(KEY), .by = hh_id) |>
   left_join(hh_frame |> select(hh_id, stove_group, district_key, sector_key, cell_key, village_key), by = "hh_id") |>
   select(hh_id, district_key, sector_key, cell_key, village_key, stove_group,
-         n_attempts, last_attempt, last_enumerator, nolocate, nolocate_label, nolocate_other, KEY) |>
+         n_attempts, last_attempt, last_enumerator, KEY) |>
   arrange(district_key, village_key, hh_id)
 
 

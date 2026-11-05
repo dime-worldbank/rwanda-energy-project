@@ -3,14 +3,14 @@
 # Clean cooking HFC: logic checks, one row per submission x check. Two kinds:
 #   inconsistent  answers that contradict each other: count toward LOGIC_TARGET
 #   verify        plausible answers worth a back-check call (soft flags, e.g. a
-#                 program stove that was never used); reported, not targeted
+#                 program stove not used in the last 30 days); reported, not targeted
 # All checks are soft: nothing here is a form constraint.
 #
 # Sourced by 1.hfc_main.R after 2.hfc_construct.R (uses hfc_constr and the
-# derived prog_* / roster / fuel variables).
+# derived prog_* / stove / fuel / roster / time-use variables).
 # Outputs: logic_data, logic_summary (check x date)
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -38,46 +38,43 @@ logic_data <- bind_rows(
             consented & survey_min > DURATION_MAX),
 
   # Stove loop
-  flag_rows("multiple_primary", "inconsistent", "More than one stove reported as primary", n_primary > 1),
   flag_rows("share_sum_off", "inconsistent",
             sprintf("Cooking shares across stoves used add up to <%g%% or >%g%%", SHARE_SUM_RANGE[1], SHARE_SUM_RANGE[2]),
             !is.na(share_sum) & (share_sum < SHARE_SUM_RANGE[1] | share_sum > SHARE_SUM_RANGE[2])),
   flag_rows("share_all_with_other_stove", "inconsistent", "One stove does 'all' cooking but another stove was used",
             any_share_all & n_stoves_used_7d > 1),
-  flag_rows("primary_stove_not_used", "inconsistent", "Primary stove (Section C) not among stoves used in last 30 days",
-            consented & !is.na(primary_stove) & !primary_in_loop),
+  flag_rows("events_below_days", "inconsistent", "A stove has fewer cooking events than days used in the last 7 days",
+            n_events_below_days > 0),
+  flag_rows("stove_fuel_mismatch", "inconsistent",
+            "LPG / PAYG LPG stove used without gas, or EPC used without electricity",
+            n_stove_fuel_mismatch > 0),
+  flag_rows("used_but_not_working", "verify", "A stove used in the last 7 days is reported as not working",
+            n_used_not_working > 0),
 
-  # Seasonality vs last 7 days (program stove)
-  flag_rows("no_regular_months_but_used", "inconsistent", "0 months of regular use, but program stove used in last 7 days",
-            months_regular_use %in% 0 & prog_days_7d > 0),
-  flag_rows("typical_vs_7d_days", "verify",
-            sprintf("Typical days/week and days used last 7 days differ by %g+ with no seasonal change", TYPICAL_VS_7D_GAP),
-            seasonal_change %in% "0" & abs(days_week_typical - prog_days_7d) >= TYPICAL_VS_7D_GAP),
-
-  # Time-use roster
-  flag_rows("heads_not_one", "inconsistent", "Time-use roster does not have exactly one household head",
-            consented & n_roster > 0 & n_heads != 1),
-  flag_rows("children_mismatch", "inconsistent", "Members under 18 in the roster differ from hh_child_count",
-            consented & n_roster > 0 & n_child_roster != hh_child_count),
-  flag_rows("nobody_cooks", "inconsistent", "A stove was used in the last 7 days but no member cooked",
-            n_stoves_used_7d > 0 & n_roster > 0 & !any_cook),
-  flag_rows("cook_hours_high", "verify", sprintf("A member cooked more than %g hours in the last 7 days", COOK_HOURS_MAX),
-            max_cook_hours > COOK_HOURS_MAX),
-  flag_rows("firewood_not_source", "verify", "A member collected firewood but firewood is not a cooking energy source",
-            any_firewood & !firewood_source),
-
-  # Fuel units
+  # Fuel loop
   flag_rows("fuel_unit_kwh_not_electricity", "inconsistent", "Kilowatt-hours reported for a fuel other than electricity",
             kwh_nonelec > 0),
   flag_rows("fuel_unit_cylinder_not_gas", "inconsistent", "Cylinder reported for a fuel other than gas", cyl_nongas > 0),
+  flag_rows("fuel_own_above_qty", "inconsistent", "Own production of a fuel is larger than the quantity used",
+            n_own_above_qty > 0),
+
+  # Roster and time use
+  flag_rows("heads_not_one", "inconsistent", "Household roster does not have exactly one household head",
+            consented & n_roster > 0 & n_heads != 1),
+  flag_rows("nobody_cooks", "inconsistent", "A stove was used in the last 7 days but no member cooked (complete surveys)",
+            complete & n_stoves_used_7d > 0 & !any_cook),
+  flag_rows("cook_hours_high", "verify", sprintf("A member cooked more than %g hours in the last 7 days", COOK_HOURS_MAX),
+            coalesce(max_cook_hours > COOK_HOURS_MAX, FALSE)),
+  flag_rows("child_cook", "verify", sprintf("A member younger than %g cooked in the last 7 days", CHILD_COOK_AGE),
+            n_child_cook > 0),
+  flag_rows("firewood_not_source", "verify", "A member collected firewood but no stove uses firewood",
+            any_firewood & !firewood_source),
 
   # Program stove verification (soft: these are results too, but worth a call)
   flag_rows("program_stove_not_confirmed", "verify", "Household does not confirm the stove type on the beneficiary list",
             ascent_confirm %in% "0"),
-  flag_rows("program_stove_never_used", "verify", "Household never started using the program stove",
-            started_program_stove %in% "0"),
-  flag_rows("program_stove_not_used_30d", "verify", "Program stove started but not among stoves used in last 30 days",
-            started_program_stove %in% "1" & !prog_in_loop),
+  flag_rows("program_stove_not_used_30d", "verify", "Program stove not among the stoves used in the last 30 days",
+            !is.na(program_stove_type) & !prog_in_loop),
   flag_rows("program_stove_not_observed", "verify", "Program stove not observed, or observed but not usable",
             program_stove_seen %in% c("2", "3"))
 ) |>
