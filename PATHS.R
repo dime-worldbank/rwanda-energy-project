@@ -25,8 +25,7 @@ if (Sys.getenv("USERNAME") == "wb636130"){
   GITHUB <- file.path("C:/Users/wb636130/OneDrive - WBG/Documents/Github/rwanda-energy-project")
   ONEDRIVE <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda_Energy_Project")
   SHARED_EAQIP <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared")
-  # TBD: confirm where Tanay's shared ASCENT_clean_cooking folder appears on this machine
-  SHARED_ASCENT_CC <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/ASCENT_clean_cooking")
+  SHARED_ASCENT_CC <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/ASCENT_clean_cooking") 
 }
 
 # Tanay work (no Dropbox on WBG machines; midline HFC data is in SHARED_EAQIP)
