@@ -38,7 +38,7 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 |---|---|---|
 | `questionnaires/clean_cooking_questionnaire_YYMMDD.xlsx` | The one active form (older ones in `archive/`) | core team |
 | `datawork/HFC/data/` | Raw SurveyCTO export `LPG_usage_survey_WIDE_YYMMDD.csv` (one active) | core team |
-| `datawork/HFC/preload/` | Raw preload: `test_enumerators.csv`, `scope_villages.csv`, `household_head.csv`, `beneficiary-list-intermediate.csv` | core team |
+| `datawork/HFC/preload/` | Raw preload: `test_enumerators.csv`, `scope_villages.csv`, `household_head.csv`, `usage_survey_preload.csv` (from `preload/2.sampling.R`) | core team |
 | `datawork/HFC/deidentified/` | Output of script 0; the only input of scripts 2-10 | core team |
 | `datawork/HFC/output/` | `hfc_constr.xlsx`, dashboard, `usage_params.csv`, `checks/` (flags, back-check lists) | core team |
 | `share/main/` | Current dashboard (deidentified) | survey firm |
@@ -47,7 +47,9 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 
 ## Strata and key definitions
 
-- Stratum = preload stove type (`beneficiary-list-intermediate.csv`, `stove_type`): 1 LPG, 2 PAYG LPG, 3 EPC.
+- Stratum = preload stove type (`usage_survey_preload.csv`, `stove_type`): 1 LPG, 3 EPC (2 PAYG LPG is not
+  separated in the sample). The sample is also stratified by `stove_year` (2025, 2026); see
+  `ASCENT/usage_survey/preload/2.sampling.R`.
 - Complete = located, consented and `observe_stoves` answered (the form has no `finish` field; `observe_stoves`
   is the last required question). Duplicate = more than one consented submission per `hh_id`.
 - Program stove answers (`prog_*`) come from the stove-loop instance whose `stove_type = program_stove_type`.
@@ -72,5 +74,6 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 - Form `settings` version must be numeric (currently `261104_activity_first_timeuse`; the HFC warns).
 - Production enumerator list name (the form searches `test_enumerators`).
 - Contact column names in `household_head.csv` (`CONTACT_COLS` in `11.hfc_backcheck.R`).
-- `stove_type` in the beneficiary list must hold codes 1/2/3, not labels (the form converts codes to labels).
+- Form `pull_stovetype` (survey sheet, row 36, column K) must read `usage_survey_preload` instead of
+  `beneficiary-list-intermediate`, and `usage_survey_preload.csv` must be attached to the form in SurveyCTO.
 - Where the shared folder appears on Yeji's machine (`SHARED_ASCENT_CC` in `PATHS.R`).

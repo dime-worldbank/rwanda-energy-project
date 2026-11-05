@@ -148,7 +148,7 @@ preload <- list(
                                          hh_head_name = paste(sample(FIRST, n(), TRUE), sample(LAST, n(), TRUE)),
                                          phone_clean = sprintf("0700%06d", sample(1e5:999999, n())),
                                          phone2_clean = if_else(runif(n()) < 0.3, sprintf("0700%06d", sample(1e5:999999, n())), NA_character_)),
-  `beneficiary-list-intermediate.csv` = hh |> transmute(householdid_key, stove_type)
+  usage_survey_preload.csv = hh |> transmute(householdid_key, stove_type, stove_year = sample(c(2025, 2026), n(), TRUE))
 )
 
 

@@ -90,7 +90,7 @@ FIELDWORK_START  <- MODE_CONFIG$fieldwork_start
 PRELOAD_RAW <- c(enumerators = ENUM_FILE,
                  villages    = "scope_villages.csv",
                  households  = "household_head.csv",
-                 stoves      = "beneficiary-list-intermediate.csv")
+                 stoves      = "usage_survey_preload.csv")   # from ASCENT/usage_survey/preload/2.sampling.R
 
 # Raw SurveyCTO export: plain name in test, FORM_ID_WIDE_YYMMDD.csv otherwise (one active file)
 find_raw_export <- function() {
