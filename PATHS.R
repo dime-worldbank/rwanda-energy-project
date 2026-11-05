@@ -25,6 +25,7 @@ if (Sys.getenv("USERNAME") == "wb636130"){
   GITHUB <- file.path("C:/Users/wb636130/OneDrive - WBG/Documents/Github/rwanda-energy-project")
   ONEDRIVE <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda_Energy_Project")
   SHARED_EAQIP <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared")
+  SHARED_ASCENT_CC <- file.path("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/ASCENT_clean_cooking") 
 }
 
 # Tanay work (no Dropbox on WBG machines; midline HFC data is in SHARED_EAQIP)
@@ -33,6 +34,7 @@ if (Sys.getenv("USERNAME") == "wb513278"){
   GITHUB <- file.path("C:/Users/wb513278/OneDrive - WBG/Documents/GitHub/main/rwanda-energy-project")
   ONEDRIVE <- file.path("C:/Users/wb513278/OneDrive - WBG/Rwanda Energy Project")
   SHARED_EAQIP <- file.path(ONEDRIVE, "EAQIP_HFC_shared")
+  SHARED_ASCENT_CC <- file.path(ONEDRIVE, "ASCENT_clean_cooking")
 }
 
 if (!exists("GITHUB")) {
@@ -45,6 +47,10 @@ DROPBOX_EAQIP <- file.path(DROPBOX, "EAQIP")
 # Users who have not set SHARED_EAQIP above keep reading from Dropbox.
 if (!exists("SHARED_EAQIP")) SHARED_EAQIP <- DROPBOX_EAQIP
 DROPBOX_ASCENT <- file.path(DROPBOX, "ASCENT")
+
+# Shared OneDrive folder for the ASCENT clean cooking usage survey (HFC data, outputs,
+# questionnaire, report). Scripts: ASCENT/usage_survey/HFC. NA for users without access.
+if (!exists("SHARED_ASCENT_CC")) SHARED_ASCENT_CC <- NA_character_
 
 # WBG OneDrive: files shared with the team and the survey firm
 ONEDRIVE_HFC_ML <- file.path(ONEDRIVE, "EAQIP_survey/HFC_26")   # midline HFC dashboard
