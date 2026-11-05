@@ -7,7 +7,7 @@ HFC_KEEP_TYPES <- c("integer", "decimal", "date", "select_one", "select_multiple
 # SurveyCTO columns that are not form fields
 HFC_META_COLS <- c("KEY", "SubmissionDate", "starttime", "endtime", "formdef_version")
 
-# Column-name patterns that must never reach the HFC (names, phones, GPS, device ids, media, free-text comments)
+# Column-name patterns that must never reach the HFC (names, nids, phones, GPS, device ids, media, free-text comments)
 HFC_BLOCK_REGEX <- paste(c("phone", "(^|_)name$", "latitude", "longitude", "altitude", "accuracy", "gps",
                            "(^|_)nid$", "audio", "photo", "text_audit", "^simid$", "subscriber", "deviceid",
                            "meter_number", "comment"), collapse = "|")

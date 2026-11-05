@@ -74,12 +74,71 @@ if (nrow(elig_wrong_arm) > 0) {
 # ---- 4. Construct ------------------------------------------------------------
 
 # Dates (bug 3 fixed: one documented format; TBD confirm on a real midline export)
+# Parse export timestamps, then convert to Rwanda time
+parse_export_datetime <- function(x) {
+  if (inherits(x, "POSIXt")) {
+    return(lubridate::with_tz(x, TZ))
+  }
+  
+  x <- stringr::str_squish(as.character(x))
+  x <- stringr::str_replace_all(
+    x,
+    c("오전" = "AM", "오후" = "PM")
+  )
+  
+  parsed <- lubridate::parse_date_time(
+    x,
+    orders = c(
+      "ymd p IMS",  # 2026. 10. 31 AM 10:13:00
+      "mdy IMS p",  # Oct 31, 2026 10:13:00 AM
+      "ymd HMS"     # 2026-10-31 10:13:00
+    ),
+    locale = "C",
+    tz = EXPORT_TZ,
+    quiet = TRUE
+  )
+  
+  lubridate::with_tz(parsed, TZ)
+}
+
+date_cols <- c("SubmissionDate", "starttime", "endtime")
+
 hfc_constr <- raw |>
-  mutate(across(c(SubmissionDate, starttime, endtime), \(x) with_tz(mdy_hms(x, tz = EXPORT_TZ), TZ)),
-         submissiondate = as_date(SubmissionDate),
-         startdate = as_date(starttime),
-         enddate = as_date(endtime)) |>
+  mutate(
+    across(all_of(date_cols), parse_export_datetime),
+    submissiondate = lubridate::as_date(SubmissionDate, tz = TZ),
+    startdate = lubridate::as_date(starttime, tz = TZ),
+    enddate = lubridate::as_date(endtime, tz = TZ)
+  )
+
+# Check BEFORE filtering so failed dates cannot disappear silently
+print(
+  hfc_constr |>
+    summarise(across(all_of(date_cols), ~ sum(is.na(.x))))
+)
+
+if (anyNA(hfc_constr[date_cols])) {
+  stop(
+    "Missing or unparsed timestamps detected. ",
+    "Check raw dates and EXPORT_TZ before continuing."
+  )
+}
+
+n_before <- nrow(hfc_constr)
+
+hfc_constr <- hfc_constr |>
   filter(startdate >= FIELDWORK_START)
+
+message(sprintf(
+  "Date filter: %d input rows; %d retained; %d excluded.",
+  n_before,
+  nrow(hfc_constr),
+  n_before - nrow(hfc_constr)
+))
+
+if (nrow(hfc_constr) == 0L) {
+  stop("No surveys remain after the fieldwork-start filter.")
+}
 
 # Special codes -> NA in continuous variables only (including repeat instances)
 cont_cols <- names(hfc_constr)[names(hfc_constr) %in% continuous_fields |
