@@ -56,17 +56,15 @@ The issue rose when ensuring the Household ID correctly reflects the District(DD
 
 Household IDs are 12 digits: an 8-digit official village ID (DDSSCCVV) followed by a 4-digit household number. All 43,033 IDs start with a valid village ID, so the IDs themselves are well formed. However, the village in the ID matches the village named in the district / cell / village columns for only 45% of households (district: 73%, province: 83%).
 
-So the list carries two locations per household that often disagree. The agreement varies a lot by supplier (27% to 72% at village level), which suggests the named location was entered by the supplier (e.g. point of sale or delivery address), while the ID reflects where the household is registered. This is an inference, to be confirmed with the program team.
-
 This mismatch needs to be addressed before creating the preload data: we need to know which location to use for the form. 
 
 #### Todo - The question then is: 
 
-Do we keep the HHID provided in the raw dataset? (there is no clear alternative)
+Do we keep the HHID provided in the raw dataset AND change District ~ Village assignment based on the village ID encoded in the HHID? 
 
-If so, do we keep the inconsistencies and still include District, Sector, Cell, Village questions in the form?
+OR 
 
-(This way, we will create the household_sample that has District, Sector, Cell, Village names and IDs from the vills.csv but the household IDs from the raw data)
+Do we keep the inconsistencies and create the household_sample that has District, Sector, Cell, Village names and IDs from the vills.csv but the household IDs from the raw data
 
 ### 2.sampling.R
 
@@ -75,7 +73,7 @@ From cleaned beneficiary_list from 1.beneficiary_list.R samples 1,300 households
 
 We sample equal number per strarum, and it is 2X2 metric of Stove Type X Year of Purchase. 
 
-Most of the frame (81%, 33,505 of 41,368) received LPG, but the sample is 50% LPG by design. So each sampled LPG household stands for 2 to 9 times as many beneficiaries as an EPC household from the same year (47.9 / 22.3 for 2026, 86.1 / 9.2 for 2025). The weight (frame / main) is only needed for estimates that pool strata; results by stratum need no weight.
+Most of the frame (81%, 33,505 of 41,368) received LPG, but the sample is 50% LPG by design. So each sampled LPG household stands for 2 to 9 times as many beneficiaries as an EPC household from the same year (47.9 / 22.3 for 2026, 86.1 / 9.2 for 2025). The weight (frame / main) is only needed for estimates that pool strata.
 
 Stratum	Frame	Main	Replacements	Weight
 EPC 2025	2,290	250	75	9.2
@@ -84,4 +82,6 @@ LPG 2025	21,519	250	75	86.1
 LPG 2026	11,986	250	75	47.9
 
 #### Todo - confirm method 
+Is current method valid? 
+
 If we want the sample size to reflect the sample pool size (i.e. main), a different sampling strategy should be applied. 
