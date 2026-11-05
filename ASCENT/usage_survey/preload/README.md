@@ -8,23 +8,23 @@ The R scrips contained in this 'preload' folder creates three data required for 
 
 1) enumerator.csv (for testing, uses test_enumerator.csv)
 2) scope_villages.csv (contains the administrative divisions -- district, sector, cell, village -- of the beneficiary households)
-3) hoousehold_sample.csv (contains 1300 household sample, 1000 for the main survey and 300 for replacement)
+3) household_sample.csv (contains 1300 household sample, 1000 for the main survey and 300 for replacement)
 
 ### TODO 
-1) test_enumerator. csv and 2) scope_villages.csv is not yet created as of 2926-11-05. This is because confirming the sampling method and cleaning of the raw beneficiary data is needed. 
+1) test_enumerator. csv and 2) scope_villages.csv is not yet created as of 2026-11-05. This is because confirming the sampling method and cleaning of the raw beneficiary data is needed. 
 
 ## Raw Beneficiary List Data 
 
 ### Folder location - 
 
-`C:\Users\wb636130\Dropbox\Rwanda Energy\ASCENT\questionnaires\preload` clean-cooking-beneficiaries-list-raw.csv 
+`Dropbox/Rwanda Energy/ASCENT/questionnaires/preload/clean-cooking-beneficiaries-list-raw.csv` (`DATA_ASCENT_PRELOAD` in `PATHS.R`)
 
 ### Key variables: 
 
 household id, beneficiary name and phone number, district, cell, village names, cook stove product name, date purchased,  subsidy amount and amount paid by the customer. 
 
 ### Important note
-a)  the raw data has 45% of missing household IDs. 
+a)  the raw data has 23% missing household IDs (13,173 of 56,212 rows). These households are dropped. 
 
 b) Also, the administrative levels only contain district, cell, village names and sector name is MISSING. 
 
@@ -54,9 +54,11 @@ Result:
 
 The issue rose when ensuring the Household ID correctly reflects the District(DD), Sector(DDSS), Cell(DDSSCC), Village IDs (or keys) (DDSSCCVV). 
 
-Ideally, Household IDs should fully incorporate the village IDs and add household digits after. However, of 43,033 observations only 45% household IDs correclty encoded village IDs.  
+Household IDs are 12 digits: an 8-digit official village ID (DDSSCCVV) followed by a 4-digit household number. All 43,033 IDs start with a valid village ID, so the IDs themselves are well formed. However, the village in the ID matches the village named in the district / cell / village columns for only 45% of households (district: 73%, province: 83%).
 
-This mismatch needs to be addressed before creating the preload data. 
+So the list carries two locations per household that often disagree. The agreement varies a lot by supplier (27% to 72% at village level), which suggests the named location was entered by the supplier (e.g. point of sale or delivery address), while the ID reflects where the household is registered. This is an inference, to be confirmed with the program team.
+
+This mismatch needs to be addressed before creating the preload data: we need to know which location to use for the form. 
 
 #### Todo - The question then is: 
 
@@ -73,7 +75,7 @@ From cleaned beneficiary_list from 1.beneficiary_list.R samples 1,300 households
 
 We sample equal number per strarum, and it is 2X2 metric of Stove Type X Year of Purchase. 
 
-Since most of the sample (67%) has received LPG, the weight of each sampled households from LPG stratum is 2-9 times greater than EPC stratum.
+Most of the frame (81%, 33,505 of 41,368) received LPG, but the sample is 50% LPG by design. So each sampled LPG household stands for 2 to 9 times as many beneficiaries as an EPC household from the same year (47.9 / 22.3 for 2026, 86.1 / 9.2 for 2025). The weight (frame / main) is only needed for estimates that pool strata; results by stratum need no weight.
 
 Stratum	Frame	Main	Replacements	Weight
 EPC 2025	2,290	250	75	9.2
