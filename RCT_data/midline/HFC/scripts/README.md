@@ -99,23 +99,30 @@ source("RCT_data/midline/HFC/scripts/1.hfc_main.R")
 source("RCT_data/midline/HFC/scripts/11.hfc_backcheck.R")   # optional: back-check call list
 ```
 
-Script 11 writes `output/checks/backcheck_list_YYYYMMDD.xlsx`, to catch fake interviews. It reads the hard
+Script 11 updates `output/checks/backcheck_list.xlsx`, to catch fake interviews. It reads the hard
 checks of the last run of script 1 (`checks/hfc_flags.csv`), the raw export (names, phones, GPS) and the two
 baseline exports (`DATA_CTO/baseline-first-round` and `baseline-second-round`, `coordinate-Latitude/Longitude`).
-Sheets (all days so far):
+Sheets:
 
-- `gps_issues`: midline `obs_gps` more than 1 km (`GPS_MAX_KM`) + midline accuracy + baseline accuracy from
-  **every** baseline GPS point of the household. Accuracy (`obs_gps-Accuracy`, `coordinate-Accuracy`) is the
-  phone's own error estimate in metres; a missing accuracy counts as 0. `threshold_km` shows the limit used.
-- `hard_checks`: submissions with a hard check, with household head and respondent names.
-- `enumerators`: GPS issues and hard-check submissions per enumerator, one column per survey day plus a total,
-  and the hard-check quota.
-- `backcheck`: households to call. GPS issue households, at most 15 per list (`GPS_SAMPLE_MAX`; random, seeded), plus 1 hard-check
-  household per enumerator, or 5 if the enumerator has more than 10 hard-check submissions (most checks first,
-  then at random, seeded). Blank columns for the back-checker.
+- `backcheck_YYYYMMDD`: households to call, one sheet per run date. Each run adds a sheet; earlier sheets, and
+  anything typed into them, are kept (a re-run on the same day replaces that day's sheet). GPS issue
+  households, at most 15 per list (`GPS_SAMPLE_MAX`; random, seeded), plus 1 hard-check household per
+  enumerator, or 5 if the enumerator has more than 10 hard-check submissions (most checks first, then at
+  random, seeded). Numbered (`no`); hard checks first, then GPS issues, each sorted by survey date (newest
+  first) and enumerator. Blank columns for the back-checker.
+- `enumerators`: `hard_checks_total`, `gps_issues_total`, then one column per survey day for each, and the
+  hard-check quota.
+- `gps_issues_all` (all days so far): midline `obs_gps` more than 1 km (`GPS_MAX_KM`) + midline accuracy +
+  baseline accuracy from **every** baseline GPS point of the household. Accuracy (`obs_gps-Accuracy`,
+  `coordinate-Accuracy`) is the phone's own error estimate in metres; a missing accuracy counts as 0.
+  `threshold_km` shows the limit used.
+- `hard_checks_all` (all days so far): submissions with a hard check, with the household head's name.
 
-Left out of `backcheck`: households in an earlier `backcheck_list_*.xlsx` (sheet `backcheck`, matched on
-`hh_id`; the script stops if an earlier list cannot be read), and households with no valid phone number. Valid
+The last three are replaced on each run. Before each save, the previous workbook is copied to `checks/!archive/`.
+
+Left out of the call list: households in an earlier `backcheck_YYYYMMDD` sheet or in an earlier
+one-file-per-day list (`backcheck_list_YYYYMMDD.xlsx` in `checks/` or `checks/!archive/`, sheet `backcheck`), matched on `hh_id` (the script
+stops if one cannot be read), and households with no valid phone number. Valid
 number (primary and secondary alike): the preloaded number if the respondent confirmed it, the new number if they
 did not, or the number collected when nothing was preloaded; it must be a Rwandan mobile number (07XXXXXXXX).
 
@@ -198,7 +205,7 @@ In `output_dir` (`SHARED_EAQIP/datawork/HFC_midline/output`, or `pilot/output` /
 | `hfc_constr.xlsx` | The constructed dataset from script 2 |
 | `archive/` | Earlier versions of both files, renamed `<name>_YYYYMMDD_HHMM.xlsx` |
 | `checks/hfc_flags.csv` | Every flagged row, used by `test/compare_expected_flags.R` and `11.hfc_backcheck.R` |
-| `checks/backcheck_list_YYYYMMDD.xlsx` | Back-check workbook from script 11 (names, phone numbers, GPS) |
+| `checks/backcheck_list.xlsx` | Back-check workbook from script 11, one `backcheck_YYYYMMDD` sheet per run (names, phone numbers, GPS) |
 | `audio_check/<YYYYMMDD>/` | Audio audit list and files |
 
 On the WBG OneDrive (`ONEDRIVE_HFC_ML` in `PATHS.R`: `Rwanda_Energy_Project/EAQIP_survey/HFC_26`),

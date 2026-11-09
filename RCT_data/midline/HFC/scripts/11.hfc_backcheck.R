@@ -1,14 +1,19 @@
 # ==============================================================================
 # 11.hfc_backcheck.R
-# Midline HFC: back-check workbook, to catch fake interviews. Four sheets:
-#   gps_issues  midline GPS more than GPS_MAX_KM + midline accuracy + baseline accuracy
-#               from every baseline GPS point of the household (all days so far)
-#   hard_checks submissions with a hard check from 5.hfc_logic.R, with names (all days so far)
-#   enumerators GPS issues and hard-check submissions per enumerator, per day and in total
-#   backcheck   households to call: every GPS issue household, plus 1 hard-check household
-#               per enumerator (HARD_N_HIGH if the enumerator has more than HARD_HIGH_AT
-#               hard-check submissions). Households in an earlier list and households with
-#               no valid phone number are left out.
+# Midline HFC: back-check workbook, to catch fake interviews. One workbook
+# (checks/backcheck_list.xlsx) that grows with each run:
+#   backcheck_YYYYMMDD  households to call, one sheet per run date (added each run; earlier
+#                       sheets and anything typed into them are kept). Up to GPS_SAMPLE_MAX
+#                       GPS issue households at random, plus 1 hard-check household per
+#                       enumerator (HARD_N_HIGH if the enumerator has more than HARD_HIGH_AT
+#                       hard-check submissions). Households in an earlier list and households
+#                       with no valid phone number are left out.
+#   enumerators         hard-check submissions and GPS issues per enumerator, in total and per day
+#   gps_issues_all      midline GPS more than GPS_MAX_KM + midline accuracy + baseline accuracy
+#                       from every baseline GPS point of the household (all days so far)
+#   hard_checks_all     submissions with a hard check from 5.hfc_logic.R, with names (all days so far)
+# The last three are replaced on each run. A re-run on the same day replaces that day's sheet.
+# Before each save the previous workbook is copied to checks/!archive (as backcheck_list_YYYYMMDD_HHMM.xlsx).
 #
 # Reads the raw export (names, phones, GPS) like 0.hfc_deidentify.R, so it is kept out of
 # 1.hfc_main.R: scripts 2-10 only ever see deidentified data. Do not copy the workbook to
@@ -66,8 +71,12 @@ HARD_N_HIGH    <- 5      # ... get this many households in the list (others get 
 HARD_N         <- 1
 SEED <- 20261101
 
-TODAY    <- Sys.Date()   # date of the computer running the script (names today's list)
-out_path <- file.path(checks_dir, paste0("backcheck_list_", format(TODAY, "%Y%m%d"), ".xlsx"))
+TODAY       <- Sys.Date()   # date of the computer running the script (names today's sheet)
+out_path    <- file.path(checks_dir, "backcheck_list.xlsx")
+archive_dir <- file.path(checks_dir, "!archive")   # earlier one-file-per-day lists and workbook copies
+today_sheet <- paste0("backcheck_", format(TODAY, "%Y%m%d"))
+SUMMARY_SHEETS <- c("enumerators", "gps_issues_all", "hard_checks_all")
+GPS_REASON  <- "GPS far from baseline"
 
 
 # ---- 3. Helper functions -----------------------------------------------------
@@ -105,7 +114,7 @@ haversine_km <- function(lat1, lon1, lat2, lon2) {
   2 * 6371 * asin(pmin(1, sqrt(a)))
 }
 
-# Per enumerator: one column per survey day plus a total, named <prefix>_total, <prefix>_<date>
+# Per enumerator: a total plus one column per survey day, named <prefix>_total, <prefix>_<date>
 count_by_day <- function(df, prefix, days) {
   df |>
     count(enumerator, survey_date) |>
@@ -114,6 +123,12 @@ count_by_day <- function(df, prefix, days) {
                 names_prefix = paste0(prefix, "_"), names_expand = TRUE) |>
     mutate(!!paste0(prefix, "_total") := rowSums(across(-enumerator)), .after = enumerator)
 }
+
+# Date of a backcheck_YYYYMMDD sheet or backcheck_list_YYYYMMDD.xlsx file
+name_date <- \(x) as.Date(str_extract(x, "[0-9]{8}"), "%Y%m%d")
+
+unreadable <- \(what) \(e) stop("Cannot read ", what, " (", conditionMessage(e), "). Close it in Excel, ",
+                                "or save it with a label that does not encrypt it, and re-run.")
 
 
 # ---- 4. Inputs ---------------------------------------------------------------
@@ -147,16 +162,23 @@ baseline_gps <- imap(BASELINE_EXPORTS, \(p, round) {
   list_rbind() |>
   filter(!is.na(hh_id), !is.na(bl_lat), !is.na(bl_lon), bl_lat != 0, bl_lon != 0)
 
-# Households in earlier lists (files dated before today; today's file is replaced on a re-run)
-prev_files <- list.files(checks_dir, pattern = "^backcheck_list_[0-9]{8}\\.xlsx$", full.names = TRUE)
-prev_files <- prev_files[as.Date(str_extract(basename(prev_files), "[0-9]{8}"), "%Y%m%d") < TODAY]
-already_checked <- map(prev_files, \(f) {
-  tryCatch(read_excel(f, sheet = "backcheck", col_types = "text")$hh_id,
-           error = \(e) stop("Cannot read earlier list ", basename(f), " (", conditionMessage(e),
-                             "). Close it in Excel, or save it without a sensitivity label, and re-run."))
-}) |>
+# Households in earlier lists: backcheck_YYYYMMDD sheets of the workbook dated before today
+# (today's sheet is replaced on a re-run), and the earlier one-file-per-day lists
+wb_sheets <- if (file.exists(out_path)) tryCatch(excel_sheets(out_path), error = unreadable(basename(out_path))) else character()
+prev_sheets <- str_subset(wb_sheets, "^backcheck_[0-9]{8}$")
+prev_sheets <- prev_sheets[name_date(prev_sheets) < TODAY]
+old_files <- list.files(c(checks_dir, archive_dir), pattern = "^backcheck_list_[0-9]{8}\\.xlsx$", full.names = TRUE)
+old_files <- old_files[name_date(basename(old_files)) < TODAY]
+
+already_checked <- c(
+  map(prev_sheets, \(s) tryCatch(read_excel(out_path, sheet = s, col_types = "text")$hh_id,
+                                 error = unreadable(paste(basename(out_path), s)))),
+  map(old_files, \(f) tryCatch(read_excel(f, sheet = "backcheck", col_types = "text")$hh_id,
+                               error = unreadable(basename(f))))
+) |>
   unlist() |> discard(is.na) |> unique()
-message(sprintf("      %d earlier list(s); %d households already back-checked", length(prev_files), length(already_checked)))
+message(sprintf("      %d earlier list(s); %d households already back-checked",
+                length(prev_sheets) + length(old_files), length(already_checked)))
 
 
 # ---- 5. Submissions ------------------------------------------------------------
@@ -168,7 +190,6 @@ subs <- raw |>
   transmute(KEY, hh_id, enumerator, village, start, survey_date,
             survey_min = round(as.numeric(survey_duration) / 60, 1),
             hh_head_name,
-            respondent_name = na_if(str_squish(paste(coalesce(first_name, ""), coalesce(last_name, ""))), ""),
             primary_phone = valid_phone(pull_phonenumber, confirm_phonenumber, phonenumber_revise, phonenumber),
             secondary_phone = valid_phone(pull_second_phonenumber, confirm_second_phonenumber,
                                           second_phonenumber_revise, second_phonenumber),
@@ -214,12 +235,17 @@ hard_subs <- hard_flags |>
 
 # ---- 8. Per enumerator ---------------------------------------------------------
 
+hard_by_day <- count_by_day(hard_subs, "hard_checks", fieldwork_days)
+gps_by_day  <- count_by_day(gps_issues, "gps_issues", fieldwork_days)
+
 enum_counts <- subs |>
   distinct(enumerator, enumerator_name) |>
-  left_join(count_by_day(gps_issues, "gps_issues", fieldwork_days), by = "enumerator") |>
-  left_join(count_by_day(hard_subs, "hard_checks", fieldwork_days), by = "enumerator") |>
+  left_join(hard_by_day, by = "enumerator") |>
+  left_join(gps_by_day, by = "enumerator") |>
   mutate(across(-c(enumerator, enumerator_name), \(x) coalesce(x, 0)),
-         hard_quota = if_else(hard_checks_total > HARD_HIGH_AT, HARD_N_HIGH, HARD_N))
+         hard_quota = if_else(hard_checks_total > HARD_HIGH_AT, HARD_N_HIGH, HARD_N)) |>
+  # Totals first, then the daily breakdown
+  relocate(hard_checks_total, gps_issues_total, .after = enumerator_name)
 
 
 # ---- 9. Back-check sample ------------------------------------------------------
@@ -230,7 +256,7 @@ callable <- \(df) df |>
 
 set.seed(SEED)
 
-# Every GPS issue household (one submission per household: the furthest)
+# GPS issue households (one submission per household: the furthest), sampled above GPS_SAMPLE_MAX
 gps_pool <- gps_issues |> callable() |> slice_max(distance_km, n = 1, with_ties = FALSE, by = hh_id)
 gps_pick <- if (nrow(gps_pool) > GPS_SAMPLE_MAX) slice_sample(gps_pool, n = GPS_SAMPLE_MAX) else gps_pool
 
@@ -249,7 +275,7 @@ short_enums <- hard_pick |> count(enumerator, name = "picked") |>
   filter(coalesce(picked, 0L) < pmin(hard_quota, hard_checks_total))
 
 backcheck <- bind_rows(
-  mutate(gps_pick, reason = "GPS far from baseline"),
+  mutate(gps_pick, reason = GPS_REASON),
   mutate(hard_pick, reason = "Hard check")
 ) |>
   select(-any_of(c("hard_checks", "n_hard_checks"))) |>
@@ -261,31 +287,41 @@ backcheck <- bind_rows(
 id_cols <- \(df) df |>
   transmute(survey_date = format(survey_date), survey_start_rwanda = format(start, "%H:%M"), survey_min,
             enumerator_id = as.integer(enumerator), enumerator_name, district, sector, cell, village = village_name,
-            hh_id, hh_head_name, respondent_name, KEY, pick(any_of(c("primary_phone", "secondary_phone"))))
+            hh_id, hh_head_name, KEY, primary_phone, secondary_phone)
 
 sheets <- list(
-  gps_issues = gps_issues |>
-    arrange(desc(distance_km)) |>
-    (\(d) bind_cols(id_cols(d), transmute(d, distance_km, threshold_km, ml_lat, ml_lon, ml_accuracy_m,
-                                          baseline_round, bl_lat, bl_lon, bl_accuracy_m)))(),
-  hard_checks = hard_subs |>
-    arrange(survey_date, enumerator) |>
-    (\(d) bind_cols(id_cols(d), transmute(d, n_hard_checks, hard_checks, gps_distance_km = distance_km)))(),
   enumerators = enum_counts |>
     mutate(enumerator_id = as.integer(enumerator), .before = 1) |>
     select(-enumerator) |>
     arrange(desc(hard_checks_total + gps_issues_total), enumerator_id),
-  backcheck = backcheck |>
-    arrange(reason != "GPS far from baseline", enumerator, survey_date) |>
-    (\(d) bind_cols(transmute(d, reason), id_cols(d),
-                    transmute(d, hard_checks, gps_distance_km = distance_km,
-                              call_date = "", reached = "", respondent_confirms_interview = "", notes = "")))()
+  gps_issues_all = gps_issues |>
+    arrange(desc(distance_km)) |>
+    (\(d) bind_cols(id_cols(d), transmute(d, distance_km, threshold_km, ml_lat, ml_lon, ml_accuracy_m,
+                                          baseline_round, bl_lat, bl_lon, bl_accuracy_m)))(),
+  hard_checks_all = hard_subs |>
+    arrange(survey_date, enumerator) |>
+    (\(d) bind_cols(id_cols(d), transmute(d, n_hard_checks, hard_checks, gps_distance_km = distance_km)))()
 )
+# Numbered; hard checks first, then GPS issues; each newest survey first, then by enumerator
+sheets[[today_sheet]] <- backcheck |>
+  arrange(reason == GPS_REASON, desc(survey_date), as.integer(enumerator), start) |>
+  (\(d) bind_cols(tibble(no = seq_len(nrow(d))), transmute(d, reason), id_cols(d),
+                  transmute(d, hard_checks, gps_distance_km = distance_km,
+                            call_date = "", reached = "", respondent_confirms_interview = "", notes = "")))()
 
-wb <- createWorkbook()
+# Open the existing workbook (earlier backcheck sheets are kept as they are) and keep a copy of it
+if (file.exists(out_path)) {
+  wb <- tryCatch(loadWorkbook(out_path), error = unreadable(basename(out_path)))
+  dir.create(archive_dir, recursive = TRUE, showWarnings = FALSE)
+  invisible(file.copy(out_path, file.path(archive_dir, paste0("backcheck_list_", format(Sys.time(), "%Y%m%d_%H%M"), ".xlsx"))))
+} else {
+  wb <- createWorkbook()
+}
+
 head_style <- createStyle(textDecoration = "bold", fgFill = "#DDEBF7")
 for (nm in names(sheets)) {
   df <- sheets[[nm]]
+  if (nm %in% names(wb)) removeWorksheet(wb, nm)
   addWorksheet(wb, nm)
   writeData(wb, nm, df, headerStyle = head_style)
   # Keep the leading 0 of phone numbers and IDs in Excel
@@ -296,12 +332,21 @@ for (nm in names(sheets)) {
   setColWidths(wb, nm, seq_along(df), "auto")
   freezePane(wb, nm, firstRow = TRUE)
 }
-dir.create(checks_dir, recursive = TRUE, showWarnings = FALSE)
-saveWorkbook(wb, out_path, overwrite = TRUE)
 
-message(sprintf("[11.hfc_backcheck] gps_issues %d | hard_checks %d submissions | backcheck %d households (%d GPS, %d hard check; %d enumerators at %d) -> %s",
-                nrow(sheets$gps_issues), nrow(sheets$hard_checks), nrow(backcheck), nrow(gps_pick), nrow(hard_pick),
-                sum(enum_counts$hard_quota == HARD_N_HIGH & enum_counts$hard_checks_total > 0), HARD_N_HIGH, out_path))
+# Sheet order: backcheck sheets (newest first), then the summary sheets, then anything else
+bc_sheets <- sort(str_subset(names(wb), "^backcheck_[0-9]{8}$"), decreasing = TRUE)
+sheet_order <- c(bc_sheets, SUMMARY_SHEETS, setdiff(names(wb), c(bc_sheets, SUMMARY_SHEETS)))
+worksheetOrder(wb) <- match(sheet_order, names(wb))
+activeSheet(wb) <- today_sheet
+
+dir.create(checks_dir, recursive = TRUE, showWarnings = FALSE)
+tryCatch(saveWorkbook(wb, out_path, overwrite = TRUE),
+         error = \(e) stop("Cannot save ", basename(out_path), " (", conditionMessage(e), "). Close it in Excel and re-run."))
+
+message(sprintf("[11.hfc_backcheck] %s: %d households (%d GPS, %d hard check; %d enumerator(s) at %d) | gps_issues_all %d | hard_checks_all %d -> %s",
+                today_sheet, nrow(backcheck), nrow(gps_pick), nrow(hard_pick),
+                sum(enum_counts$hard_quota == HARD_N_HIGH & enum_counts$hard_checks_total > 0), HARD_N_HIGH,
+                nrow(sheets$gps_issues_all), nrow(sheets$hard_checks_all), out_path))
 if (nrow(gps_pool) > nrow(gps_pick)) message(sprintf("      GPS issue households sampled: %d of %d", nrow(gps_pick), nrow(gps_pool)))
 if (nrow(short_enums) > 0) {
   warning(nrow(short_enums), " enumerator(s) got fewer hard-check households than their quota ",
