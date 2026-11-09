@@ -1,13 +1,13 @@
 # ==============================================================================
 # 10.hfc_dashboard.R
 # Midline HFC: Excel dashboard workbook. First sheet "Dashboard" (key rates vs
-# targets, progress by arm with the SHS nudge, progress by district, logic
-# issues, energy access, key variables, daily submissions chart), then every
-# output as its own formatted tab. Each dashboard table has a definition row
-# under its column names.
+# targets, progress by arm with the SHS nudge, progress by district, hard
+# checks, soft flags, energy access, key variables, daily submissions chart),
+# then every output as its own formatted tab. Each dashboard table has a
+# definition row under its column names.
 #
 # Tab order: Dashboard, enumerator_check, district_data, village_data,
-# duplicates, logic tabs, then the remaining outputs, run_info last.
+# duplicates, hard check tabs, flag tabs, then the remaining outputs, run_info last.
 #
 # Sourced by 1.hfc_main.R after scripts 2-9 (uses hfc_outputs, hfc_constr,
 # DASH_FILE, save_current() and the targets in the config).
@@ -20,12 +20,14 @@
 
 # ---- 1. Config / constants ---------------------------------------------------
 
-TAB_FIRST  <- c("enumerator_check", "district_data", "village_data", "duplicates", "logic_summary", "logic_data")
+TAB_FIRST  <- c("enumerator_check", "district_data", "village_data", "duplicates",
+                "hard_checks_summary", "hard_checks", "flags_summary", "flags_data")
 DASH_SHEET <- "Dashboard"
 CHART_COL  <- 15                                 # dashboard column where the chart starts
 
 st_title   <- openxlsx::createStyle(fontSize = 16, textDecoration = "bold", fontColour = "#1F4E79")
 st_section <- openxlsx::createStyle(fontSize = 12, textDecoration = "bold", fontColour = "#1F4E79")
+st_subsection <- openxlsx::createStyle(textDecoration = "bold", fontColour = "#1F4E79")
 st_note    <- openxlsx::createStyle(fontColour = "#595959", textDecoration = "italic")
 st_header  <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#DDEBF7", border = "bottom",
                                     wrapText = TRUE, valign = "top")
@@ -110,23 +112,18 @@ write_tab <- function(wb, name, df) {
 run_info  <- make_run_info()
 treatment <- hfc_outputs$treatment_data
 totals    <- treatment |> summarise(across(c(target, hh_attempted, hh_located, hh_consented, hh_complete), sum))
-logic_any <- hfc_outputs$logic_summary |> filter(check == "5.hfc_logic: any_issue")
 
 kpi <- tibble(
-  indicator = c("Locate rate", "Consent rate", "Completion rate", "Submissions with a logic issue"),
+  indicator = c("Locate rate", "Consent rate", "Completion rate"),
   definition = c("Households located / households attempted",
                  "Households consented / households located",
-                 "Households complete / households attempted",
-                 "Submissions with at least one logic issue / all submissions"),
+                 "Households complete / households attempted"),
   value_pct = c(share_pct(totals$hh_located, totals$hh_attempted),
                 share_pct(totals$hh_consented, totals$hh_located),
-                share_pct(totals$hh_complete, totals$hh_attempted),
-                logic_any$pct_of_submissions),
-  target = sprintf(c("> %g%%", "> %g%%", "> %g%%", "< %g%%"),
-                   100 * c(LOCATE_TARGET, CONSENT_TARGET, COMPLETION_TARGET, LOGIC_TARGET))
+                share_pct(totals$hh_complete, totals$hh_attempted)),
+  target = sprintf("> %g%%", 100 * c(LOCATE_TARGET, CONSENT_TARGET, COMPLETION_TARGET))
 ) |>
-  mutate(on_target = c(value_pct[1:3] >= 100 * c(LOCATE_TARGET, CONSENT_TARGET, COMPLETION_TARGET),
-                       value_pct[4] < 100 * LOGIC_TARGET),
+  mutate(on_target = value_pct >= 100 * c(LOCATE_TARGET, CONSENT_TARGET, COMPLETION_TARGET),
          status = if_else(on_target, "on target", "off target"))
 
 progress_arm <- treatment |>
@@ -138,16 +135,35 @@ progress_district <- hfc_outputs$district_data |>
   select(district_key, target, hh_attempted, hh_complete, complete_of_target_pct, located_of_attempted_pct,
          consented_of_located_pct, complete_of_attempted_pct)
 
-last_day <- max(hfc_constr$submissiondate)
-logic_block <- hfc_outputs$logic_summary |>
-  filter(check != "5.hfc_logic: any_issue") |>
-  select(issue, total, pct_of_submissions) |>
-  left_join(hfc_outputs$logic_data |> filter(submissiondate == last_day) |> count(issue, name = "latest_day"),
-            by = "issue") |>
-  mutate(latest_day = coalesce(latest_day, 0L)) |>
+# Latest field day: interviews started on the last day covered by this run
+last_field_day <- max(hfc_constr$startdate)
+count_latest <- function(df) df |> filter(startdate == last_field_day) |> count(issue, name = "latest_field_day")
+
+# Hard checks: a title row per section, then its checks (including those with no flags)
+hard_rows_all <- hfc_outputs$hard_checks_summary |>
+  left_join(count_latest(hfc_outputs$hard_checks), by = "issue") |>
+  mutate(latest_field_day = coalesce(latest_field_day, 0L))
+hard_block <- map_dfr(unique(hard_rows_all$section), \(s) {
+  bind_rows(tibble(hard_check = s),
+            hard_rows_all |>
+              filter(section == s) |>
+              transmute(hard_check = issue, total, pct_of_consented, latest_field_day))
+})
+hard_section_rows <- which(is.na(hard_block$total))
+DEF_HARD <- c(hard_check = "Answers that contradict each other (detail: hard_checks tab)",
+              total = "Consented submissions with this issue",
+              pct_of_consented = "total / all consented submissions",
+              latest_field_day = paste("Interviews started on", last_field_day))
+
+flags_block <- hfc_outputs$flags_summary |>
+  filter(check != "5.hfc_logic: any_flag") |>
+  transmute(flag = issue, total, pct_of_submissions) |>
+  left_join(count_latest(hfc_outputs$flags_data), by = c("flag" = "issue")) |>
+  mutate(latest_field_day = coalesce(latest_field_day, 0L)) |>
   arrange(desc(total))
-DEF_LOGIC <- c(issue = "Logic issue (detail: logic_data tab)", total = "Submissions with this issue",
-               pct_of_submissions = "total / all submissions", latest_day = paste("On submissions of", last_day))
+DEF_FLAGS <- c(flag = "Soft check, worth a look (detail: flags_data tab)", total = "Submissions with this flag",
+               pct_of_submissions = "total / all submissions",
+               latest_field_day = paste("Interviews started on", last_field_day))
 
 key_vars <- hfc_outputs$desc_stats_data |>
   select(var, type, n, mean_or_pct, median, any_of(ARMS), asked_if)
@@ -175,7 +191,7 @@ openxlsx::addStyle(wb, DASH_SHEET, st_title, rows = 1, cols = 1)
 openxlsx::writeData(wb, DASH_SHEET, startRow = 2, startCol = 1, x = sprintf(
   "%s mode | updated %s | form version %.0f | %d submissions (%s to %s) | %d of %d households complete (%.1f%%)",
   run_info$mode, run_info$run_time, run_info$current_formdef, run_info$submissions,
-  run_info$first_submission, run_info$last_submission,
+  run_info$first_field_day, run_info$last_field_day,
   totals$hh_complete, totals$target, share_pct(totals$hh_complete, totals$target)))
 openxlsx::addStyle(wb, DASH_SHEET, st_note, rows = 2, cols = 1)
 
@@ -188,7 +204,9 @@ b <- write_block(wb, "Progress by treatment arm", progress_arm, b$next_row, defs
                  notes = "Households. Submissions per day and more columns: treatment_data tab.")
 b <- write_block(wb, "Progress by district", progress_district, b$next_row, defs = DEF_PROGRESS,
                  notes = "Households. Submissions per day: district_data tab (villages: village_data tab).")
-b <- write_block(wb, "Logic issues", logic_block, b$next_row, defs = DEF_LOGIC)
+b <- write_block(wb, "Hard checks", hard_block, b$next_row, defs = DEF_HARD)
+openxlsx::addStyle(wb, DASH_SHEET, st_subsection, rows = b$data_row - 1 + hard_section_rows, cols = 1)
+b <- write_block(wb, "Flags (soft checks)", flags_block, b$next_row, defs = DEF_FLAGS)
 b <- write_block(wb, "Energy access (% of consented households)", hfc_outputs$energy_access, b$next_row,
                  defs = DEF_ENERGY,
                  notes = c("Has the device, whether or not it works (working: X_confirm_working in Key variables).",
@@ -197,7 +215,7 @@ b <- write_block(wb, "Key variables (consented submissions)", key_vars, b$next_r
                  notes = "Amounts in Rwf. Choice questions (all answers): desc_cat_data tab.")
 
 openxlsx::insertImage(wb, DASH_SHEET, chart_file, startRow = 4, startCol = CHART_COL, width = 7, height = 4)
-openxlsx::setColWidths(wb, DASH_SHEET, cols = 1, widths = 34)
+openxlsx::setColWidths(wb, DASH_SHEET, cols = 1, widths = 56)    # fits the hard check labels
 openxlsx::setColWidths(wb, DASH_SHEET, cols = 2:13, widths = 16)
 
 # Other tabs: the agreed order first, then the remaining outputs, run_info last

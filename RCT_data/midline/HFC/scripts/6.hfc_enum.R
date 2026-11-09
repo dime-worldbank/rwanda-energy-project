@@ -1,7 +1,7 @@
 # ==============================================================================
 # 6.hfc_enum.R
 # Midline HFC: enumerator checks. Submissions per day, locate / consent /
-# completion rates, durations, and counts of duplicates, logic issues,
+# completion rates, durations, and counts of duplicates, hard checks, soft flags
 # and outliers. GPS accuracy is not used in deidentified HFCs. Flags a consent
 # rate below CONSENT_TARGET and many short surveys.
 #
@@ -9,7 +9,7 @@
 # the constants in 1.hfc_main.R.
 #
 # Sourced by 1.hfc_main.R after scripts 2-5 (uses hfc_constr, duplicates,
-# logic_data, outlier_data).
+# hard_checks, flags_data, outlier_data).
 # Outputs: enumerator_check
 #
 # Author: Yeji (using Claude) · Last modified: 2026-10-22
@@ -52,9 +52,10 @@ enumerator_check <- hfc_constr |>
          completes_per_day = round(n_complete / days_worked, 1)) |>
   # Bug 1 fixed: compare to the enumerator column, not to a data frame
   left_join(count_by_enum(distinct(duplicates, enumerator, KEY), "n_duplicates"), by = "enumerator") |>
-  left_join(count_by_enum(distinct(logic_data, enumerator, KEY), "n_logic_issue"), by = "enumerator") |>
+  left_join(count_by_enum(distinct(hard_checks, enumerator, KEY), "n_hard_checks"), by = "enumerator") |>
+  left_join(count_by_enum(distinct(flags_data, enumerator, KEY), "n_soft_flags"), by = "enumerator") |>
   left_join(count_by_enum(distinct(outlier_data, enumerator, KEY), "n_outlier"), by = "enumerator") |>
-  mutate(across(c(n_duplicates, n_logic_issue, n_outlier), \(x) coalesce(x, 0L)),
+  mutate(across(c(n_duplicates, n_hard_checks, n_soft_flags, n_outlier), \(x) coalesce(x, 0L)),
          flag_low_consent = consent_pct < 100 * CONSENT_TARGET,
          flag_many_short = n_short >= SHORT_SURVEYS_ENUM_MIN) |>
   left_join(enumerator_day, by = "enumerator") |>
