@@ -107,7 +107,7 @@ Sheets:
 - `backcheck_YYYYMMDD`: households to call, one sheet per run date. Each run adds a sheet; earlier sheets, and
   anything typed into them, are kept (a re-run on the same day replaces that day's sheet). GPS issue
   households, at most 15 per list (`GPS_SAMPLE_MAX`; random, seeded), plus 1 hard-check household per
-  enumerator, or 5 if the enumerator has more than 10 hard-check submissions (most checks first, then at
+  enumerator, or 5 if the enumerator has 10 or more hard-check submissions (most checks first, then at
   random, seeded). Numbered (`no`); hard checks first, then GPS issues, each sorted by survey date (newest
   first) and enumerator. Blank columns for the back-checker.
 - `enumerators`: `hard_checks_total`, `gps_issues_total`, then one column per survey day for each, and the

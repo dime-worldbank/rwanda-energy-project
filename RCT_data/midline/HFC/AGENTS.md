@@ -186,7 +186,7 @@ objects created earlier (`hfc_constr`, `duplicates`, length checks) and cannot r
 | `8.hfc_audio.R` | Daily audio audit sample (TBD: confirm). **No backcheck in midline**: no backcheck sample or comparison | `audio_sample` |
 | `9.hfc_shs.R` | **SHS nudge funnel** for T2/T3 (see below) | `shs_funnel`, `shs_funnel_village` |
 | `10.hfc_dashboard.R` | Excel dashboard workbook: "Dashboard" sheet (key rates vs targets, progress by arm + nudge, by district, logic issues, energy access, key variables, daily chart), then every output as a tab; definition row under each dashboard table | `HFC_midline_dashboard.xlsx` |
-| `11.hfc_backcheck.R` | Run separately after script 1 (reads the raw export and the baseline exports). Back-check workbook: GPS > 1 km + midline and baseline accuracy from every baseline point, hard checks with names, counts per enumerator by day, and the call sample (up to 15 GPS issue households at random + 1 hard-check household per enumerator, 5 if > 10 hard-check submissions; skips earlier lists and households with no valid phone). One workbook; each run adds a `backcheck_YYYYMMDD` sheet and keeps earlier ones | `checks/backcheck_list.xlsx` |
+| `11.hfc_backcheck.R` | Run separately after script 1 (reads the raw export and the baseline exports). Back-check workbook: GPS > 1 km + midline and baseline accuracy from every baseline point, hard checks with names, counts per enumerator by day, and the call sample (up to 15 GPS issue households at random + 1 hard-check household per enumerator, 5 if 10 or more hard-check submissions; skips earlier lists and households with no valid phone). One workbook; each run adds a `backcheck_YYYYMMDD` sheet and keeps earlier ones | `checks/backcheck_list.xlsx` |
 
 ### Logic checks for script 5
 

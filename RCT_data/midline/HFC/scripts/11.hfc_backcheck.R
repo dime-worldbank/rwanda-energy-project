@@ -5,7 +5,7 @@
 #   backcheck_YYYYMMDD  households to call, one sheet per run date (added each run; earlier
 #                       sheets and anything typed into them are kept). Up to GPS_SAMPLE_MAX
 #                       GPS issue households at random, plus 1 hard-check household per
-#                       enumerator (HARD_N_HIGH if the enumerator has more than HARD_HIGH_AT
+#                       enumerator (HARD_N_HIGH if the enumerator has HARD_HIGH_AT or more
 #                       hard-check submissions). Households in an earlier list and households
 #                       with no valid phone number are left out.
 #   enumerators         hard-check submissions and GPS issues per enumerator, in total and per day
@@ -66,7 +66,7 @@ BASELINE_EXPORTS <- c(first  = file.path(DATA_CTO, "baseline-first-round", "REP_
 # baseline point. Accuracy is the phone's own error estimate (m); a missing accuracy counts as 0.
 GPS_MAX_KM     <- 1
 GPS_SAMPLE_MAX <- 15     # cap on GPS issue households per list (about 10%; sampled at random, seeded)
-HARD_HIGH_AT   <- 10     # enumerators with more hard-check submissions than this ...
+HARD_HIGH_AT   <- 10     # enumerators with this many hard-check submissions or more ...
 HARD_N_HIGH    <- 5      # ... get this many households in the list (others get HARD_N)
 HARD_N         <- 1
 SEED <- 20261101
@@ -243,7 +243,7 @@ enum_counts <- subs |>
   left_join(hard_by_day, by = "enumerator") |>
   left_join(gps_by_day, by = "enumerator") |>
   mutate(across(-c(enumerator, enumerator_name), \(x) coalesce(x, 0)),
-         hard_quota = if_else(hard_checks_total > HARD_HIGH_AT, HARD_N_HIGH, HARD_N)) |>
+         hard_quota = if_else(hard_checks_total >= HARD_HIGH_AT, HARD_N_HIGH, HARD_N)) |>
   # Totals first, then the daily breakdown
   relocate(hard_checks_total, gps_issues_total, .after = enumerator_name)
 
