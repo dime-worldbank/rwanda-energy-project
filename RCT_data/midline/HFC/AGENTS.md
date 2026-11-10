@@ -180,21 +180,34 @@ objects created earlier (`hfc_constr`, `duplicates`, length checks) and cannot r
 | `2.hfc_construct.R` | Load export; parse dates; filter fieldwork start; codes → NA (continuous only); join enumerator + admin names; module durations; duplicates | `hfc_constr`, `duration_data`, `duplicates` |
 | `3.hfc_admin.R` | Progress by village, district, **treatment arm** (households: attempted = complete + not complete; `*_pct` as 0-100 numbers; T2/T3 nudge eligible / agreed / data consent); households not located | `village_data`, `district_data`, `treatment_data`, `not_located` |
 | `4.hfc_outliers.R` | ±3 SD on log(1+x) for amounts and counts (`mt_1`, `rb_1`, `iw_1`, `eu_1`, `eu_6`, `shs_1`, `shs_6`, `F2_4`, `hh_member_count`, `F1_1`) | `outlier_data` |
-| `5.hfc_logic.R` | Consistency checks (see below); summary by date (per enumerator: `n_logic_issue` in `enumerator_check`) | `logic_data`, `logic_summary` |
+| `5.hfc_logic.R` | Hard checks and soft flags (see below); per enumerator: `n_hard_checks`, `n_soft_flags` in `enumerator_check` | `hard_checks`, `hard_checks_summary`, `flags_data`, `flags_summary` |
 | `6.hfc_enum.R` | Per enumerator: submissions/day, locate/consent/completion rates, duration, flags | `enumerator_check` |
 | `7.hfc_stats.R` | Key variables (yes/no as % yes, with the base `asked_if`), choice frequencies, energy access; overall and by arm | `desc_stats_data`, `desc_cat_data`, `energy_access` |
 | `8.hfc_audio.R` | Daily audio audit sample (TBD: confirm). **No backcheck in midline**: no backcheck sample or comparison | `audio_sample` |
 | `9.hfc_shs.R` | **SHS nudge funnel** for T2/T3 (see below) | `shs_funnel`, `shs_funnel_village` |
 | `10.hfc_dashboard.R` | Excel dashboard workbook: "Dashboard" sheet (key rates vs targets, progress by arm + nudge, by district, logic issues, energy access, key variables, daily chart), then every output as a tab; definition row under each dashboard table | `HFC_midline_dashboard.xlsx` |
+| `11.hfc_backcheck.R` | Run separately after script 1 (reads the raw export and the baseline exports). Back-check workbook: GPS > 1 km + midline and baseline accuracy from every baseline point, hard checks with names, counts per enumerator by day, and the call sample (up to 15 GPS issue households at random + 1 hard-check household per enumerator, 5 if 10 or more hard-check submissions; skips earlier lists and households with no valid phone). One workbook; each run adds a `backcheck_YYYYMMDD` sheet and keeps earlier ones | `checks/backcheck_list.xlsx` |
 
 ### Logic checks for script 5
 
-- Start/end/submission date mismatches; negative module durations; consented survey outside
+Hard checks (consented submissions; blank readyboard, wiring or grid use counts as no):
+
+- Devices vs. usage: uses grid electricity with no readyboard or wiring; uses grid electricity
+  with readyboard or wiring not working; readyboard or wiring working but no grid use; any phone charged
+  at home (`F2_1 == 1`) with no grid use and no SHS; or with no meter and no SHS.
+- Devices vs. photos: tentative, not built (needs photo-submitted indicators from script 0).
+
+Flags (soft checks):
+
+- Start/end/submission date mismatches; consented survey outside
   `DURATION_MIN`–`DURATION_MAX` (per submission).
 - Treatment compliance: readyboard reported in C/T2 villages; SHS-nudge block answered outside T2/T3.
-- Grid consistency: `electricity_usage_confirm == 1` but `meter_confirm == 0`;
-  `observe_electricity_connection` disagrees with `meter_confirm`.
+- Grid consistency: `electricity_usage_confirm == 1` but `meter_confirm == 0`.
+- Observation vs. answers (consented; blank counts as no): readyboard, wiring or SHS = yes but observed no
+  (except SHS only with `obs_shs == 0`); all no but observed yes, split by meter / no meter.
 - SHS consistency: `obs_shs == 1` but `shs_confirm == 0`.
+- Removed 2026-11-09: negative module duration; `observe_electricity_connection` vs. `meter_confirm`
+  (replaced by the observation vs. answers flags).
 - Removed 2026-10-22 (not daily logic issues): old form version, `shs_number` > 3, phone changed
   from preload. Preload mismatch (`shs_eligible.csv` household not in T2/T3) is a one-time warning
   in script 2.
@@ -238,7 +251,7 @@ door-confirmed eligible (`pull_shs_eligible == 1 & shs_confirm == 0 & electrifie
 
 ## Data quality targets
 
-Locate rate > 90% · Consent rate > 95% · Completion rate > 90% · Records with logic errors < 5%. (No backcheck in midline.)
+Locate rate > 90% · Consent rate > 95% · Completion rate > 90%. (No backcheck in midline.)
 
 ## Testing
 

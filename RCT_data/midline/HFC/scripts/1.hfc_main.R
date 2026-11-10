@@ -197,6 +197,11 @@ TZ <- "Africa/Kigali"
 # Assumes the export is downloaded on the computer that runs the HFC.
 EXPORT_TZ <- Sys.timezone()
 
+# EXCLUDE_TODAY = TRUE limits the HFC to completed field days: interviews started today
+# (Rwanda time) are excluded in script 2. FALSE keeps every submission in the export.
+EXCLUDE_TODAY <- FALSE
+HFC_CUTOFF <- if (EXCLUDE_TODAY) lubridate::as_date(lubridate::now(TZ)) else as.Date(Inf)
+
 DURATION_MIN <- 15
 DURATION_MAX <- 90
 
@@ -337,7 +342,6 @@ OUTLIER_SD <- 3
 LOCATE_TARGET <- 0.90
 CONSENT_TARGET <- 0.95
 COMPLETION_TARGET <- 0.90
-LOGIC_TARGET <- 0.05
 
 SHORT_SURVEYS_ENUM_MIN <- 3
 
@@ -431,6 +435,8 @@ make_run_info <- function() {
          current_formdef = CURRENT_FORMDEF, fieldwork_start = format(FIELDWORK_START),
          first_submission = format(min(hfc_constr$submissiondate)),
          last_submission = format(max(hfc_constr$submissiondate)),
+         first_field_day = format(min(hfc_constr$startdate)),
+         last_field_day = format(max(hfc_constr$startdate)),
          scripts_run = paste(HFC_SCRIPTS, collapse = ", "), submissions = nrow(hfc_constr))
 }
 

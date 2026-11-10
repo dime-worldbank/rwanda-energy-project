@@ -317,6 +317,19 @@ survey <- read_csv(
     hh_id = na_if(str_squish(hh_id), "")
   )
 
+# Excel rewrites long IDs as 3.21E+11 when it saves a CSV, and the digits cannot be recovered
+n_sci_hh_id <- sum(str_detect(survey$hh_id, "[Ee]\\+?[0-9]+$"), na.rm = TRUE)
+
+if (n_sci_hh_id > 0) {
+  stop(
+    n_sci_hh_id,
+    " hh_id value(s) are in scientific notation in:\n",
+    basename(export_path),
+    "\nThe file was probably saved from Excel. Download a new export from SurveyCTO ",
+    "and do not edit it: 1.hfc_main.R excludes today's interviews by itself."
+  )
+}
+
 n_missing_hh_id <- sum(is.na(survey$hh_id))
 
 if (n_missing_hh_id > 0) {

@@ -14,6 +14,7 @@
 # ---- 1. Config / constants ---------------------------------------------------
 
 ID_COLS <- c("KEY", "hh_id", "district", "sector", "cell", "village", "enumerator")
+date_cols <- c("SubmissionDate", "starttime", "endtime")
 MODULES <- c(a = "stamp_a", b = "stamp_b", c = "stamp_c", nudge = "stamp_nudge")
 
 
@@ -49,8 +50,10 @@ FOLLOWUP <- map_chr(c(meter = "meter_confirm", readyboard = "readyboard_confirm"
 
 export_path <- file.path(data_dir, paste0(FORM_ID, "_WIDE.csv"))
 assert_no_identifying_cols(names(read_csv(export_path, n_max = 0, show_col_types = FALSE)), "Survey export")
+# Dates are read as text: if read_csv guesses a date-time it assumes UTC, and EXPORT_TZ is never applied
+text_cols <- c(ID_COLS, date_cols)
 raw <- read_csv(export_path,
-                col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(ID_COLS)), ID_COLS)),
+                col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(text_cols)), text_cols)),
                 show_col_types = FALSE, guess_max = 10000)
 
 enumerators  <- read_preload("enumerators.csv") |> select(enumeratorid_key, enumerator_key)
@@ -101,8 +104,6 @@ parse_export_datetime <- function(x) {
   lubridate::with_tz(parsed, TZ)
 }
 
-date_cols <- c("SubmissionDate", "starttime", "endtime")
-
 hfc_constr <- raw |>
   mutate(
     across(all_of(date_cols), parse_export_datetime),
@@ -127,7 +128,7 @@ if (anyNA(hfc_constr[date_cols])) {
 n_before <- nrow(hfc_constr)
 
 hfc_constr <- hfc_constr |>
-  filter(startdate >= FIELDWORK_START)
+  filter(startdate >= FIELDWORK_START, startdate < HFC_CUTOFF)
 
 message(sprintf(
   "Date filter: %d input rows; %d retained; %d excluded.",
