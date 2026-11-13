@@ -17,50 +17,33 @@ This folder builds the identified preload attachments for the clean cooking usag
 
 See `beneficiary_cleaning_reasoning.rmd` for missingness checks and HHID decision rationale.
 
-After cleaning, the `beneficiaries-list-intermediate.csv` has following distribution. 
-          | LPG    | LPG PAYG   | EPC  
-2025 Q1Q2 | 5212   | -          |
-2025 Q3Q4 | 18260  | 1175       | 2851 
-2026 Q1Q2 | 16559  | 1558       | 8688
-2026 Q3Q4 | 1519   | -          | 331 
-Total     | 41550  | 2739       | 11872  
+After cleaning, `beneficiaries-list-intermediate.csv` has the following distribution:
+
+| Purchase period | LPG | LPG PAYG | EPC |
+|---|---:|---:|---:|
+| 2025 Q1-Q2 | 5,212 | 0 | 0 |
+| 2025 Q3-Q4 | 18,260 | 1,175 | 2,851 |
+| 2026 Q1-Q2 | 16,559 | 1,558 | 8,688 |
+| 2026 Q3-Q4 | 1,519 | 0 | 331 |
+| **Total** | **41,550** | **2,733** | **11,870** |
 
 ### 2.sampling.R
-- Based on the availability and sample size of the distribution (i.e. stove type crossed by purchase period), we construct seven stratum 
+The sampling frame is grouped into seven nonempty stove-type × purchase-period groups. The 2026 quarters are pooled for sampling. Allocation is proportional to group size multiplied by its relative weight:
 
-1) 25Q1Q2 LPG
-2) - 4)  25Q3Q4 LPG, LPG PAYG, EPC
-5) - 7)  26 LPG, LPG PAYG, EPC 
+| Purchase period | Stove type | Frame n | Relative weight | Main target (n=1,000) | Replacement target (n=300) |
+|---|---|---:|---:|---:|---:|
+| 2025 Q1-Q2 | LPG | 5,212 | 3x | 171 | 51 |
+| 2025 Q3-Q4 | LPG | 18,260 | 1x | 199 | 60 |
+| 2025 Q3-Q4 | LPG PAYG | 1,175 | 8x | 102 | 31 |
+| 2025 Q3-Q4 | EPC | 2,851 | 1.5x | 47 | 14 |
+| 2026 | LPG | 18,078 | 1x | 197 | 59 |
+| 2026 | LPG PAYG | 1,558 | 8x | 136 | 41 |
+| 2026 | EPC | 9,019 | 1.5x | 148 | 44 |
+| **Total** |  | **56,153** |  | **1,000** | **300** |
 
-The sample size are: 
-          | LPG    | LPG PAYG   | EPC  
-2025 Q1Q2 | 5212   | -          |
-2025 Q3Q4 | 18260  | 1175       | 2851 
-2026      | 18078  | 1558       | 9019
+These are expected allocations from the undeduplicated counts above. Actual counts can differ because the sampler first keeps one beneficiary per phone.
 
-Our desired weight across these strarum are: 
-          | LPG    | LPG PAYG   | EPC  
-2025 Q1Q2 | 3x     | -          |
-2025 Q3Q4 | x      | 8x         | 1.5x
-2026      | x      | 8x         | 1.5x
-
-Therefore, for n = 1,000 our distribution should be:  
-          | LPG    | LPG PAYG   | EPC  
-2025 Q1Q2 | 171    | -          |
-2025 Q3Q4 | 199    | 102        | 47 
-2026      | 197    | 136        | 148
-
-For replacement n = 300, we need mutually exclusive sample of: 
-          | LPG    | LPG PAYG   | EPC  
-2025 Q1Q2 | 51     | -          |
-2025 Q3Q4 | 60     | 31         | 14
-2026      | 59     | 41         | 44
-
-- Builds seven nonempty sampling groups from stove type × purchase period; the 2026 quarters are pooled.
-- Allocates each draw proportional to group size × the relative weight shown above, with largest-remainder rounding and capacity checks.
-- Main and replacement sizes are `N_MAIN = 1,000` and `N_REPLACE = 300`. Replacements are drawn from the remaining frame and do not overlap the main sample.
 - Pilot and pilot replacement sizes are `N_PILOT = 200` and `N_PILOT_REPLACE = 60`. They are drawn from the pool left after the main and replacement samples, without overlap.
-- The listed group allocations are expected from the undeduplicated counts. Actual allocations can differ because the sampler first keeps one beneficiary per phone.
 - Summary outputs include all nine stove-by-period cells, including zero-count cells.
 - Writes:
   - `usage_survey_sample.csv`
