@@ -10,7 +10,7 @@
 #
 # Sourced by 1.hfc_main.R after scripts 2-5 (uses hfc_constr, duplicates,
 # hard_checks, flags_data, outlier_data).
-# Outputs: enumerator_check
+# Outputs: enumerator_check, enumerator_daily_check
 #
 # Author: Yeji (using Claude) · Last modified: 2026-10-22
 # ==============================================================================
@@ -28,6 +28,8 @@ COL_MANY_SHORT  <- sprintf("short_surveys_%d_or_more", SHORT_SURVEYS_ENUM_MIN)
 
 enumerator_day <- hfc_constr |>
   count(enumerator, submissiondate) |>
+  complete(enumerator, submissiondate = seq(FIELDWORK_START, max(FIELDWORK_START, lubridate::today(tzone = TZ)), by = "day"),
+           fill = list(n = 0L)) |>
   arrange(submissiondate) |>
   mutate(submissiondate = format(submissiondate)) |>
   pivot_wider(names_from = submissiondate, values_from = n, values_fill = 0)
@@ -39,7 +41,9 @@ enumerator_check <- hfc_constr |>
   summarise(enumerator_key = first(enumerator_key),
             n_submissions = n(),
             n_located = sum(located),
+            n_no_locate = sum(locate %in% 0),
             n_consented = sum(consented),
+            n_no_consented = sum(consent %in% 0),
             n_complete = sum(complete),
             days_worked = n_distinct(submissiondate),
             mean_survey_min = round(mean(survey_min[consented]), 1),
@@ -74,7 +78,13 @@ enumerator_check <- enumerator_check |>
 
 # ---- 3. Export ---------------------------------------------------------------
 
-hfc_outputs$enumerator_check <- enumerator_check
+hfc_outputs$enumerator_daily_check <- enumerator_check |>
+  select(enumerator, enumerator_key, n_submissions, days_worked, completes_per_day,
+         all_of(setdiff(names(enumerator_day), "enumerator")))
+hfc_outputs$enumerator_check <- enumerator_check |>
+  transmute(enumerator, enumerator_key, n_submissions, n_located, n_no_locate, locate_pct,
+            n_consented, n_no_consented, n_completed = n_complete, completion_pct,
+            n_hard_checks, n_soft_flags, n_duplicates)
 
 message(sprintf("      %d enumerators; %d with %s, %d with %s",
                 nrow(enumerator_check), sum(enumerator_check[[COL_LOW_CONSENT]]), COL_LOW_CONSENT,

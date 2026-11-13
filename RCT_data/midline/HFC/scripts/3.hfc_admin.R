@@ -10,7 +10,7 @@
 # Sourced by 1.hfc_main.R after 2.hfc_construct.R (uses hfc_constr, read_preload()).
 # Outputs: village_data, district_data, treatment_data, not_located
 #
-# Author: Yeji (using Claude) · Last modified: 2026-10-22
+# Author: Yeji (using Claude) Ã‚Â· Last modified: 2026-10-22
 # ==============================================================================
 
 
@@ -109,19 +109,17 @@ treatment_data <- progress_by(hh_frame, status, "treat") |>
   arrange(match(treat, ARMS))
 
 
-# ---- 4. Checks: households not located ---------------------------------------
+# ---- 4. Checks: submissions not located --------------------------------------
 
-# Households with no located submission (mop-up list), latest attempt first
+# All submissions with locate = 0 (one row per submission), latest first
 not_located <- hfc_constr |>
-  filter(!any(located), .by = hh_id) |>
-  arrange(hh_id, desc(starttime)) |>
-  summarise(n_attempts = n(), last_attempt = first(submissiondate), last_enumerator = first(enumerator_key),
-            nolocate = first(nolocate), nolocate_other = first(nolocate_other), KEY = first(KEY), .by = hh_id) |>
+  filter(locate %in% 0) |>
   left_join(nolocate_labels, by = "nolocate") |>
-  left_join(hh_frame |> select(hh_id, treat, district_key, sector_key, cell_key, village_key), by = "hh_id") |>
-  select(hh_id, district_key, sector_key, cell_key, village_key, treat,
-         n_attempts, last_attempt, last_enumerator, nolocate, nolocate_label, nolocate_other, KEY) |>
-  arrange(district_key, village_key, hh_id)
+  transmute(hh_id, district_key, sector_key, cell_key, village_key, treat,
+            attempt_date = submissiondate,
+            enumerator = enumerator, enumerator_key = enumerator_key,
+            nolocate, nolocate_label, nolocate_other, comment, KEY) |>
+  arrange(desc(attempt_date), district_key, village_key, hh_id)
 
 
 # ---- 5. Export ---------------------------------------------------------------
@@ -131,6 +129,9 @@ hfc_outputs$district_data  <- district_data
 hfc_outputs$treatment_data <- treatment_data
 hfc_outputs$not_located    <- not_located
 
-message(sprintf("      %d villages, %d of %d target households complete (%.1f%%); %d households not located",
+message(sprintf("      %d villages, %d of %d target households complete (%.1f%%); %d no-locate submissions",
                 nrow(village_data), sum(village_data$hh_complete), sum(village_data$target),
                 100 * sum(village_data$hh_complete) / sum(village_data$target), nrow(not_located)))
+
+
+

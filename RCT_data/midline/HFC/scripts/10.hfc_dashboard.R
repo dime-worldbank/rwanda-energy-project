@@ -6,7 +6,7 @@
 # then every output as its own formatted tab. Each dashboard table has a
 # definition row under its column names.
 #
-# Tab order: Dashboard, enumerator_check, district_data, village_data,
+# Tab order: Dashboard, enumerator_check, enumerator_daily_check, district_data, village_data,
 # duplicates, hard check tabs, flag tabs, then the remaining outputs, run_info last.
 #
 # Sourced by 1.hfc_main.R after scripts 2-9 (uses hfc_outputs, hfc_constr,
@@ -20,7 +20,7 @@
 
 # ---- 1. Config / constants ---------------------------------------------------
 
-TAB_FIRST  <- c("enumerator_check", "district_data", "village_data", "duplicates",
+TAB_FIRST  <- c("enumerator_check", "enumerator_daily_check", "district_data", "village_data", "duplicates",
                 "hard_checks_summary", "hard_checks", "flags_summary", "flags_data")
 DASH_SHEET <- "Dashboard"
 CHART_COL  <- 15                                 # dashboard column where the chart starts

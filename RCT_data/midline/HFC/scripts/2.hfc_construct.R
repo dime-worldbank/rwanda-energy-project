@@ -55,6 +55,7 @@ text_cols <- c(ID_COLS, date_cols)
 raw <- read_csv(export_path,
                 col_types = cols(.default = col_guess(), !!!setNames(rep(list(col_character()), length(text_cols)), text_cols)),
                 show_col_types = FALSE, guess_max = 10000)
+if (!("comment" %in% names(raw))) raw$comment <- NA_character_
 
 enumerators  <- read_preload("enumerators.csv") |> select(enumeratorid_key, enumerator_key)
 villages     <- read_preload("scope_villages.csv") |>
@@ -196,7 +197,7 @@ duplicates <- hfc_constr |>
   mutate(n = n(), .by = hh_id) |>
   filter(n > 1) |>
   select(KEY, hh_id, n, enumerator, enumerator_key,
-         district_key, sector_key, cell_key, village_key, starttime, submissiondate) |>
+         district_key, sector_key, cell_key, village_key, starttime, submissiondate, comment) |>
   arrange(hh_id, starttime)
 
 add_flags(duplicates, "2.hfc_construct: duplicate",

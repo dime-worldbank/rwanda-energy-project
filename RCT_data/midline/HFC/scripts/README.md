@@ -87,7 +87,7 @@ HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (O
 stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
 ```
 
-As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as names, phone numbers, national IDs, GPS coordinates -- full list of deidentified variables are in `hfc_privacy.R`). 
+As indicated in the title, script 0 deidentifies identifiable personal data not needed for HFCs (such as names, phone numbers, national IDs, GPS coordinates -- full list of deidentified variables are in `hfc_privacy.R`). The enumerator `comment` field is kept for QA tabs (`duplicates`, `hard_checks`, `not_located`).
 
 Script 1 runs all the other scripts from 2 to 10, creating midline dashboard tracking aggergated data collection and breakdown by variables of interest.
 
@@ -99,32 +99,24 @@ source("RCT_data/midline/HFC/scripts/1.hfc_main.R")
 source("RCT_data/midline/HFC/scripts/11.hfc_backcheck.R")   # optional: back-check call list
 ```
 
-Script 11 updates `output/checks/backcheck_list.xlsx`, to catch fake interviews. It reads the hard
-checks of the last run of script 1 (`checks/hfc_flags.csv`), the raw export (names, phones, GPS) and the two
-baseline exports (`DATA_CTO/baseline-first-round` and `baseline-second-round`, `coordinate-Latitude/Longitude`).
-Sheets:
+Script 11 updates `output/checks/backcheck_list.xlsx` from the dashboard, raw export and both baseline GPS
+exports. Its `hard_checks`, `not_located` and `gps_issues` sheets are the cumulative sampling pool;
+`enumerator` and `summary` contain totals, with the summary shown both overall and for rows with a phone number.
+GPS issues are recalculated each run using `GPS_MAX_KM` plus
+midline and baseline accuracy against every available baseline point. Missing accuracy counts as zero.
 
-- `backcheck_YYYYMMDD`: households to call, one sheet per run date. Each run adds a sheet; earlier sheets, and
-  anything typed into them, are kept (a re-run on the same day replaces that day's sheet). GPS issue
-  households, at most 15 per list (`GPS_SAMPLE_MAX`; random, seeded), plus 1 hard-check household per
-  enumerator, or 5 if the enumerator has 10 or more hard-check submissions (most checks first, then at
-  random, seeded). Numbered (`no`); hard checks first, then GPS issues, each sorted by survey date (newest
-  first) and enumerator. Blank columns for the back-checker.
-- `enumerators`: `hard_checks_total`, `gps_issues_total`, then one column per survey day for each, and the
-  hard-check quota.
-- `gps_issues_all` (all days so far): midline `obs_gps` more than 1 km (`GPS_MAX_KM`) + midline accuracy +
-  baseline accuracy from **every** baseline GPS point of the household. Accuracy (`obs_gps-Accuracy`,
-  `coordinate-Accuracy`) is the phone's own error estimate in metres; a missing accuracy counts as 0.
-  `threshold_km` shows the limit used.
-- `hard_checks_all` (all days so far): submissions with a hard check, with the household head's name.
+Each issue sheet marks `backchecked` and `backcheck-date` using the earliest matching `KEY` in the daily
+workbooks under `checks/backcheck_daily_list/`. These indicate prior selection, not necessarily a completed call.
+The new `backcheck_list_YYMMDD.xlsx` contains one sheet: a target of 100 distinct keys, with quotas of 40
+hard checks, 40 not located and 20 GPS issues. Only rows with at least one nonblank phone number are eligible;
+unfilled quotas are drawn from the remaining eligible pool.
+It retains the source columns except the pool-only tracking fields, and adds `source`, `call_date`, `reachied`, `respondent_confirms_interview`
+and `notes`. Existing daily files are never overwritten; before updating the pool, the previous workbook is
+copied to `checks/!archive/`.
 
-The last three are replaced on each run. Before each save, the previous workbook is copied to `checks/!archive/`.
-
-Left out of the call list: households in an earlier `backcheck_YYYYMMDD` sheet or in an earlier
-one-file-per-day list (`backcheck_list_YYYYMMDD.xlsx` in `checks/` or `checks/!archive/`, sheet `backcheck`), matched on `hh_id` (the script
-stops if one cannot be read), and households with no valid phone number. Valid
-number (primary and secondary alike): the preloaded number if the respondent confirmed it, the new number if they
-did not, or the number collected when nothing was preloaded; it must be a Rwandan mobile number (07XXXXXXXX).
+For not-located submissions, phone numbers come from the household contact preload. For other submissions,
+a valid digits-only preloaded Rwandan mobile number is used if confirmed; otherwise the corresponding revised
+number is used, including when it is blank.
 
 It reads the raw export, so it is kept out of script 1 (scripts 2-10 only see deidentified data). The workbook
 contains names, phone numbers and GPS: never copy it to the folder shared with the firm.
@@ -165,14 +157,14 @@ to the dashboard workbook.
 | `1.hfc_main.R` | Runner. Sets the mode, paths, config (fieldwork start, duration limits, key-rate targets `LOCATE_TARGET`, `CONSENT_TARGET`, `COMPLETION_TARGET`), the helpers (`add_flags()`, `archive_old()`, `save_current()`), runs scripts 2-10 and saves `hfc_constr.xlsx` and `checks/hfc_flags.csv`. | `run_info` |
 | `2.hfc_construct.R` | Loads the SurveyCTO export, parses dates, keeps submissions from the fieldwork start on, sets special codes (-77, -88) to NA in continuous variables, adds enumerator and village names and the treatment arm, computes module durations and `nudge_eligible`, finds duplicate `hh_id`s. Builds `hfc_constr`, the dataset every later script uses. | `duration_data`, `duplicates` |
 | `3.hfc_admin.R` | Fieldwork progress against the preload (target households): attempted, located, consented, complete, with `*_pct` rates and submissions per day. The SHS nudge columns (T2/T3) are in the arm table. Also lists households never located. | `village_data`, `district_data`, `treatment_data`, `not_located` |
-| `4.hfc_outliers.R` | Outliers in amounts and counts: values beyond ±3 SD of log(1 + x). | `outlier_data` |
+| `4.hfc_outliers.R` | Outliers in amounts and counts: values beyond ±3 SD of log(1 + x), with survey comments. | `outlier_data` |
 | `5.hfc_logic.R` | Hard checks on consented submissions: electricity devices and home phone charging vs. grid electricity use. Soft flags: dates and durations (start and end on different days; upload `UPLOAD_DELAY_DAYS` = 2 or more days after the end, since next-day sync is normal), treatment compliance (readyboard outside T1/T3, nudge outside T2/T3), enumerator observation vs. reported readyboard, wiring and SHS, grid and SHS consistency. One row per submission x issue, with summaries. | `hard_checks`, `hard_checks_summary`, `flags_data`, `flags_summary` |
-| `6.hfc_enum.R` | One row per enumerator: submissions per day, locate / consent / completion rates, durations, and counts of duplicates, hard checks, soft flags and outliers. Flag columns are named after their threshold (e.g. `consent_rate_below_95`). | `enumerator_check` |
+| `6.hfc_enum.R` | One row per enumerator: daily submission counts and completes per day in one tab; locate, consent, completion, duplicate, hard-check and soft-flag counts in the other. | `enumerator_daily_check`, `enumerator_check` |
 | `7.hfc_stats.R` | Descriptives for consented households, overall and by arm: key variables (% yes or mean / sd / min / median / max), frequencies of every choice field (special codes kept), and energy access (meter, readyboard, wiring, grid use, SHS, none). | `desc_stats_data`, `desc_cat_data`, `energy_access` |
 | `8.hfc_audio.R` | Disabled in the deidentified HFC pipeline; audio is not used in the dashboard or HFC checks. | — |
 | `9.hfc_shs.R` | SHS nudge funnel for T2 and T3: households in arm, then attempted, located, consented, eligible, willing (yes / no / not sure), data consent. By arm and by village. | `shs_funnel`, `shs_funnel_village` |
 | `10.hfc_dashboard.R` | Writes the workbook: the `Dashboard` tab first, then every table above as a formatted tab. | `Dashboard` |
-| `11.hfc_backcheck.R` | Run separately after script 1 (reads the raw export). Back-check workbook: GPS vs. baseline issues, hard checks with names, counts per enumerator, and the households to call. | — (writes `checks/backcheck_list_YYYYMMDD.xlsx`) |
+| `11.hfc_backcheck.R` | Run separately after script 1 (reads the raw export). Updates the back-check sampling pool and writes a dated daily call list. | — (writes `checks/backcheck_list.xlsx` and `checks/backcheck_daily_list/backcheck_list_YYMMDD.xlsx`) |
 
 ## The `Dashboard` tab
 
@@ -191,7 +183,7 @@ Each block has a grey definition row under its column names.
 
 ## Tab order
 
-`Dashboard`, `enumerator_check`, `district_data`, `village_data`, `duplicates`,
+`Dashboard`, `enumerator_check`, `enumerator_daily_check`, `district_data`, `village_data`, `duplicates`,
 `hard_checks_summary`, `hard_checks`, `flags_summary`, `flags_data`, then the other tabs, with `run_info` last
 (`TAB_FIRST` in `10.hfc_dashboard.R`).
 
@@ -204,8 +196,9 @@ In `output_dir` (`SHARED_EAQIP/datawork/HFC_midline/output`, or `pilot/output` /
 | `HFC_midline_dashboard.xlsx` | The dashboard workbook (all tabs above) |
 | `hfc_constr.xlsx` | The constructed dataset from script 2 |
 | `archive/` | Earlier versions of both files, renamed `<name>_YYYYMMDD_HHMM.xlsx` |
-| `checks/hfc_flags.csv` | Every flagged row, used by `test/compare_expected_flags.R` and `11.hfc_backcheck.R` |
-| `checks/backcheck_list.xlsx` | Back-check workbook from script 11, one `backcheck_YYYYMMDD` sheet per run (names, phone numbers, GPS) |
+| `checks/hfc_flags.csv` | Every flagged row, used by `test/compare_expected_flags.R` |
+| `checks/backcheck_list.xlsx` | Back-check sampling pool from script 11 (names, phone numbers, GPS) |
+| `checks/backcheck_daily_list/` | Dated daily call lists from script 11 |
 | `audio_check/<YYYYMMDD>/` | Audio audit list and files |
 
 On the WBG OneDrive (`ONEDRIVE_HFC_ML` in `PATHS.R`: `Rwanda_Energy_Project/EAQIP_survey/HFC_26`),

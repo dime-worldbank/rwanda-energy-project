@@ -7,13 +7,16 @@ HFC_KEEP_TYPES <- c("integer", "decimal", "date", "select_one", "select_multiple
 # SurveyCTO columns that are not form fields
 HFC_META_COLS <- c("KEY", "SubmissionDate", "starttime", "endtime", "formdef_version")
 
-# Column-name patterns that must never reach the HFC (names, nids, phones, GPS, device ids, media, free-text comments)
+# Column-name patterns that must never reach the HFC (names, nids, phones, GPS, device ids, media)
 HFC_BLOCK_REGEX <- paste(c("phone", "(^|_)name$", "latitude", "longitude", "altitude", "accuracy", "gps",
                            "(^|_)nid$", "audio", "photo", "text_audit", "^simid$", "subscriber", "deviceid",
-                           "meter_number", "comment"), collapse = "|")
+                           "meter_number"), collapse = "|")
 
 # "Other (specify)" text fields are kept (not deidentified), including repeat instances (F2_2_other_1, ...)
 HFC_OTHER_REGEX <- "_other$"
+
+# Additional text fields explicitly allowed in deidentified outputs
+HFC_KEEP_TEXT_FIELDS <- c("comment")
 
 # Stops the run if an input holds a column that looks identifying
 assert_no_identifying_cols <- function(cols, label) {

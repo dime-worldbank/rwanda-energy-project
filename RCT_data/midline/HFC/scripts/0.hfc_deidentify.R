@@ -6,14 +6,14 @@
 # Allowlist: a survey column is kept only if the form defines it as a number,
 # date, choice or calculate field, or as an "other (specify)" text field
 # (`*_other`, kept on purpose), and its name is not on the privacy block list.
-# Names, phones, GPS, other free text (e.g. comment), audio, photos, text audits
+# Names, phones, GPS, audio, photos, text audits
 # and device ids are therefore dropped. hh_id and the treatment arm are kept.
 # The raw files are only read, never edited.
 #
 # Run from the repo root:
 #   Rscript RCT_data/midline/HFC/scripts/0.hfc_deidentify.R
 #
-# Author: Yeji (using Claude) · Last modified: 2026-10-29
+# Author: Yeji (using Claude) Â· Last modified: 2026-10-29
 # ==============================================================================
 
 
@@ -171,13 +171,13 @@ in_repeat <- (
     cumsum(form$type == "end repeat")
 ) > 0
 
-# Keep only allowed field types and permitted "other specify" text fields
+# Keep only allowed field types and permitted text fields
 form_keep <- form |>
   filter(
     base_type %in% HFC_KEEP_TYPES |
       (
         base_type == "text" &
-          str_detect(name, HFC_OTHER_REGEX)
+          (str_detect(name, HFC_OTHER_REGEX) | name %in% HFC_KEEP_TEXT_FIELDS)
       ),
     !str_detect(
       name,
@@ -272,7 +272,8 @@ header <- names(
 
 keep_cols <- header[
   header %in% keep_fields |
-    str_remove(header, "_[0-9]+$") %in% repeat_keep
+    str_remove(header, "_[0-9]+$") %in% repeat_keep |
+    header %in% HFC_KEEP_TEXT_FIELDS
 ]
 
 # Variables required by downstream HFC scripts
@@ -396,3 +397,4 @@ iwalk(PRELOAD_KEEP, \(spec, out_file) {
 })
 message(sprintf("[2/2] deidentified inputs in %s (%.1fs)", deid_dir,
                 as.numeric(difftime(Sys.time(), t_start, units = "secs"))))
+

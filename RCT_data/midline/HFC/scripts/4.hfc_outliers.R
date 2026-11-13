@@ -32,7 +32,7 @@ OUTLIER_VARS <- c(
 outlier_data <- map_dfr(OUTLIER_VARS, \(x) {
   cols <- if (x %in% repeat_fields) str_subset(names(hfc_constr), paste0("^", x, "_\\d+$")) else x
   long <- hfc_constr |>
-    select(KEY, hh_id, enumerator, enumerator_key, village_key, submissiondate, all_of(cols)) |>
+    select(KEY, hh_id, enumerator, enumerator_key, village_key, submissiondate, comment, all_of(cols)) |>
     pivot_longer(all_of(cols), names_to = "column", values_to = "value") |>
     filter(!is.na(value))
   log_v <- log1p(long$value)
@@ -46,8 +46,8 @@ outlier_data <- map_dfr(OUTLIER_VARS, \(x) {
            median = round(expm1(m))) |>
     filter(abs(z) > OUTLIER_SD)
 }) |>
-  select(KEY, hh_id, enumerator, enumerator_key, village_key, submissiondate,
-         var, instance, value, median, low_limit, high_limit, z) |>
+    select(KEY, hh_id, enumerator, enumerator_key, village_key, submissiondate,
+      var, instance, value, median, low_limit, high_limit, z, comment) |>
   arrange(var, desc(abs(z)))
 
 add_flags(outlier_data |> distinct(KEY, hh_id, enumerator, var) |> mutate(check = paste0("4.hfc_outliers: outlier_", var)),

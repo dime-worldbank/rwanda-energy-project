@@ -45,7 +45,7 @@ hard_rows <- function(check_name, cond) {
   hard_base |>
     filter({{ cond }}) |>
     transmute(KEY, hh_id, enumerator, enumerator_key, district_key, village_key, submissiondate, startdate,
-              treat, section = spec$section, check = paste0("5.hfc_logic: ", check_name), issue = spec$issue)
+              treat, comment, section = spec$section, check = paste0("5.hfc_logic: ", check_name), issue = spec$issue)
 }
 
 
