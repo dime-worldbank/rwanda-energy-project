@@ -8,7 +8,7 @@
 # All paths start from SHARED_ASCENT_CC in PATHS.R (the shared OneDrive folder
 # "ASCENT_clean_cooking"); nothing here is user-specific.
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-04
+# Author: Tanay (using Claude) ?? Last modified: 2026-11-04
 # ==============================================================================
 
 HFC_MODE_DEFAULT <- "test"                           # "test", "pilot" or "live": change this line to switch
@@ -90,7 +90,7 @@ FIELDWORK_START  <- MODE_CONFIG$fieldwork_start
 PRELOAD_RAW <- c(enumerators = ENUM_FILE,
                  villages    = "scope_villages.csv",
                  households  = "household_head.csv",
-                 stoves      = "usage_survey_preload.csv")   # from ASCENT/usage_survey/preload/2.sampling.R
+                 stoves      = "stove_type.csv")   # from ASCENT/usage_survey/preload/3.preload.R
 
 # Raw SurveyCTO export: plain name in test, FORM_ID_WIDE_YYMMDD.csv otherwise (one active file)
 find_raw_export <- function() {
@@ -102,3 +102,5 @@ find_raw_export <- function() {
   }
   f
 }
+
+

@@ -5,7 +5,7 @@ beneficiary households with LPG, PAYG smart LPG or electric pressure cooker (EPC
 structure and conventions as the EAQIP midline HFC (`RCT_data/midline/HFC/AGENTS.md`): read that
 file for the shared rules on privacy, paths, coding style and testing.
 
-Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: updated to the 2026-11-04 form revision)
+Author: Tanay (using Claude) ?? Last modified: 2026-11-05 (Yeji: updated to the 2026-11-04 form revision)
 
 ## Rules (in addition to the root CLAUDE.md)
 
@@ -38,7 +38,7 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 |---|---|---|
 | `questionnaires/clean_cooking_questionnaire_YYMMDD.xlsx` | The one active form (older ones in `archive/`) | core team |
 | `datawork/HFC/data/` | Raw SurveyCTO export `LPG_usage_survey_WIDE_YYMMDD.csv` (one active) | core team |
-| `datawork/HFC/preload/` | Raw preload: `test_enumerators.csv`, `scope_villages.csv`, `household_head.csv`, `usage_survey_preload.csv` (from `preload/2.sampling.R`) | core team |
+| `datawork/HFC/preload/` | Raw preload: `test_enumerators.csv`, `scope_villages.csv`, `household_head.csv`, `stove_type.csv` (from `preload/3.preload.R`) | core team |
 | `datawork/HFC/deidentified/` | Output of script 0; the only input of scripts 2-10 | core team |
 | `datawork/HFC/output/` | `hfc_constr.xlsx`, dashboard, `usage_params.csv`, `checks/` (flags, back-check lists) | core team |
 | `share/main/` | Current dashboard (deidentified) | survey firm |
@@ -47,9 +47,9 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 
 ## Strata and key definitions
 
-- Stratum = preload stove type (`usage_survey_preload.csv`, `stove_type`): 1 LPG, 3 EPC (2 PAYG LPG is not
+- Stratum = preload stove type (`stove_type.csv`, `stove_type_code`): 1 LPG, 3 EPC (2 PAYG LPG is not
   separated in the sample). The sample is also stratified by `stove_year` (2025, 2026); see
-  `ASCENT/usage_survey/preload/2.sampling.R`.
+  `ASCENT/usage_survey/preload/3.preload.R`.
 - Complete = located, consented and `observe_stoves` answered (the form has no `finish` field; `observe_stoves`
   is the last required question). Duplicate = more than one consented submission per `hh_id`.
 - Program stove answers (`prog_*`) come from the stove-loop instance whose `stove_type = program_stove_type`.
@@ -74,6 +74,9 @@ Mode: `HFC_MODE_DEFAULT` in `hfc_config.R` (`test`, `pilot`, `live`). Before goi
 - Form `settings` version must be numeric (currently `261104_activity_first_timeuse`; the HFC warns).
 - Production enumerator list name (the form searches `test_enumerators`).
 - Contact column names in `household_head.csv` (`CONTACT_COLS` in `11.hfc_backcheck.R`).
-- Form `pull_stovetype` (survey sheet, row 36, column K) must read `usage_survey_preload` instead of
-  `beneficiary-list-intermediate`, and `usage_survey_preload.csv` must be attached to the form in SurveyCTO.
+- Form `pull_stovetype` (survey sheet, row 36, column K) must read `stove_type` instead of
+  `beneficiary-list-intermediate`, and `stove_type.csv` must be attached to the form in SurveyCTO.
 - Where the shared folder appears on Yeji's machine (`SHARED_ASCENT_CC` in `PATHS.R`).
+
+
+

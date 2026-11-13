@@ -1,0 +1,201 @@
+---
+title: "Beneficiary list: household ID cleaning rationale"
+output: html_document
+---
+
+This report compares completeness and purchase dates between records with and
+without an original household ID, then compares the location encoded in that ID
+with the official codes matched on district, cell and village names. All tables
+are aggregate; the report does not display names, phone numbers or household IDs.
+
+Run from the repository root, keeping the output in Dropbox:
+
+```r
+source("PATHS.R")
+rmarkdown::render(
+  "ASCENT/usage_survey/preload/beneficiary_cleaning_reasoning.rmd",
+  output_dir = DATA_ASCENT_PRELOAD,
+  intermediates_dir = DATA_ASCENT_PRELOAD,
+  clean = FALSE
+)
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+
+repo_root <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+while (!file.exists(file.path(repo_root, "PATHS.R"))) {
+  parent <- dirname(repo_root)
+  if (parent == repo_root) stop("Run from within the repository containing PATHS.R.")
+  repo_root <- parent
+}
+knitr::opts_knit$set(root.dir = repo_root)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+source(file.path(repo_root, "PATHS.R"))
+
+# Preserve valid UTF-8 while converting the legacy bytes in the source files.
+repair_text <- function(x) {
+  invalid <- !is.na(x) & !validUTF8(x)
+  converted <- iconv(x[invalid], from = "windows-1252", to = "UTF-8")
+  if (anyNA(converted)) stop("Unable to decode some input text as Windows-1252.")
+  x[invalid] <- converted
+  x
+}
+read_input <- function(path) {
+  data <- read_csv(path, col_types = cols(.default = col_character()),
+                   show_col_types = FALSE)
+  if (nrow(readr::problems(data)) > 0) stop("CSV parsing problems in ", basename(path))
+  data |>
+    mutate(across(where(is.character), repair_text))
+}
+
+beneficiary <- read_input(file.path(DATA_ASCENT_PRELOAD,
+                                   "clean-cooking-beneficiaries-list-raw.csv")) |>
+  janitor::clean_names() |>
+  mutate(
+    id_status = if_else(is.na(household_id) | str_trim(household_id) == "",
+                        "Missing original HHID", "Original HHID present"),
+    purchase_date = lubridate::dmy(date_of_purchase_confirmation_in_et, quiet = TRUE)
+  )
+
+admin <- read_input(file.path(DROPBOX_EAQIP, "questionnaires", "01-baseline", "vills.csv")) |>
+  mutate(n_official = n(), .by = c(district_key, cell_key, village_key))
+admin_unique <- admin |>
+  filter(n_official == 1) |>
+  select(district = district_key, cell = cell_key, village = village_key,
+         districtid_key, cellid_key, villageid_key)
+admin_ambiguous <- admin |>
+  filter(n_official > 1) |>
+  distinct(district = district_key, cell = cell_key, village = village_key) |>
+  mutate(ambiguous = TRUE)
+matched <- beneficiary |>
+  left_join(admin_unique, by = c("district", "cell", "village")) |>
+  left_join(admin_ambiguous, by = c("district", "cell", "village")) |>
+  mutate(admin_match = case_when(
+    !is.na(villageid_key) ~ "Unique",
+    ambiguous %in% TRUE ~ "Ambiguous",
+    .default = "Unmatched"
+  ))
+```
+
+## Completeness by original HHID status
+
+The denominator for each percentage is the number of records in that HHID-status
+group. Missing includes blank or whitespace-only values. Differences describe the
+observed list; they do not establish why a value is missing.
+
+```{r completeness}
+key_variables <- c("beneficiary_first_name", "beneficiary_last_name", "phone_number",
+                   "district", "cell", "village", "product_name",
+                   "date_of_purchase_confirmation_in_et", "tier_level",
+                   "product_company_supplier", "amount_to_be_paid_by_end_user",
+                   "subsidy_amount")
+beneficiary |>
+  select(id_status, all_of(key_variables)) |>
+  pivot_longer(-id_status, names_to = "variable", values_to = "value") |>
+  summarise(records = n(),
+            missing = sum(is.na(value) | str_trim(value) == ""),
+            missing_pct = round(100 * missing / records, 1),
+            .by = c(id_status, variable)) |>
+  arrange(variable, id_status) |>
+  kable()
+```
+
+## Purchase date and product distributions
+
+Dates are parsed as day-month-year. Unreadable dates are reported separately
+from missing dates; percentages are within original-HHID groups.
+
+```{r dates}
+beneficiary |>
+  mutate(purchase_year = case_when(
+    is.na(date_of_purchase_confirmation_in_et) |
+      str_trim(date_of_purchase_confirmation_in_et) == "" ~ "Missing",
+    is.na(purchase_date) ~ "Unreadable",
+    .default = as.character(lubridate::year(purchase_date))
+  )) |>
+  count(id_status, purchase_year, name = "records") |>
+  mutate(pct = round(100 * records / sum(records), 1), .by = id_status) |>
+  kable()
+```
+
+```{r products}
+beneficiary |>
+  count(id_status, product_name, tier_level, name = "records") |>
+  mutate(pct = round(100 * records / sum(records), 1), .by = id_status) |>
+  arrange(product_name, tier_level, id_status) |>
+  kable()
+```
+
+## Matching locations to the official village list
+
+The match uses the exact district, cell and village names. Ambiguous means those
+names identify more than one official village, because the source has no sector.
+Unmatched and ambiguous records cannot be assigned official codes uniquely.
+
+```{r match-status}
+matched |>
+  count(id_status, admin_match, name = "records") |>
+  mutate(pct = round(100 * records / sum(records), 1), .by = id_status) |>
+  kable()
+```
+
+## Original HHID versus name-matched codes
+
+For unique matches, the first two, six and eight digits of a 12-digit original
+HHID are compared with the official district, cell and village codes,
+respectively. Missing or malformed IDs and non-unique name matches are reported
+separately rather than counted as agreements or disagreements. Percentages use
+all records in the corresponding original-HHID group. The comparable percentage
+uses only records with a valid original HHID and a unique name match.
+
+```{r code-comparison}
+compare_level <- function(data, official_code, digits) {
+  data |>
+    mutate(result = case_when(
+      id_status == "Missing original HHID" ~ "Missing original HHID",
+      !str_detect(household_id, "^[0-9]{12}$") ~ "Malformed original HHID",
+      admin_match != "Unique" ~ paste("Location", str_to_lower(admin_match)),
+      is.na(.data[[official_code]]) ~ "Missing official code",
+      str_sub(household_id, 1, digits) == .data[[official_code]] ~ "Match",
+      .default = "Mismatch"
+    )) |>
+    count(id_status, result, name = "records") |>
+    mutate(
+      pct = round(100 * records / sum(records), 1),
+      comparable_pct = if_else(result %in% c("Match", "Mismatch"),
+                               round(100 * records / sum(records[result %in% c("Match", "Mismatch")]), 1),
+                               NA_real_),
+      .by = id_status
+    )
+}
+```
+
+### District
+
+```{r district-comparison}
+kable(compare_level(matched, "districtid_key", 2))
+```
+
+### Cell
+
+```{r cell-comparison}
+kable(compare_level(matched, "cellid_key", 6))
+```
+
+### Village
+
+```{r village-comparison}
+kable(compare_level(matched, "villageid_key", 8))
+```
+
+## Decision
+
+Retain households regardless of whether the original HHID is missing. For each
+uniquely matched location, use the official village code and assign a four-digit
+sequence sorted by beneficiary first and last name. Retain the original HHID for
+traceability, flag and exclude ambiguous locations, and stop on unmatched names.
+Name ties use the source row order. The resulting IDs depend on the input list and
+its ordering, so freeze the ID mapping before sampling or fieldwork; regenerating
+it after changes can invalidate existing samples and form preloads.

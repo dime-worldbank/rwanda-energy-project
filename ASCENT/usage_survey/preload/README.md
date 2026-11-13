@@ -1,87 +1,92 @@
-# ASCENT Usage Survey Preload data 
+# ASCENT Usage Survey Preload data
 
 ## Overview
-This phone survey targets 1,000 sample households from beneficiary list that received cooking stove from government subsidy program. 
+This folder builds the identified preload attachments for the clean cooking usage survey.
 
-## Preload 
-The R scrips contained in this 'preload' folder creates three data required for the form to be uploaded in SurveyCTO.  
+## Raw beneficiary list location
+`DATA_ASCENT_PRELOAD/clean-cooking-beneficiaries-list-raw.csv`
 
-1) enumerator.csv (for testing, uses test_enumerator.csv)
-2) scope_villages.csv (contains the administrative divisions -- district, sector, cell, village -- of the beneficiary households)
-3) household_sample.csv (contains 1300 household sample, 1000 for the main survey and 300 for replacement)
-
-### TODO 
-1) test_enumerator. csv and 2) scope_villages.csv is not yet created as of 2026-11-05. This is because confirming the sampling method and cleaning of the raw beneficiary data is needed. 
-
-## Raw Beneficiary List Data 
-
-### Folder location - 
-
-`Dropbox/Rwanda Energy/ASCENT/questionnaires/preload/clean-cooking-beneficiaries-list-raw.csv` (`DATA_ASCENT_PRELOAD` in `PATHS.R`)
-
-### Key variables: 
-
-household id, beneficiary name and phone number, district, cell, village names, cook stove product name, date purchased,  subsidy amount and amount paid by the customer. 
-
-### Important note
-a)  the raw data has 23% missing household IDs (13,173 of 56,212 rows). These households are dropped. 
-
-b) Also, the administrative levels only contain district, cell, village names and sector name is MISSING. 
-
-For cascade selection of District > Sector > Cell > Village > HHID in the survey form, we need each administrative level's ID. The detailed approach to address this gap is described below in 1.beneficiary_list.R. 
-
-## What each script does 
+## Scripts
 
 ### 1.beneficiary_list.R
-- Function 0: Check for missing obs in key variables 
-- Function 1: Remove missing hhid 
-- Function 2: From product name, categorize them into stove_type (LPG and EPC)
-- Function 3: Add official admin codes (province, sector, id keys) from the EAQIP village list (vills.csv), matched on district + cell + village names
+- Cleans the beneficiary list.
+- Matches district/cell/village names to official admin codes.
+- Excludes ambiguous location matches.
+- Creates new `householdid_key` values and keeps original `household_id` for traceability.
+- Writes `beneficiaries-list-intermediate.csv`.
 
-### TODO - decide how to proceed 
-Function 3 first matches on the district, cell, village names and based on the name match, assign each admin level's key and sector & sector key. 
+See `beneficiary_cleaning_reasoning.rmd` for missingness checks and HHID decision rationale.
 
-Result: 
-- 43,033 households matched for district, cell, village names 
-- 6 households had ambiguous sectors (two possible sectors could exist for the same pair of district, cell, village)
-
-   District   Cell       Village    Official candidates (sector, villageid_key)
-   Gasabo     Gasagara   Gasagara   Gikomero 12030103  or  Rusororo 12140202
-   Gatsibo    Kigabiro   Kigabiro   Gasange  53010102  or  Remera   53120305
-   Nyagatare  Kabeza     Kabeza     Gatunda  52010202  or  Rwimiyaga 52130202
-
-#### Issue: 
-
-The issue rose when ensuring the Household ID correctly reflects the District(DD), Sector(DDSS), Cell(DDSSCC), Village IDs (or keys) (DDSSCCVV). 
-
-Household IDs are 12 digits: an 8-digit official village ID (DDSSCCVV) followed by a 4-digit household number. All 43,033 IDs start with a valid village ID, so the IDs themselves are well formed. However, the village in the ID matches the village named in the district / cell / village columns for only 45% of households (district: 73%, province: 83%).
-
-This mismatch needs to be addressed before creating the preload data: we need to know which location to use for the form. 
-
-#### Todo - The question then is: 
-
-Do we keep the HHID provided in the raw dataset AND change District ~ Village assignment based on the village ID encoded in the HHID? 
-
-OR 
-
-Do we keep the inconsistencies and create the household_sample that has District, Sector, Cell, Village names and IDs from the vills.csv but the household IDs from the raw data
+After cleaning, the `beneficiaries-list-intermediate.csv` has following distribution. 
+          | LPG    | LPG PAYG   | EPC  
+2025 Q1Q2 | 5212   | -          |
+2025 Q3Q4 | 18260  | 1175       | 2851 
+2026 Q1Q2 | 16559  | 1558       | 8688
+2026 Q3Q4 | 1519   | -          | 331 
+Total     | 41550  | 2739       | 11872  
 
 ### 2.sampling.R
+- Based on the availability and sample size of the distribution (i.e. stove type crossed by purchase period), we construct seven stratum 
 
-From cleaned beneficiary_list from 1.beneficiary_list.R samples 1,300 households. 
+1) 25Q1Q2 LPG
+2) - 4)  25Q3Q4 LPG, LPG PAYG, EPC
+5) - 7)  26 LPG, LPG PAYG, EPC 
 
+The sample size are: 
+          | LPG    | LPG PAYG   | EPC  
+2025 Q1Q2 | 5212   | -          |
+2025 Q3Q4 | 18260  | 1175       | 2851 
+2026      | 18078  | 1558       | 9019
 
-We sample equal number per strarum, and it is 2X2 metric of Stove Type X Year of Purchase. 
+Our desired weight across these strarum are: 
+          | LPG    | LPG PAYG   | EPC  
+2025 Q1Q2 | 3x     | -          |
+2025 Q3Q4 | x      | 8x         | 1.5x
+2026      | x      | 8x         | 1.5x
 
-Most of the frame (81%, 33,505 of 41,368) received LPG, but the sample is 50% LPG by design. So each sampled LPG household stands for 2 to 9 times as many beneficiaries as an EPC household from the same year (47.9 / 22.3 for 2026, 86.1 / 9.2 for 2025). The weight (frame / main) is only needed for estimates that pool strata.
+Therefore, for n = 1,000 our distribution should be:  
+          | LPG    | LPG PAYG   | EPC  
+2025 Q1Q2 | 171    | -          |
+2025 Q3Q4 | 199    | 102        | 47 
+2026      | 197    | 136        | 148
 
-Stratum	Frame	Main	Replacements	Weight
-EPC 2025	2,290	250	75	9.2
-EPC 2026	5,573	250	75	22.3
-LPG 2025	21,519	250	75	86.1
-LPG 2026	11,986	250	75	47.9
+For replacement n = 300, we need mutually exclusive sample of: 
+          | LPG    | LPG PAYG   | EPC  
+2025 Q1Q2 | 51     | -          |
+2025 Q3Q4 | 60     | 31         | 14
+2026      | 59     | 41         | 44
 
-#### Todo - confirm method 
-Is current method valid? 
+- Builds seven nonempty sampling groups from stove type × purchase period; the 2026 quarters are pooled.
+- Allocates each draw proportional to group size × the relative weight shown above, with largest-remainder rounding and capacity checks.
+- Main and replacement sizes are `N_MAIN = 1,000` and `N_REPLACE = 300`. Replacements are drawn from the remaining frame and do not overlap the main sample.
+- Pilot and pilot replacement sizes are `N_PILOT = 200` and `N_PILOT_REPLACE = 60`. They are drawn from the pool left after the main and replacement samples, without overlap.
+- The listed group allocations are expected from the undeduplicated counts. Actual allocations can differ because the sampler first keeps one beneficiary per phone.
+- Summary outputs include all nine stove-by-period cells, including zero-count cells.
+- Writes:
+  - `usage_survey_sample.csv`
+  - `usage_survey_sample_summary.csv`
+  - `usage_survey_pilot_sample.csv`
+  - `usage_survey_pilot_sample_summary.csv`
+  - `usage_survey_strata_distribution.csv` (actual distribution across all nine stove-by-period cells)
 
-If we want the sample size to reflect the sample pool size (i.e. main), a different sampling strategy should be applied. 
+All five sampling outputs are written to both `DATA_ASCENT_PRELOAD/` (Dropbox) and `SHARED_ASCENT_CC/questionnaires/preload/` (OneDrive), so the copies mirror after each successful run.
+
+### 3.preload.R
+Creates the raw form preload files from sampled households:
+- `test_enumerators.csv` (one row per sampled district): `districtid_key`, `district_key`, `enumeratorid_key`, `enumerator_key`
+- `scope_villages.csv`: admin keys and names at all levels (`district*`, `sector*`, `cell*`, `village*`)
+- `household_head.csv`: `householdid_key`, `household_id`, `villageid_key`, `village`, `hh_head_name`, `phone_clean`, `phone2_clean`
+- `stove_type.csv` (`householdid_key`, `stove_type`, `stove_type_code`, `product_name`, `product_name_code`)
+
+Mode handling:
+- `PRELOAD_MODE=live` uses `usage_survey_sample.csv` (main + replacement)
+- `PRELOAD_MODE=pilot` uses `usage_survey_pilot_sample.csv`
+
+Output locations:
+- Dropbox: `DATA_ASCENT_PRELOAD/main/` or `DATA_ASCENT_PRELOAD/pilot/`
+- OneDrive: `SHARED_ASCENT_CC/questionnaires/preload/main/` or `.../pilot/`
+- Live mode also writes a compatibility copy to `DATA_ASCENT_PRELOAD/`
+
+## Notes
+- Freeze the ID mapping before drawing and fielding.
+- If the beneficiary list or name ordering changes, IDs can change and old sample/preload files become incompatible.

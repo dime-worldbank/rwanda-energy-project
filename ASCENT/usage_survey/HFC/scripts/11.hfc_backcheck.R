@@ -32,6 +32,7 @@ source("ASCENT/usage_survey/HFC/scripts/hfc_config.R")
 
 TZ        <- "Africa/Kigali"
 EXPORT_TZ <- Sys.timezone()
+TODAY     <- Sys.Date()
 
 # Contact columns in the raw preload household file (PRELOAD_RAW[["households"]]). TBD: confirm
 # the column names on the real beneficiary list.
@@ -43,6 +44,21 @@ FLAG_PRIORITY <- c(program_stove_not_used_30d = 1, program_stove_not_confirmed =
                    duration_short = 9)
 OTHER_PRIORITY <- 7
 SEED <- 20261104
+HARD_HIGH_AT <- 10
+HARD_N_HIGH  <- 5
+HARD_N       <- 2
+hard_sheet   <- paste0("hardcheck_", format(TODAY, "%Y%m%d"))
+out_path     <- file.path(checks_dir, "backcheck_list.xlsx")
+
+VERIFY_FLAGS <- c(
+  "program_stove_not_used_30d",
+  "program_stove_not_confirmed",
+  "program_stove_not_observed",
+  "used_but_not_working",
+  "child_cook",
+  "cook_hours_high",
+  "firewood_not_source"
+)
 
 
 # ---- 3. Inputs ---------------------------------------------------------------
@@ -63,8 +79,25 @@ if (length(miss) > 0) stop(PRELOAD_RAW[["households"]], " is missing contact col
                            ". Update CONTACT_COLS.")
 contacts_pre <- contacts_pre |> select(householdid_key, all_of(CONTACT_COLS))
 
+# Households that already appear in earlier backcheck/hardcheck sheets.
+already_checked <- character()
+if (file.exists(out_path)) {
+  wb_prev <- loadWorkbook(out_path)
+  prev_sheets <- names(wb_prev)[str_detect(names(wb_prev), "^(backcheck|hardcheck)_[0-9]{8}$")]
+  if (length(prev_sheets) > 0) {
+    already_checked <- map(prev_sheets, \(s) {
+      dat <- readWorkbook(wb_prev, sheet = s)
+      if (!("hh_id" %in% names(dat))) return(character())
+      as.character(na.omit(dat$hh_id))
+    }) |>
+      unlist() |>
+      unique()
+  }
+}
+message("Already listed households excluded: ", length(already_checked))
 
-# ---- 4. Pick one flagged survey per enumerator per day -----------------------
+
+# ---- 4. Build hard-check pool -------------------------------------------------
 
 surveys <- raw |>
   filter(KEY %in% flags$KEY) |>
@@ -86,13 +119,22 @@ per_survey <- flags |>
   left_join(surveys, by = "KEY")
 
 set.seed(SEED)
-picked <- per_survey |>
+hard_pool <- per_survey |>
+  mutate(is_hard = !str_split(flags, ";\\s*") |> map_lgl(\(x) any(x %in% VERIFY_FLAGS))) |>
+  filter(is_hard) |>
   mutate(tiebreak = runif(n())) |>
   filter(!is.na(primary_phone) | !is.na(secondary_phone)) |>
-  arrange(survey_date, enumerator, priority, desc(n_flags), tiebreak) |>
-  slice(1, .by = c(survey_date, enumerator))
+  filter(!is.na(hh_id), !(hh_id %in% already_checked))
 
-no_phone_days <- anti_join(distinct(per_survey, survey_date, enumerator), picked, by = c("survey_date", "enumerator"))
+enum_quota <- hard_pool |>
+  count(enumerator, name = "hard_checks_total") |>
+  mutate(hard_quota = if_else(hard_checks_total >= HARD_HIGH_AT, HARD_N_HIGH, HARD_N))
+
+picked <- hard_pool |>
+  left_join(enum_quota, by = "enumerator") |>
+  arrange(enumerator, desc(n_flags), priority, tiebreak) |>
+  distinct(hh_id, .keep_all = TRUE) |>
+  filter(row_number() <= first(hard_quota), .by = enumerator)
 
 
 # ---- 5. Write ----------------------------------------------------------------
@@ -103,24 +145,26 @@ backcheck <- picked |>
   transmute(enumerator_id = enumerator, enumerator_name = enumerator_key, hh_id,
             survey_date = format(start, "%Y-%m-%d"), survey_start_rwanda = format(start, "%H:%M"), survey_min,
             district = district_key, sector = sector_key, cell = cell_key, village = village_key,
-            hh_head_name, primary_phone, secondary_phone, flags, flag_details, KEY,
+            hh_head_name, primary_phone, secondary_phone, hard_checks_total, hard_quota, flags, comment = flag_details, KEY,
             call_date = "", reached = "", respondent_confirms_interview = "", answers_confirmed = "", notes = "") |>
   arrange(survey_date, suppressWarnings(as.numeric(enumerator_id)))
 
-wb <- createWorkbook()
-addWorksheet(wb, "backcheck")
-writeData(wb, "backcheck", backcheck, headerStyle = createStyle(textDecoration = "bold", fgFill = "#DDEBF7"))
-addStyle(wb, "backcheck", createStyle(numFmt = "@"), rows = seq_len(nrow(backcheck)) + 1,
-         cols = match(c("hh_id", "primary_phone", "secondary_phone"), names(backcheck)), gridExpand = TRUE)
-setColWidths(wb, "backcheck", seq_along(backcheck), "auto")
-freezePane(wb, "backcheck", firstRow = TRUE)
-
 dir.create(checks_dir, recursive = TRUE, showWarnings = FALSE)
-out_path <- file.path(checks_dir, paste0("backcheck_list_", format(Sys.Date(), "%Y%m%d"), ".xlsx"))
+
+if (file.exists(out_path)) {
+  wb <- loadWorkbook(out_path)
+} else {
+  wb <- createWorkbook()
+}
+
+if (hard_sheet %in% names(wb)) removeWorksheet(wb, hard_sheet)
+addWorksheet(wb, hard_sheet)
+writeData(wb, hard_sheet, backcheck, headerStyle = createStyle(textDecoration = "bold", fgFill = "#DDEBF7"))
+addStyle(wb, hard_sheet, createStyle(numFmt = "@"), rows = seq_len(nrow(backcheck)) + 1,
+         cols = match(c("hh_id", "primary_phone", "secondary_phone"), names(backcheck)), gridExpand = TRUE)
+setColWidths(wb, hard_sheet, seq_along(backcheck), "auto")
+freezePane(wb, hard_sheet, firstRow = TRUE)
 saveWorkbook(wb, out_path, overwrite = TRUE)
 
-message(sprintf("[11.hfc_backcheck] %d surveys (one per enumerator per day, %d days) -> %s",
-                nrow(backcheck), n_distinct(backcheck$survey_date), out_path))
-if (nrow(no_phone_days) > 0) {
-  warning(nrow(no_phone_days), " enumerator-day(s) left out: no flagged survey with a phone number.")
-}
+message(sprintf("[11.hfc_backcheck] added %s: %d hard-check surveys (%d enumerators) -> %s",
+                hard_sheet, nrow(backcheck), n_distinct(backcheck$enumerator_id), out_path))

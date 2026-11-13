@@ -31,7 +31,7 @@ This master script will run five main subscripts
 Decisions that change what the HFC measures. Newest first. Each entry says what changed, why, and
 where it lives in the code, so a reviewer can check it without rereading the scripts.
 
-### 2026-11-05 — HFC updated to the 2026-11-04 form revision (Yeji)
+### 2026-11-05 ??? HFC updated to the 2026-11-04 form revision (Yeji)
 
 **Context.** The active form (`clean_cooking_questionnaire_261104.xlsx`, saved 4:04 PM) restructured
 the survey; the scripts had been written for the earlier version now in `questionnaires/archive/`.
@@ -91,7 +91,7 @@ Fields were dropped on purpose (confirmed by Yeji). Changes in the form:
   0/1 columns per `select_multiple` choice are ignored (the parser reads repeat fields at their exact depth).
 - `CHILD_COOK_AGE`, `DURATION_MIN`, `DURATION_MAX`: set from the pilot.
 
-### 2026-11-05 — Sample and form preload (Yeji)
+### 2026-11-05 ??? Sample and form preload (Yeji)
 
 - **Sample** (`ASCENT/usage_survey/preload/2.sampling.R`): 1,000 main + 300 replacement households, 4 strata
   (stove type LPG / EPC x year the stove was provided, 2025 / 2026), equal allocation (250 + 75 per stratum).
@@ -99,8 +99,12 @@ Fields were dropped on purpose (confirmed by Yeji). Changes in the form:
   Within strata: systematic draw after sorting by district, cell, village. Seed 20261105.
 - **Design weight** = stratum frame size / 250 (frame households one sampled household stands for). Only for
   estimates that pool strata; results by stratum need no weight. Recompute on completed interviews.
-- **Form preload** is now `usage_survey_preload.csv` (written by `2.sampling.R`: `householdid_key`, `stove_type`
-  code 1 LPG / 3 EPC, `stove_year`), replacing `beneficiary-list-intermediate.csv`. `hfc_config.R` and the
-  synthetic data use the new name. **Form edit pending:** `pull_stovetype` (survey sheet row 36, column K)
-  `pulldata('beneficiary-list-intermediate', ...)` -> `pulldata('usage_survey_preload', ...)`.
+- **Form preload** is now `stove_type.csv` (written by `3.preload.R`: `householdid_key`, `stove_type` label,
+  `stove_type_code` (1 LPG / 3 EPC), `product_name`, `product_name_code`). `hfc_config.R` and the synthetic
+  data use the new name. **Form edit pending:** `pull_stovetype` (survey sheet row 36, column K)
+  `pulldata('beneficiary-list-intermediate', ...)` -> `pulldata('stove_type', ...)`.
 - Replacement rule (when a household counts as unreachable): to set with the survey firm before calls start.
+
+
+
+

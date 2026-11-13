@@ -57,7 +57,7 @@ by_day <- function(by) {
 # ---- 2. Data loading ---------------------------------------------------------
 
 admin_names <- read_preload("scope_villages.csv") |>
-  select(villageid_key, districtid_key, district_key, sector_key, cell_key, village_key)
+  select(villageid_key, districtid_key, sectorid_key, cellid_key, district_key, sector_key, cell_key, village_key)
 
 hh_frame <- read_preload("household_frame.csv") |>
   distinct(hh_id = householdid_key, villageid_key, stove_type) |>

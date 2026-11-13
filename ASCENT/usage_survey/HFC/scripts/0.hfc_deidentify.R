@@ -14,7 +14,7 @@
 # Run from the repo root:
 #   Rscript ASCENT/usage_survey/HFC/scripts/0.hfc_deidentify.R
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
+# Author: Tanay (using Claude) ?? Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -95,7 +95,8 @@ raw_pre <- function(what, cols) {
 }
 
 # Sample frame: every household, its village and its preload stove type (the stratum)
-household_frame <- raw_pre("stoves", c("householdid_key", "stove_type")) |>
+household_frame <- raw_pre("stoves", c("householdid_key", "stove_type_code")) |>
+  rename(stove_type = stove_type_code) |>
   left_join(raw_pre("households", c("householdid_key", "villageid_key")), by = "householdid_key")
 if (any(is.na(household_frame$villageid_key))) {
   warning(sum(is.na(household_frame$villageid_key)), " household(s) in ", PRELOAD_RAW[["stoves"]],
@@ -104,8 +105,8 @@ if (any(is.na(household_frame$villageid_key))) {
 
 deid_preload <- list(
   household_frame.csv = household_frame,
-  scope_villages.csv  = raw_pre("villages", c("villageid_key", "districtid_key", "district_key",
-                                              "sector_key", "cell_key", "village_key")),
+  scope_villages.csv  = raw_pre("villages", c("districtid_key", "sectorid_key", "cellid_key", "villageid_key",
+                                              "district_key", "sector_key", "cell_key", "village_key")),
   enumerators.csv     = raw_pre("enumerators", c("enumeratorid_key", "enumerator_key"))
 )
 iwalk(deid_preload, \(x, f) {
@@ -116,3 +117,6 @@ iwalk(deid_preload, \(x, f) {
 
 message(sprintf("[2/2] deidentified inputs in %s (%.1fs)", deid_dir,
                 as.numeric(difftime(Sys.time(), t_start, units = "secs"))))
+
+
+

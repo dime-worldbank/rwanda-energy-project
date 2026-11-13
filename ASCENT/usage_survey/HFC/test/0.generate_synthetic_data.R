@@ -19,7 +19,7 @@
 # Run from the repo root (writes to the test folders of SHARED_ASCENT_CC):
 #   Rscript ASCENT/usage_survey/HFC/test/0.generate_synthetic_data.R
 #
-# Author: Tanay (using Claude) · Last modified: 2026-11-05 (Yeji: new form structure)
+# Author: Tanay (using Claude) ?? Last modified: 2026-11-05 (Yeji: new form structure)
 # ==============================================================================
 
 
@@ -148,7 +148,7 @@ preload <- list(
                                          hh_head_name = paste(sample(FIRST, n(), TRUE), sample(LAST, n(), TRUE)),
                                          phone_clean = sprintf("0700%06d", sample(1e5:999999, n())),
                                          phone2_clean = if_else(runif(n()) < 0.3, sprintf("0700%06d", sample(1e5:999999, n())), NA_character_)),
-  usage_survey_preload.csv = hh |> transmute(householdid_key, stove_type, stove_year = sample(c(2025, 2026), n(), TRUE))
+  stove_type.csv = hh |> transmute(householdid_key, stove_type = unname(c("1" = "LPG", "2" = "PAYG LPG", "3" = "EPC")[stove_type]), stove_type_code = stove_type, product_name = if_else(stove_type == "3", "Panda EPC", "Hello Gas II"), product_name_code = if_else(stove_type == "3", "P003", "P014"), stove_year = sample(c(2025, 2026), n(), TRUE))
 )
 
 
@@ -405,3 +405,5 @@ write_csv(expected, file.path(raw_data_dir, "expected_flags.csv"), na = "")
 
 message(sprintf("[0.generate_synthetic_data] %d submissions (%d households in preload), %d expected flags -> %s",
                 nrow(export), nrow(hh), nrow(expected), raw_data_dir))
+
+
