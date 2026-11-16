@@ -146,7 +146,7 @@ dashboard_not_located <- read_excel(dashboard_path, sheet = "not_located")
 
 raw      <- read_chr(active_exports)
 enums    <- read_chr(file.path(preload_dir, "enumerators.csv"))
-villages <- read_chr(file.path(preload_dir, "scope_villages.csv"))
+villages <- read_chr(file.path(raw_preload_dir, "scope_villages.csv"))
 households <- read_chr(file.path(preload_dir, "household_frame.csv"))
 contact_phones <- read_chr(file.path(raw_preload_dir, "contact_info.csv"),
                            col_select = c(householdid_key, phone_clean, phone2_clean)) |>
@@ -183,7 +183,9 @@ subs <- raw |>
             ml_accuracy_m = as.numeric(`obs_gps-Accuracy`)) |>
   left_join(select(enums, enumerator = enumeratorid_key, enumerator_name = enumerator_key), by = "enumerator") |>
   left_join(select(villages, village = villageid_key, district = district_key, sector = sector_key,
-                   cell = cell_key, village_name = village_key), by = "village") |>
+                   cell = cell_key, village_name = village_key,
+                   district_id = districtid_key, sector_id = sectorid_key,
+                   cell_id = cellid_key, village_id = villageid_key), by = "village") |>
   left_join(select(households, hh_id = householdid_key, treat), by = "hh_id", relationship = "many-to-one")
 
 if (anyNA(subs$KEY) || anyDuplicated(subs$KEY)) stop("Missing or duplicate submission KEYs in the raw export.")
@@ -220,21 +222,28 @@ message(sprintf("      GPS: %d submissions compared, %d more than %g km + accura
 contacts <- subs |> select(KEY, hh_head_name, primary_phone, secondary_phone)
 hard_rows <- dashboard_hard |>
   left_join(contacts, by = "KEY", relationship = "many-to-one") |>
-  left_join(subs |> select(KEY, sector_key = sector, cell_key = cell), by = "KEY", relationship = "many-to-one") |>
+  left_join(subs |> select(KEY, sector_key = sector, cell_key = cell,
+            district_id, sector_id, cell_id, village_id),
+       by = "KEY", relationship = "many-to-one") |>
   mutate(submissiondate = as.Date(submissiondate), gps_issue = as.integer(KEY %in% gps_issues$KEY)) |>
-  select(KEY, submissiondate, district_key, sector_key, cell_key, village_key, treat, hh_id, hh_head_name,
+  select(KEY, submissiondate, district_key, sector_key, cell_key, village_key,
+    district_id, sector_id, cell_id, village_id, treat, hh_id, hh_head_name,
          enumerator, enumerator_key, primary_phone, secondary_phone, issue, gps_issue, comment)
 not_located_rows <- dashboard_not_located |>
   left_join(contacts, by = "KEY", relationship = "many-to-one") |>
+  left_join(subs |> select(KEY, district_id, sector_id, cell_id, village_id),
+       by = "KEY", relationship = "many-to-one") |>
   left_join(contact_phones, by = "hh_id", relationship = "many-to-one") |>
   mutate(submissiondate = as.Date(attempt_date),
          primary_phone = preload_primary, secondary_phone = preload_secondary) |>
-  select(KEY, submissiondate, district_key, sector_key, cell_key, village_key, treat, hh_id, hh_head_name,
+  select(KEY, submissiondate, district_key, sector_key, cell_key, village_key,
+    district_id, sector_id, cell_id, village_id, treat, hh_id, hh_head_name,
          enumerator, enumerator_key, primary_phone, secondary_phone, nolocate, nolocate_label, nolocate_other)
 gps_rows <- gps_issues |>
   arrange(desc(distance_km)) |>
   transmute(KEY, submission_date, district_key = district, sector_key = sector, cell_key = cell,
-            village_key = village_name, treat, hh_id, hh_head_name, enumerator, enumerator_key = enumerator_name,
+       village_key = village_name, district_id, sector_id, cell_id, village_id,
+       treat, hh_id, hh_head_name, enumerator, enumerator_key = enumerator_name,
             primary_phone, secondary_phone, distance_km, comment)
 
 enum_counts <- subs |>
@@ -340,7 +349,16 @@ if (file.exists(out_path)) {
   wb <- tryCatch(loadWorkbook(out_path), error = unreadable(basename(out_path)))
   dir.create(archive_dir, recursive = TRUE, showWarnings = FALSE)
   backup <- file.path(archive_dir, paste0("backcheck_list_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx"))
-  if (!file.copy(out_path, backup)) stop("Could not archive the previous backcheck workbook; it was not changed.")
+  archived <- if (.Platform$OS.type == "windows") {
+    status <- system2("cmd", c("/c", "copy", "/Y",
+                                shQuote(normalizePath(out_path), type = "cmd"),
+                                shQuote(normalizePath(backup, mustWork = FALSE), type = "cmd")),
+                      stdout = FALSE, stderr = FALSE)
+    status == 0
+  } else {
+    file.copy(out_path, backup)
+  }
+  if (!archived) stop("Could not archive the previous backcheck workbook; it was not changed.")
 } else {
   wb <- createWorkbook()
 }
