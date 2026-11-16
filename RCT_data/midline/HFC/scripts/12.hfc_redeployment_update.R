@@ -28,9 +28,9 @@ source("PATHS.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-redeployment_list <- read_excel("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared/datawork/HFC_midline/output/checks/redeployment_list.xlsx")
-scope_villages <- read.csv("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared/questionnaires/02-midline/02-CTO-preload/scope_villages.csv")
-contact_info <- read.csv("C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared/questionnaires/02-midline/02-CTO-preload/contact_info.csv", row.names=1)
+redeployment_list <- read_excel(file.path(SHARED_EAQIP, "datawork/HFC_midline/output/checks/redeployment_list.xlsx"))
+scope_villages <- read.csv(file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload/scope_villages.csv"))
+contact_info <- read.csv(file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload/contact_info.csv"), row.names=1)
 
 # 1. Join scope villages on the full location hierarchy
 redeployment_list <- redeployment_list %>%
@@ -70,6 +70,6 @@ sum(is.na(redeployment_list$household_head_name))
 # 4. Select Key Variables 
 redeployment_list <- redeployment_list %>%
   rename(householdid_key = household_id) %>%
-  select(district, districtid_key, sector, sectorid_key, cell, cellid_key, village, villageid_key, treat, householdid_key, household_head_name, primary_phone, secondary_phone, issue, note)
+  select(district, districtid_key, sector, sectorid_key, cell, cellid_key, village, villageid_key, treat, householdid_key, household_head_name, primary_phone, secondary_phone)
 
-write.xlsx(redeployment_list, "C:/Users/wb636130/OneDrive - WBG/Rwanda Energy Project/EAQIP_HFC_shared/datawork/HFC_midline/output/checks/redeployment_list_final.xlsx") 
+write.xlsx(redeployment_list, file.path(SHARED_EAQIP, "datawork/HFC_midline/output/checks/redeployment_list_final.xlsx"))
