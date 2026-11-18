@@ -70,6 +70,8 @@ sum(is.na(redeployment_list$household_head_name))
 # 4. Select Key Variables 
 redeployment_list <- redeployment_list %>%
   rename(householdid_key = household_id) %>%
-  select(district, districtid_key, sector, sectorid_key, cell, cellid_key, village, villageid_key, treat, householdid_key, household_head_name, primary_phone, secondary_phone)
+  select(district, districtid_key, sector, sectorid_key, cell, cellid_key, village, villageid_key,
+         treat, enumerator, enumerator_key, householdid_key, household_head_name,
+         primary_phone, secondary_phone)
 
 write.xlsx(redeployment_list, file.path(SHARED_EAQIP, "datawork/HFC_midline/output/checks/redeployment_list_final.xlsx"))
