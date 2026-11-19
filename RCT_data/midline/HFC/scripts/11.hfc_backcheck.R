@@ -1,11 +1,11 @@
 # ==============================================================================
 # 11.hfc_backcheck.R
-# Midline HFC: cumulative back-check workbook (checks/backcheck_list.xlsx).
+# Midline HFC: back-check master list (checks/backcheck_list.xlsx).
 # hard_checks and not_located reproduce the dashboard rows with contact and GPS details.
 # gps_issues is recalculated from the current midline and baseline exports each run.
 # enumerator and summary show counts and overlaps by submission KEY.
-# Prior daily-list keys are marked in the pool and excluded from today's quota-based sample.
-# Each daily list is saved separately in checks/backcheck_daily_list, without overwriting existing lists.
+# backchecked / backcheck-date are carried over from the existing workbook; they are set by
+# 11b.hfc_backcheck_daily.R, which samples the daily list from this master.
 # Before each save the previous workbook is copied to checks/!archive (as backcheck_list_YYYYMMDD_HHMM.xlsx).
 #
 # Reads the raw export (names, phones, GPS) like 0.hfc_deidentify.R, so it is kept out of
@@ -15,7 +15,7 @@
 # Run from the repo root:
 #   Rscript RCT_data/midline/HFC/scripts/11.hfc_backcheck.R
 #
-# Author: Tanay, Yeji (using Claude) · Last modified: 2026-11-09
+# Author: Tanay, Yeji (using Claude) · Last modified: 2026-11-19
 # ==============================================================================
 
 
@@ -47,6 +47,11 @@ MODE_DIR <- switch(HFC_MODE,
                    pilot = file.path(SHARED_EAQIP, "datawork/HFC_midline/pilot"),
                    live  = file.path(SHARED_EAQIP, "datawork/HFC_midline"))
 
+DROPBOX_MODE_DIR <- switch(HFC_MODE,
+                           pilot = file.path(DROPBOX_EAQIP, "datawork/HFC_midline/pilot"),
+                           live = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"))
+DROPBOX_CHECKS_DIR <- file.path(DROPBOX_MODE_DIR, "output/checks")
+
 raw_data_dir <- file.path(MODE_DIR, "data")
 preload_dir  <- file.path(MODE_DIR, "deidentified/preload")
 raw_preload_dir <- switch(HFC_MODE,
@@ -61,13 +66,8 @@ BASELINE_EXPORTS <- c(first  = file.path(DATA_CTO, "baseline-first-round", "REP_
 # GPS issue: midline GPS further than GPS_MAX_KM + midline accuracy + baseline accuracy from every
 # baseline point. Accuracy is the phone's own error estimate (m); a missing accuracy counts as 0.
 GPS_MAX_KM     <- 1
-DAILY_SIZE     <- 100L
-DAILY_QUOTAS   <- c("hard check" = 40L, "no_locate" = 40L, "GPS" = 20L)
 out_path    <- file.path(checks_dir, "backcheck_list.xlsx")
 archive_dir <- file.path(checks_dir, "!archive")
-daily_dir   <- file.path(checks_dir, "backcheck_daily_list")
-daily_date  <- lubridate::today(tzone = TZ)
-daily_path  <- file.path(daily_dir, paste0("backcheck_list_", format(daily_date, "%y%m%d"), ".xlsx"))
 SUMMARY_SHEETS <- c("hard_checks", "not_located", "gps_issues", "enumerator", "summary")
 
 
@@ -110,6 +110,24 @@ haversine_km <- function(lat1, lon1, lat2, lon2) {
 unreadable <- \(what) \(e) stop("Cannot read ", what, " (", conditionMessage(e), "). Close it in Excel, ",
                                 "check its access permissions, and re-run.")
 
+copy_to_shared <- function(source, destination) {
+  status <- system2(
+    "cmd",
+    c("/c", "copy", "/Y", shQuote(normalizePath(source, mustWork = TRUE), type = "cmd"),
+      shQuote(normalizePath(destination, mustWork = FALSE), type = "cmd")),
+    stdout = FALSE,
+    stderr = FALSE
+  )
+  status == 0
+}
+
+ensure_shared_dir <- function(path) {
+  if (dir.exists(path)) return(TRUE)
+  status <- system2("cmd", c("/c", "mkdir", shQuote(normalizePath(path, mustWork = FALSE), type = "cmd")),
+                    stdout = FALSE, stderr = FALSE)
+  status == 0
+}
+
 
 # ---- 4. Inputs ---------------------------------------------------------------
 
@@ -119,25 +137,18 @@ if (length(active_exports) != 1) {
 }
 message("      source export: ", basename(active_exports))
 
-if (file.exists(daily_path)) stop("Today's daily backcheck list already exists; it was not overwritten.")
-if (sum(DAILY_QUOTAS) != DAILY_SIZE) stop("Daily sampling quotas must add up to DAILY_SIZE.")
-daily_files <- list.files(daily_dir, pattern = "^backcheck_list_[0-9]{6}\\.xlsx$", full.names = TRUE)
-prior_keys <- bind_rows(tibble(KEY = character(), backcheck_date = as.Date(character())), map_dfr(daily_files, function(path) {
-  date_text <- str_match(basename(path), "^backcheck_list_([0-9]{6})\\.xlsx$")[, 2]
-  date <- as.Date(date_text, format = "%y%m%d")
-  if (is.na(date) || format(date, "%y%m%d") != date_text) stop("Invalid daily-list date: ", basename(path))
-  tabs <- tryCatch(excel_sheets(path), error = unreadable(basename(path)))
-  entries <- map(tabs, function(tab) {
-    data <- tryCatch(read_excel(path, sheet = tab, col_types = "text"), error = unreadable(basename(path)))
-    if (!"KEY" %in% names(data)) return(NULL)
-    tibble(KEY = data$KEY)
-  })
-  if (all(map_lgl(entries, is.null))) stop("No KEY column in ", basename(path))
-  bind_rows(entries) |> filter(!is.na(KEY), KEY != "") |> mutate(backcheck_date = date)
-})) |>
-  arrange(backcheck_date) |>
-  distinct(KEY, .keep_all = TRUE) |>
-  mutate(backcheck_date = format(backcheck_date, "%y%m%d"))
+# Back-check dates already stamped in the existing master (one date per KEY across sheets)
+prior_keys <- tibble(KEY = character(), backcheck_date = character())
+if (file.exists(out_path)) {
+  prior_keys <- map(intersect(c("hard_checks", "not_located", "gps_issues"),
+                              tryCatch(excel_sheets(out_path), error = unreadable(basename(out_path)))),
+                    \(tab) read_excel(out_path, sheet = tab, col_types = "text")) |>
+    map(\(d) if (all(c("KEY", "backcheck-date") %in% names(d))) transmute(d, KEY, backcheck_date = `backcheck-date`)) |>
+    list_rbind() |>
+    filter(!is.na(KEY), !is.na(backcheck_date)) |>
+    arrange(backcheck_date) |>
+    distinct(KEY, .keep_all = TRUE)
+}
 
 dashboard_path <- file.path(MODE_DIR, "output", "HFC_midline_dashboard.xlsx")
 if (!file.exists(dashboard_path)) stop("Run 1.hfc_main.R first (", dashboard_path, " not found).")
@@ -284,57 +295,6 @@ hard_rows <- mark_backchecked(hard_rows)
 not_located_rows <- mark_backchecked(not_located_rows)
 gps_rows <- mark_backchecked(gps_rows)
 
-daily_pools <- list(
-  "hard check" = hard_rows |>
-    mutate(issue = paste(unique(issue), collapse = "; "), .by = KEY) |>
-    distinct(KEY, .keep_all = TRUE),
-  "no_locate" = not_located_rows |> distinct(KEY, .keep_all = TRUE),
-  "GPS" = gps_rows |> distinct(KEY, .keep_all = TRUE)
-) |>
-  imap(\(data, source) data |>
-         filter(backchecked == "NO", has_phone(primary_phone, secondary_phone)) |>
-         mutate(source = source))
-
-key_sources <- bind_rows(map(daily_pools, \(data) select(data, KEY))) |>
-  count(KEY, name = "n_sources")
-set.seed(as.integer(format(daily_date, "%Y%m%d")))
-candidate_keys <- map(daily_pools, \(data) {
-  data |>
-    left_join(key_sources, by = "KEY") |>
-    mutate(random_order = runif(n())) |>
-    arrange(n_sources, random_order) |>
-    pull(KEY)
-})
-quota_sources <- rep(names(DAILY_QUOTAS), DAILY_QUOTAS)
-quota_keys <- rep(NA_character_, length(quota_sources))
-assign_quota <- function(slot, seen) {
-  for (key in candidate_keys[[quota_sources[slot]]]) {
-    if (exists(key, envir = seen, inherits = FALSE)) next
-    assign(key, TRUE, envir = seen)
-    owner <- match(key, quota_keys, nomatch = 0L)
-    if (owner == 0L || assign_quota(owner, seen)) {
-      quota_keys[slot] <<- key
-      return(TRUE)
-    }
-  }
-  FALSE
-}
-for (slot in seq_along(quota_sources)) assign_quota(slot, new.env(parent = emptyenv()))
-daily_sample <- imap_dfr(daily_pools, \(data, source) {
-  selected_keys <- quota_keys[quota_sources == source]
-  data |> filter(KEY %in% .env$selected_keys)
-})
-remaining <- bind_rows(daily_pools) |>
-  filter(!KEY %in% daily_sample$KEY) |>
-  mutate(random_order = runif(n())) |>
-  arrange(random_order) |>
-  distinct(KEY, .keep_all = TRUE)
-take <- min(DAILY_SIZE - nrow(daily_sample), nrow(remaining))
-daily_sample <- bind_rows(daily_sample, remaining |> slice_head(n = take) |> select(-random_order)) |>
-  relocate(source, .after = KEY) |>
-  mutate(call_date = NA_character_, reachied = NA_character_,
-         respondent_confirms_interview = NA_character_, notes = NA_character_)
-
 sheets <- list(
   hard_checks = hard_rows,
   not_located = not_located_rows,
@@ -343,34 +303,22 @@ sheets <- list(
   summary = summary_rows
 )
 
-# ---- 8. Write ----------------------------------------------------------------
+# ---- 8. Update the master workbook -------------------------------------------
+
+head_style <- createStyle(textDecoration = "bold", fgFill = "#DDEBF7")
 
 if (file.exists(out_path)) {
   wb <- tryCatch(loadWorkbook(out_path), error = unreadable(basename(out_path)))
-  dir.create(archive_dir, recursive = TRUE, showWarnings = FALSE)
-  backup <- file.path(archive_dir, paste0("backcheck_list_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx"))
-  archived <- if (.Platform$OS.type == "windows") {
-    status <- system2("cmd", c("/c", "copy", "/Y",
-                                shQuote(normalizePath(out_path), type = "cmd"),
-                                shQuote(normalizePath(backup, mustWork = FALSE), type = "cmd")),
-                      stdout = FALSE, stderr = FALSE)
-    status == 0
-  } else {
-    file.copy(out_path, backup)
-  }
-  if (!archived) stop("Could not archive the previous backcheck workbook; it was not changed.")
 } else {
   wb <- createWorkbook()
 }
 
-head_style <- createStyle(textDecoration = "bold", fgFill = "#DDEBF7")
 for (nm in names(sheets)) {
   df <- sheets[[nm]]
   if ("comment" %in% names(df)) df <- df |> mutate(comment = str_replace_all(comment, "\r\n", "\n"))
   if (nm %in% names(wb)) removeWorksheet(wb, nm)
   addWorksheet(wb, nm)
   writeData(wb, nm, df, headerStyle = head_style)
-  # Keep the leading 0 of phone numbers and IDs in Excel
   txt <- match(intersect(c("hh_id", "primary_phone", "secondary_phone"), names(df)), names(df))
   if (length(txt) > 0 && nrow(df) > 0) {
     addStyle(wb, nm, createStyle(numFmt = "@"), rows = seq_len(nrow(df)) + 1, cols = txt, gridExpand = TRUE)
@@ -385,28 +333,22 @@ worksheetOrder(wb) <- match(sheet_order, names(wb))
 activeSheet(wb) <- "summary"
 
 dir.create(checks_dir, recursive = TRUE, showWarnings = FALSE)
-tryCatch(saveWorkbook(wb, out_path, overwrite = TRUE),
-         error = \(e) stop("Cannot save ", basename(out_path), " (", conditionMessage(e), "). Close it in Excel and re-run."))
+dir.create(DROPBOX_CHECKS_DIR, recursive = TRUE, showWarnings = FALSE)
+pool_candidate <- tempfile(pattern = "backcheck_pool_", tmpdir = DROPBOX_CHECKS_DIR, fileext = ".xlsx")
+tryCatch(saveWorkbook(wb, pool_candidate, overwrite = TRUE),
+         error = \(e) stop("Could not build the main backcheck workbook in Dropbox (", conditionMessage(e), ")."))
 
-dir.create(daily_dir, recursive = TRUE, showWarnings = FALSE)
-daily_wb <- createWorkbook()
-addWorksheet(daily_wb, "backcheck")
-daily_export <- daily_sample |> select(-backchecked, -`backcheck-date`)
-if ("comment" %in% names(daily_export)) {
-  daily_export <- daily_export |> mutate(comment = str_replace_all(comment, "\r\n", "\n"))
+if (file.exists(out_path)) {
+  if (!ensure_shared_dir(archive_dir)) stop("The main workbook archive directory is unavailable.")
+  backup <- file.path(archive_dir, paste0("backcheck_list_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx"))
+  if (!copy_to_shared(out_path, backup)) {
+    stop("The main workbook could not be archived. Pool candidate remains at ", pool_candidate)
+  }
 }
-writeData(daily_wb, "backcheck", daily_export, headerStyle = head_style, withFilter = TRUE)
-txt <- match(intersect(c("hh_id", "primary_phone", "secondary_phone"), names(daily_export)), names(daily_export))
-if (length(txt) > 0 && nrow(daily_export) > 0) {
-  addStyle(daily_wb, "backcheck", createStyle(numFmt = "@"), rows = seq_len(nrow(daily_export)) + 1,
-           cols = txt, gridExpand = TRUE)
+if (!copy_to_shared(pool_candidate, out_path)) {
+  stop("The main workbook could not be updated. Pool candidate remains at ", pool_candidate)
 }
-setColWidths(daily_wb, "backcheck", seq_along(daily_export), "auto")
-freezePane(daily_wb, "backcheck", firstRow = TRUE)
-tryCatch(saveWorkbook(daily_wb, daily_path, overwrite = FALSE),
-         error = \(e) stop("Cannot save the daily backcheck list (", conditionMessage(e), ")."))
+unlink(pool_candidate)
 
 message(sprintf("[11.hfc_backcheck] %d hard checks, %d not located, %d GPS issues -> %s",
                 nrow(hard_rows), nrow(not_located_rows), nrow(gps_rows), out_path))
-message(sprintf("      daily list: %d of %d submissions -> %s", nrow(daily_sample), DAILY_SIZE, daily_path))
-if (nrow(daily_sample) < DAILY_SIZE) warning("Fewer eligible submissions remain than the requested daily sample size.")

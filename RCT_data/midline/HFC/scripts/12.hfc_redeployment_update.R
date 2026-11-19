@@ -74,4 +74,9 @@ redeployment_list <- redeployment_list %>%
          treat, enumerator, enumerator_key, householdid_key, household_head_name,
          primary_phone, secondary_phone)
 
+# 5. Remove duplicate households (keeps first occurrence)
+n_dup <- sum(duplicated(redeployment_list$householdid_key))
+message("Duplicate householdid_key rows removed: ", n_dup)
+redeployment_list <- redeployment_list[!duplicated(redeployment_list$householdid_key), ]
+
 write.xlsx(redeployment_list, file.path(SHARED_EAQIP, "datawork/HFC_midline/output/checks/redeployment_list_final.xlsx"))
