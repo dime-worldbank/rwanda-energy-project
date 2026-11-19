@@ -7,6 +7,13 @@
 # Locating the cause of discrepency is central because these villages will be the basis of midline survey.
 # baseline_1973_clean is the output of the below scipt of cleaning pipeline 
 # https://github.com/dime-worldbank/rwanda-energy-project/blob/main/baseline%20analysis/script/1.%20descriptives%20shorter.R
+#
+# Exploration only, writes no files. Reads (DROPBOX_EAQIP = Dropbox/Rwanda Energy/EAQIP):
+#   DATA_SCOPE (datawork/RCT_data/baseline/data/Updated scope villages& households): vulnerable households in sample villages_final.xlsx
+#   DATA_CTO_BL (datawork/HFC/data/baseline-second-round): REP_baseline_test_WIDE (2).csv
+#   OUTPUT_HFC (datawork/HFC/output): hfc_constr_0728.xlsx
+#   DATA_ANALYSIS (datawork/baseline analysis/data): baseline_1973_clean.xlsx
+#   OUTPUT_ANALYSIS (datawork/baseline analysis/output): Surveyed 181 villages.xlsx
 #----------------------------------------------------------------------
 
 #-----------#

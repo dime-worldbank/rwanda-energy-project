@@ -81,7 +81,7 @@ DATA_ML_PRELOAD <- file.path(DROPBOX_EAQIP, "questionnaires/02-midline/02-CTO-pr
 #### Script Folder ####
 SCRIPT_CTO <- file.path(GITHUB, "RCT_data" )
 SCRIPT_CTO_BL <- file.path(SCRIPT_CTO, "HFC", "scripts")
-SCRIPT_CTO_ML <- file.path(SCRIPT_CTO, "midline", "scripts")
+SCRIPT_ML_PRESURVEY <- file.path(SCRIPT_CTO, "midline", "pre-survey", "scripts")
 
 #### Outputs Folder ####
 OUTPUT_HFC <- file.path(DROPBOX_EAQIP, "datawork/HFC/output")

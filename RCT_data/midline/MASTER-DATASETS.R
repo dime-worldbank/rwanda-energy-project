@@ -66,8 +66,7 @@ villages_181 = read.xlsx(
   # Tabulation from here is used for the Baseline Analysis report 
   file.path(OUTPUT_ANALYSIS, "Surveyed 181 villages.xlsx")) # list of 181 villages 
 
-villages_180_full = read_xlsx(file.path(DATA_ML, "B.villages-180-coded.xlsx"))
-funny_names = read_xlsx(file.path(DATA_ML, "B.double-names-villages.xlsx"))
+villages_180_full = read_xlsx(file.path(DATA_ML_SCOPE, "villages-180-coded.xlsx"))
 
 
 #--------------------------
@@ -104,12 +103,12 @@ baseline_1973 <- read.xlsx(
 # MIDLINE INTERMEDIATE DATA 
 #--------------------------
 
-villages_180 <- read.csv (
-  file.path(DATA_CTO_ML, "A-villages-180.csv")
+villages_180 <- read.xlsx(
+  file.path(DATA_ML_SCOPE, "villages-180-coded.xlsx")
 )
 
 pre_load_data <- read.csv(
   # n=1973, 1973 unique households across 180 villages 
-  # output of A-create-primary-phone-preload.R
+  # output of pre-survey/scripts/1-hh-preloads.R
   file.path(DATA_ML_PRELOAD, "contact_info.csv"))
 

@@ -1,6 +1,15 @@
 #Author: Yeji Kim
 #Date: 2026-09-09
 #Purpose: Per-district filtering of EDCL household lists with village lists
+#
+# Paths (full folder = DROPBOX_EAQIP/<folder>; DROPBOX_EAQIP = Dropbox/Rwanda Energy/EAQIP)
+# Input:
+#   DATA_ML_SCOPE        questionnaires/02-midline/00-village-scope  villages-4-districts-masterfile.xlsx, villages-180-coded.xlsx
+#   DATA_ML_ELIGIBILITY  questionnaires/02-midline/01-SHS-eligibility/intermediate
+#                        grid-customer-list-harmonized.xlsx, edcl-master-matched-villages.xlsx,
+#                        manual-village-fuzzy-matching-review.xlsx (hand-filled copy of the -raw file from 2b)
+# Output (DATA_ML_ELIGIBILITY/final):
+#   edcl-sample-villages.xlsx, edcl-sample-households.xlsx
 
 #Key Functions: 
 #*_reviewed_coded: attach master admin codes to the reviewed villages.
@@ -25,10 +34,10 @@ variables = c("DISTRICT", "SECTOR", "CELL", "VILLAGE")
 
 # Complete Villages List 
 villages_list_fd_raw <- read_excel(
-  file.path(DATA_ML_SCOPE, "B.Rwanda-4-Districts-Villages-Masterfile.xlsx"))
+  file.path(DATA_ML_SCOPE, "villages-4-districts-masterfile.xlsx"))
 
 # Sample Village Data
-villages_180_full = read_excel(file.path(DATA_ML_SCOPE, "B.villages-180-coded.xlsx"))
+villages_180_full = read_excel(file.path(DATA_ML_SCOPE, "villages-180-coded.xlsx"))
 
 # Clean the Master list for easy merging
 villages_list_fd <- villages_list_fd_raw |>
@@ -36,18 +45,18 @@ villages_list_fd <- villages_list_fd_raw |>
          CELL = Cell, VILLAGE = Village) |>
   mutate(across(all_of(variables), str_to_title))
 
-# Output from C-villages-fuzzy-matching
+# Output from 2b-villages-fuzzy-matching
 # Harmonized household-level observations
 for (d in districts) {
   assign(paste0(d, "_harmonized"),
          read_excel(file.path(DATA_ML_ELIGIBILITY, "intermediate",
-                              "C-grid-customer-list-harmonized.xlsx"), sheet = d))
+                              "grid-customer-list-harmonized.xlsx"), sheet = d))
 }
 
 # Matched unique villages (EDCL ∩ master)
 for (d in districts) {
   obj <- read_excel(file.path(DATA_ML_ELIGIBILITY, "intermediate",
-                              "C-EDCL-and-master-matched-villages.xlsx"), sheet = d) |>
+                              "edcl-master-matched-villages.xlsx"), sheet = d) |>
     select(-any_of(c("Village_unclean", "Vill.name.flag")))
   assign(paste0(d, "_grid_matched"), obj)
 }
@@ -55,7 +64,7 @@ for (d in districts) {
 # Manually reviewed unmatched villages (VILLAGE_CLEAN filled in)
 for (d in districts) {
   obj <- read_excel(file.path(DATA_ML_ELIGIBILITY, "intermediate",
-                              "C-manual-village-fuzzy-matching-yeji-review.xlsx"), sheet = d) |>
+                              "manual-village-fuzzy-matching-review.xlsx"), sheet = d) |>
     mutate(VILLAGE_CLEAN = as.character(VILLAGE_CLEAN)) |>
     select(DISTRICT, SECTOR, CELL, VILLAGE_CLEAN) |> #keep only the cleaned names 
     rename(VILLAGE = VILLAGE_CLEAN)
@@ -165,7 +174,7 @@ EDCL_sample_v <- setNames(
 
 writexl::write_xlsx(
   EDCL_sample_v,
-  path = file.path(DATA_ML_ELIGIBILITY, "final", "D-EDCL-sample-villages-260909.xlsx")
+  path = file.path(DATA_ML_ELIGIBILITY, "final", "edcl-sample-villages.xlsx")
 )
 
 # EDCL sample list from EDCL list with candidates from master vill list
@@ -179,5 +188,5 @@ EDCL_sample_hh <- setNames(
 
 writexl::write_xlsx(
   EDCL_sample_hh,
-  path = file.path(DATA_ML_ELIGIBILITY, "final", "D-EDCL-sample-households-260909.xlsx")
+  path = file.path(DATA_ML_ELIGIBILITY, "final", "edcl-sample-households.xlsx")
 )

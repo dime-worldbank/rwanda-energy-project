@@ -6,9 +6,15 @@
 # Constructing preload dataset has two aims. First, the 'contact information' of the survey uses baseline cell-phone number, instead of inquiring the phone number redundantly, 
 # second, we pull treatment status of sample households and for SHS and SHS+Readyboard treatment arm, we want to encourage the eligible households to take up SHS subsidies in the next cycle. 
 
-# Input: 
+# Paths (full folder = DROPBOX_EAQIP/<folder>; DROPBOX_EAQIP = Dropbox/Rwanda Energy/EAQIP)
+# Input:
+#   DATA_CTO_ML       datawork/HFC/data/midline                  0-midline-vulnerable-household-sample.xlsx
+#   DATA_ANALYSIS     datawork/baseline analysis/data            baseline_1973_clean.xlsx
+#   DATA_CTO_BL       datawork/HFC/data/baseline-second-round    scope_193_0807.xlsx
+# Output (DATA_ML_PRELOAD = questionnaires/02-midline/02-CTO-preload):
+#   contact_info.csv, household_head.csv, shs_eligible.csv
+# Used by: 1b-hh-treatment-count.R, midline HFC scripts (0.hfc_deidentify.R, 1-3, 11, 12), SurveyCTO form
 # Main functions: clean_phone
-# Output: 
 
 # Clear environment
 rm(list = ls())

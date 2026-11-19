@@ -1,6 +1,15 @@
 #Author: Yeji Kim
 #Date: 2026-09-03
 #Purpose: EDCL list villages name cleaning with master village list data 
+#
+# Paths (full folder = DROPBOX_EAQIP/<folder>; DROPBOX_EAQIP = Dropbox/Rwanda Energy/EAQIP)
+# Input:
+#   DATA_ML_SCOPE        questionnaires/02-midline/00-village-scope       villages-4-districts-masterfile.xlsx, villages-180-coded.xlsx (from 2-village-preload.R)
+#   DATA_ML_ELIGIBILITY  questionnaires/02-midline/01-SHS-eligibility/raw 260827-grid-customer-list.xlsx (one sheet per district)
+# Output (DATA_ML_ELIGIBILITY/intermediate):
+#   grid-customer-list-harmonized.xlsx, edcl-master-matched-villages.xlsx, manual-village-fuzzy-matching-raw.xlsx
+# Manual step: copy the -raw file to manual-village-fuzzy-matching-review.xlsx and fill VILLAGE_CLEAN
+# Used by: 2c-EDCL-180-sample.R
 #Key Functions
 
 # Clean environment (Optional)
@@ -17,11 +26,10 @@ source(here("PATHS.R"))
 
 # Complete Villages List 
 villages_list_fd_raw <- read_excel(
-  file.path(DATA_ML_SCOPE, "B.Rwanda-4-Districts-Villages-Masterfile.xlsx"))
+  file.path(DATA_ML_SCOPE, "villages-4-districts-masterfile.xlsx"))
 
 # Sample Village Data
-villages_180_full = read_excel(file.path(DATA_ML_SCOPE, "B.villages-180-coded.xlsx"))
-funny_names = read_excel(file.path(DATA_ML_SCOPE, "B.double-names-villages.xlsx"))
+villages_180_full = read_excel(file.path(DATA_ML_SCOPE, "villages-180-coded.xlsx"))
 
 # Grid customers per Disticts 
 Karongi_raw <- read_excel(
@@ -263,7 +271,7 @@ harmonized <- setNames(
 
 writexl::write_xlsx(
   harmonized, 
-  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "C-grid-customer-list-harmonized.xlsx")
+  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "grid-customer-list-harmonized.xlsx")
 )
 
 # matched-and-unique-villages-list from EDCL customers
@@ -276,7 +284,7 @@ matched_villages <- setNames (
 
 writexl::write_xlsx(
   matched_villages,
-  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "C-EDCL-and-master-matched-villages.xlsx")
+  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "edcl-master-matched-villages.xlsx")
 )
 
 # Unmatched villages from EDCL list with candidates from master vill list
@@ -291,5 +299,5 @@ unmatched_options <- setNames(
 
 writexl::write_xlsx(
   unmatched_options,
-  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "C-manual-village-fuzzy-matching-raw.xlsx")
+  path = file.path(DATA_ML_ELIGIBILITY, "intermediate", "manual-village-fuzzy-matching-raw.xlsx")
 )
