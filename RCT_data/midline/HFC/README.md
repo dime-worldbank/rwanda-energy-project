@@ -1,4 +1,4 @@
-# Midline HFC scripts
+# Midline HFC
 
 High-frequency checks for the midline SurveyCTO survey. 
 It is ran everyday to ensure quality data collection, monitoring possible errors, and performance. 
@@ -96,23 +96,25 @@ Set the same `HFC_MODE` in both scripts, then run them from the repo root (RStud
 ```
 source("RCT_data/midline/HFC/scripts/0.hfc_deidentify.R")
 source("RCT_data/midline/HFC/scripts/1.hfc_main.R")
-source("RCT_data/midline/HFC/scripts/11.hfc_backcheck.R")   # optional: back-check call list
+source("RCT_data/midline/HFC/scripts/11.hfc_backcheck.R")         # optional: back-check master list
+source("RCT_data/midline/HFC/scripts/11b.hfc_backcheck_daily.R")   # optional: today's back-check call list
 ```
 
-Script 11 updates `output/checks/backcheck_list.xlsx` from the dashboard, raw export and both baseline GPS
+Script 11 builds `output/checks/backcheck_list.xlsx` (the master list) from the dashboard, raw export and both baseline GPS
 exports. Its `hard_checks`, `not_located` and `gps_issues` sheets are the cumulative sampling pool;
 `enumerator` and `summary` contain totals, with the summary shown both overall and for rows with a phone number.
 GPS issues are recalculated each run using `GPS_MAX_KM` plus
 midline and baseline accuracy against every available baseline point. Missing accuracy counts as zero.
+Each issue sheet carries `backchecked` and `backcheck-date` over from the existing master, so rerunning script 11 keeps them.
+Before saving, the previous workbook is copied to `checks/!archive/`.
 
-Each issue sheet marks `backchecked` and `backcheck-date` using the earliest matching `KEY` in the daily
-workbooks under `checks/backcheck_daily_list/`. These indicate prior selection, not necessarily a completed call.
-The new `backcheck_list_YYMMDD.xlsx` contains one sheet: a target of 100 distinct keys, with quotas of 40
-hard checks, 40 not located and 20 GPS issues. Only rows with at least one nonblank phone number are eligible;
-unfilled quotas are drawn from the remaining eligible pool.
+Script 11b samples the daily list from the master. It pools rows with `backchecked == "NO"` and at least one
+nonblank phone number, and saves `checks/backcheck_daily_list/backcheck_list_YYMMDD.xlsx` with one sheet:
+a target of 100 distinct keys, with quotas of 40 hard checks, 40 not located and 20 GPS issues
+(unfilled quotas are drawn from the remaining eligible pool).
 It retains the source columns except the pool-only tracking fields, and adds `source`, `call_date`, `reachied`, `respondent_confirms_interview`
-and `notes`. Existing daily files are never overwritten; before updating the pool, the previous workbook is
-copied to `checks/!archive/`.
+and `notes`. Existing daily files are never overwritten. It then stamps `backchecked` and `backcheck-date` for the
+sampled keys in the master (archiving the previous master first). These mark prior selection, not necessarily a completed call.
 
 For not-located submissions, phone numbers come from the household contact preload. For other submissions,
 a valid digits-only preloaded Rwandan mobile number is used if confirmed; otherwise the corresponding revised

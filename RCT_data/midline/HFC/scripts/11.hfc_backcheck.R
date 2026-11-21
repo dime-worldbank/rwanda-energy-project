@@ -32,8 +32,8 @@ source("PATHS.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "live"                     # same as 1.hfc_main.R: "pilot" or "live"
-stopifnot(HFC_MODE %in% c("pilot", "live"))
+HFC_MODE <- "mop-up"                   # same as 1.hfc_main.R: "pilot", "live", or "mop-up"
+stopifnot(HFC_MODE %in% c("pilot", "live", "mop-up"))
 
 FORM_ID <- "REP_readyboard_test"
 
@@ -41,23 +41,41 @@ TZ        <- "Africa/Kigali"
 EXPORT_TZ <- Sys.timezone()            # time zone of the export (see 1.hfc_main.R)
 
 # Same fieldwork start as MODE_CONFIG in 1.hfc_main.R
-FIELDWORK_START <- switch(HFC_MODE, pilot = as.Date("2026-10-27"), live = as.Date("2026-10-31"))
+FIELDWORK_START <- switch(
+  HFC_MODE,
+  pilot = as.Date("2026-10-27"),
+  live = as.Date("2026-10-31"),
+  `mop-up` = as.Date("2026-11-20")
+)
 
 MODE_DIR <- switch(HFC_MODE,
                    pilot = file.path(SHARED_EAQIP, "datawork/HFC_midline/pilot"),
-                   live  = file.path(SHARED_EAQIP, "datawork/HFC_midline"))
+                   live  = file.path(SHARED_EAQIP, "datawork/HFC_midline"),
+                   `mop-up` = file.path(SHARED_EAQIP, "datawork/HFC_midline"))
 
 DROPBOX_MODE_DIR <- switch(HFC_MODE,
                            pilot = file.path(DROPBOX_EAQIP, "datawork/HFC_midline/pilot"),
-                           live = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"))
+                           live = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"),
+                           `mop-up` = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"))
 DROPBOX_CHECKS_DIR <- file.path(DROPBOX_MODE_DIR, "output/checks")
 
-raw_data_dir <- file.path(MODE_DIR, "data")
-preload_dir  <- file.path(MODE_DIR, "deidentified/preload")
+raw_data_dir <- switch(HFC_MODE,
+           pilot = file.path(MODE_DIR, "data"),
+           live = file.path(MODE_DIR, "data"),
+           `mop-up` = file.path(MODE_DIR, "mop-up-data"))
+preload_dir <- switch(HFC_MODE,
+          pilot = file.path(MODE_DIR, "deidentified/preload"),
+          live = file.path(MODE_DIR, "deidentified/preload"),
+          `mop-up` = file.path(MODE_DIR, "mop-up-deidentified/preload"))
+output_dir <- switch(HFC_MODE,
+         pilot = file.path(MODE_DIR, "output"),
+         live = file.path(MODE_DIR, "output"),
+         `mop-up` = file.path(MODE_DIR, "mop-up-output"))
 raw_preload_dir <- switch(HFC_MODE,
                           pilot = file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload/pilot"),
-                          live = file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload"))
-checks_dir   <- file.path(MODE_DIR, "output/checks")
+           live = file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload"),
+                          `mop-up` = file.path(SHARED_EAQIP, "questionnaires/02-midline/02-CTO-preload/mop-up"))
+checks_dir <- file.path(output_dir, "checks")
 
 # Baseline exports with the household GPS (coordinate-Latitude / -Longitude)
 BASELINE_EXPORTS <- c(first  = file.path(DATA_CTO, "baseline-first-round", "REP_baseline_test_WIDE.csv"),
@@ -150,18 +168,29 @@ if (file.exists(out_path)) {
     distinct(KEY, .keep_all = TRUE)
 }
 
-dashboard_path <- file.path(MODE_DIR, "output", "HFC_midline_dashboard.xlsx")
+dashboard_path <- if (HFC_MODE == "mop-up") {
+  file.path(DROPBOX_MODE_DIR, "mop-up-output", "HFC_midline_dashboard.xlsx")
+} else {
+  file.path(output_dir, "HFC_midline_dashboard.xlsx")
+}
 if (!file.exists(dashboard_path)) stop("Run 1.hfc_main.R first (", dashboard_path, " not found).")
 dashboard_hard <- read_excel(dashboard_path, sheet = "hard_checks")
 dashboard_not_located <- read_excel(dashboard_path, sheet = "not_located")
 
 raw      <- read_chr(active_exports)
 enums    <- read_chr(file.path(preload_dir, "enumerators.csv"))
-villages <- read_chr(file.path(raw_preload_dir, "scope_villages.csv"))
+village_file <- if (HFC_MODE == "mop-up") "mop-up-scope-villages.csv" else "scope_villages.csv"
+villages <- read_chr(file.path(raw_preload_dir, village_file))
 households <- read_chr(file.path(preload_dir, "household_frame.csv"))
-contact_phones <- read_chr(file.path(raw_preload_dir, "contact_info.csv"),
-                           col_select = c(householdid_key, phone_clean, phone2_clean)) |>
-  transmute(hh_id = householdid_key, preload_primary = phone_clean, preload_secondary = phone2_clean)
+contact_phones <- if (HFC_MODE == "mop-up") {
+  read_chr(file.path(raw_preload_dir, "mop-up-contact-information.csv"),
+           col_select = c(householdid_key, primary_phone, secondary_phone)) |>
+    transmute(hh_id = householdid_key, preload_primary = primary_phone, preload_secondary = secondary_phone)
+} else {
+  read_chr(file.path(raw_preload_dir, "contact_info.csv"),
+           col_select = c(householdid_key, phone_clean, phone2_clean)) |>
+    transmute(hh_id = householdid_key, preload_primary = phone_clean, preload_secondary = phone2_clean)
+}
 if (anyNA(contact_phones$hh_id) || anyDuplicated(contact_phones$hh_id)) stop("Missing or duplicate household IDs in the phone preload.")
 if (!"comment" %in% names(raw)) raw$comment <- NA_character_
 

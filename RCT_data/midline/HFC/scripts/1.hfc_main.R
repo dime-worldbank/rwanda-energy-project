@@ -34,8 +34,8 @@ source("RCT_data/midline/HFC/scripts/hfc_privacy.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "live"                     # "test", "pilot", or "live"
-stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
+HFC_MODE <- "mop-up"                   # "test", "pilot", "live", or "mop-up"
+stopifnot(HFC_MODE %in% c("test", "pilot", "live", "mop-up"))
 
 FORM_ID <- "REP_readyboard_test"
 
@@ -160,6 +160,27 @@ MODE_CONFIG <- switch(
     
     # Read the current version directly from the active live form definition.
     expected_formdef = NA_real_
+  ),
+
+  `mop-up` = list(
+    form_path = file.path(
+      SHARED_EAQIP,
+      "questionnaires/02-midline/REP_questionnaire_SurveyCTO_mop_up.xlsx"
+    ),
+
+    data_dir = file.path(
+      SHARED_EAQIP,
+      "datawork/HFC_midline/mop-up-deidentified"
+    ),
+
+    output_dir = file.path(
+      DROPBOX_EAQIP,
+      "datawork/HFC_midline/mop-up-output"
+    ),
+
+    fieldwork_start = as.Date("2026-11-20"),
+
+    expected_formdef = NA_real_
   )
 )
 
@@ -176,10 +197,17 @@ output_dir <- MODE_CONFIG$output_dir
 archive_dir <- file.path(output_dir, "archive")
 checks_dir <- file.path(output_dir, "checks")
 
-share_dir <- file.path(
-  ONEDRIVE_HFC_ML,
-  MODE_CONFIG$share_folder
-)
+share_dir <- if (HFC_MODE == "mop-up") {
+  file.path(
+    SHARED_EAQIP,
+    "datawork/HFC_midline/mop-up-output"
+  )
+} else {
+  file.path(
+    ONEDRIVE_HFC_ML,
+    MODE_CONFIG$share_folder
+  )
+}
 
 share_archive_dir <- file.path(
   share_dir,

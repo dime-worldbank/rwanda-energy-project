@@ -71,9 +71,25 @@ hh_frame <- read_preload("household_frame.csv") |>
   distinct(hh_id = householdid_key, villageid_key, treat) |>
   left_join(admin_names, by = "villageid_key")
 
-nolocate_labels <- read_excel(form_path, "choices", col_types = "text", .name_repair = "unique_quiet") |>
+choice_labels <- read_excel(form_path, "choices", col_types = "text", .name_repair = "unique_quiet") |>
+  filter(list_name %in% c("nolocate", "tenant", "migrate")) |>
+  transmute(list_name, choice = as.numeric(value), label = `label:English`)
+
+nolocate_labels <- choice_labels |>
   filter(list_name == "nolocate") |>
-  transmute(nolocate = as.numeric(value), nolocate_label = `label:English`)
+  transmute(nolocate = choice, nolocate_label = label)
+
+tenant_labels <- choice_labels |>
+  filter(list_name == "tenant") |>
+  transmute(nolocate_tenant = choice, nolocate_tenant_label = label)
+
+new_tenant_labels <- choice_labels |>
+  filter(list_name == "tenant") |>
+  transmute(nolocate_new_tenant = choice, nolocate_new_tenant_label = label)
+
+migrate_labels <- choice_labels |>
+  filter(list_name == "migrate") |>
+  transmute(nolocate_migrate = choice, nolocate_migrate_label = label)
 
 status <- hh_status(hfc_constr)
 
@@ -115,10 +131,17 @@ treatment_data <- progress_by(hh_frame, status, "treat") |>
 not_located <- hfc_constr |>
   filter(locate %in% 0) |>
   left_join(nolocate_labels, by = "nolocate") |>
+  left_join(tenant_labels, by = "nolocate_tenant") |>
+  left_join(migrate_labels, by = "nolocate_migrate") |>
+  left_join(new_tenant_labels, by = "nolocate_new_tenant") |>
   transmute(hh_id, district_key, sector_key, cell_key, village_key, treat,
             attempt_date = submissiondate,
             enumerator = enumerator, enumerator_key = enumerator_key,
-            nolocate, nolocate_label, nolocate_other, comment, KEY) |>
+            nolocate, nolocate_label, nolocate_other,
+            nolocate_tenant, nolocate_tenant_label,
+            nolocate_migrate, nolocate_migrate_label,
+            nolocate_new_tenant, nolocate_new_tenant_label,
+            comment, KEY) |>
   arrange(desc(attempt_date), district_key, village_key, hh_id)
 
 

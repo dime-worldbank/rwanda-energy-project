@@ -30,20 +30,26 @@ source("PATHS.R")
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "live"                     # same as 1.hfc_main.R: "pilot" or "live"
-stopifnot(HFC_MODE %in% c("pilot", "live"))
+HFC_MODE <- "live"                     # same as 1.hfc_main.R: "pilot", "live", or "mop-up"
+stopifnot(HFC_MODE %in% c("pilot", "live", "mop-up"))
 
 TZ <- "Africa/Kigali"
 
 MODE_DIR <- switch(HFC_MODE,
                    pilot = file.path(SHARED_EAQIP, "datawork/HFC_midline/pilot"),
-                   live  = file.path(SHARED_EAQIP, "datawork/HFC_midline"))
+       live  = file.path(SHARED_EAQIP, "datawork/HFC_midline"),
+       `mop-up` = file.path(SHARED_EAQIP, "datawork/HFC_midline"))
 DROPBOX_MODE_DIR <- switch(HFC_MODE,
                            pilot = file.path(DROPBOX_EAQIP, "datawork/HFC_midline/pilot"),
-                           live  = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"))
+         live  = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"),
+         `mop-up` = file.path(DROPBOX_EAQIP, "datawork/HFC_midline"))
 DROPBOX_CHECKS_DIR <- file.path(DROPBOX_MODE_DIR, "output/checks")
 
-checks_dir  <- file.path(MODE_DIR, "output/checks")
+output_dir <- switch(HFC_MODE,
+                     pilot = file.path(MODE_DIR, "output"),
+                     live = file.path(MODE_DIR, "output"),
+                     `mop-up` = file.path(MODE_DIR, "mop-up-output"))
+checks_dir  <- file.path(output_dir, "checks")
 out_path    <- file.path(checks_dir, "backcheck_list.xlsx")
 archive_dir <- file.path(checks_dir, "!archive")
 daily_dir   <- file.path(checks_dir, "backcheck_daily_list")

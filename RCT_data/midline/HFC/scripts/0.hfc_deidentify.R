@@ -31,8 +31,8 @@ t_start <- Sys.time()
 
 # ---- 2. Config / constants ---------------------------------------------------
 
-HFC_MODE <- "live"                   # "test", "pilot (Oct 27, 28)", or "live (Oct 31 -) "
-stopifnot(HFC_MODE %in% c("test", "pilot", "live"))
+HFC_MODE <- "mop-up"                 # "test", "pilot", "live", or "mop-up"
+stopifnot(HFC_MODE %in% c("test", "pilot", "live", "mop-up"))
 
 FORM_ID <- "REP_readyboard_test"
 
@@ -122,6 +122,32 @@ MODE_CONFIG <- switch(
     ),
     
     versioned_export = TRUE
+  ),
+
+  `mop-up` = list(
+    enum_file = "mop-up-enumerators.csv",
+
+    form_path = file.path(
+      SHARED_EAQIP,
+      "questionnaires/02-midline/REP_questionnaire_SurveyCTO_mop_up.xlsx"
+    ),
+
+    raw_data_dir = file.path(
+      SHARED_EAQIP,
+      "datawork/HFC_midline/mop-up-data"
+    ),
+
+    raw_preload_dir = file.path(
+      SHARED_EAQIP,
+      "questionnaires/02-midline/02-CTO-preload/mop-up"
+    ),
+
+    deid_dir = file.path(
+      SHARED_EAQIP,
+      "datawork/HFC_midline/mop-up-deidentified"
+    ),
+
+    versioned_export = TRUE
   )
 )
 
@@ -141,6 +167,16 @@ PRELOAD_KEEP <- list(
                              cols = c("villageid_key", "districtid_key", "district_key", "sector_key", "cell_key", "village_key")),
   enumerators.csv     = list(from = ENUM_FILE, cols = c("enumeratorid_key", "enumerator_key"))
 )
+
+if (HFC_MODE == "mop-up") {
+  PRELOAD_KEEP <- list(
+    household_frame.csv = list(from = "mop-up-contact-information.csv", cols = c("householdid_key", "villageid_key", "treat")),
+    shs_eligible.csv    = list(from = "mop-up-shs-eligible.csv", cols = "householdid_key"),
+    scope_villages.csv  = list(from = "mop-up-scope-villages.csv",
+                               cols = c("villageid_key", "districtid_key", "district_key", "sector_key", "cell_key", "village_key")),
+    enumerators.csv     = list(from = ENUM_FILE, cols = c("enumeratorid_key", "enumerator_key"))
+  )
+}
 
 
 # ---- 3. Survey export --------------------------------------------------------
