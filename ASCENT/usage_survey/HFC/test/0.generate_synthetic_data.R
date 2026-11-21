@@ -148,7 +148,10 @@ preload <- list(
                                          hh_head_name = paste(sample(FIRST, n(), TRUE), sample(LAST, n(), TRUE)),
                                          phone_clean = sprintf("0700%06d", sample(1e5:999999, n())),
                                          phone2_clean = if_else(runif(n()) < 0.3, sprintf("0700%06d", sample(1e5:999999, n())), NA_character_)),
-  stove_type.csv = hh |> transmute(householdid_key, stove_type = unname(c("1" = "LPG", "2" = "PAYG LPG", "3" = "EPC")[stove_type]), stove_type_code = stove_type, product_name = if_else(stove_type == "3", "Panda EPC", "Hello Gas II"), product_name_code = if_else(stove_type == "3", "P003", "P014"), stove_year = sample(c(2025, 2026), n(), TRUE))
+  stove_type.csv = hh |> transmute(householdid_key,
+                                   stove_type = unname(c("1" = "Ishyiga rikoresha Gaz", "2" = "Ishyiga rikoresha Gaz wishyura uko uyikoresheje", "3" = "Isafuriya ikoresha amashanyarazi")[stove_type]),
+                                   stove_type_english = unname(c("1" = "LPG", "2" = "LPG_PAYG", "3" = "EPC")[stove_type]),
+                                   stove_type_code = stove_type, product_name = if_else(stove_type == "3", "Panda EPC", "Hello Gas II"), product_name_code = if_else(stove_type == "3", "P003", "P014"), stove_year = sample(c(2025, 2026), n(), TRUE))
 )
 
 

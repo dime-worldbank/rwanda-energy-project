@@ -102,6 +102,12 @@ if (length(bad_stove) > 0) {
 sample_df <- sample_df |>
   mutate(stove_type_code = coalesce(stove_type_code, unname(stove_code_map[stove_type])))
 
+stove_label_rw <- c(
+  LPG = "Ishyiga rikoresha Gaz",
+  LPG_PAYG = "Ishyiga rikoresha Gaz wishyura uko uyikoresheje",
+  EPC = "Isafuriya ikoresha amashanyarazi"
+)
+
 product_code_map <- c(
   "ALY-K3 Pressure cooker" = "P001",
   "EBMS E Smart Pressure cooker 6L" = "P002",
@@ -163,10 +169,12 @@ if (any(household_head$hh_head_name == "")) {
 
 stove_type <- sample_df |>
   transmute(householdid_key,
-            stove_type,
+            stove_type_english = stove_type,
+            stove_type = unname(stove_label_rw[stove_type_english]),
             stove_type_code,
             product_name,
-            product_name_code = unname(product_code_map[product_name]))
+            product_name_code = unname(product_code_map[product_name])) |>
+  relocate(stove_type, .before = stove_type_english)
 
 if (!all(stove_type$stove_type_code %in% c("1", "2", "3"))) {
   stop("stove_type_code must be 1, 2 or 3.")

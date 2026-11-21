@@ -99,8 +99,9 @@ Fields were dropped on purpose (confirmed by Yeji). Changes in the form:
   Within strata: systematic draw after sorting by district, cell, village. Seed 20261105.
 - **Design weight** = stratum frame size / 250 (frame households one sampled household stands for). Only for
   estimates that pool strata; results by stratum need no weight. Recompute on completed interviews.
-- **Form preload** is now `stove_type.csv` (written by `3.preload.R`: `householdid_key`, `stove_type` label,
-  `stove_type_code` (1 LPG / 3 EPC), `product_name`, `product_name_code`). `hfc_config.R` and the synthetic
+- **Form preload** is now `stove_type.csv` (written by `3.preload.R`: `householdid_key`, `stove_type` (Kinyarwanda
+  label), `stove_type_english` (LPG / LPG_PAYG / EPC), `stove_type_code` (1 LPG / 3 EPC), `product_name`,
+  `product_name_code`). The HFC reads only `stove_type_code`. `hfc_config.R` and the synthetic
   data use the new name. **Form edit pending:** `pull_stovetype` (survey sheet row 36, column K)
   `pulldata('beneficiary-list-intermediate', ...)` -> `pulldata('stove_type', ...)`.
 - Replacement rule (when a household counts as unreachable): to set with the survey firm before calls start.

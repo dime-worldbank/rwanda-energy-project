@@ -59,7 +59,7 @@ Creates the raw form preload files from sampled households:
 - `test_enumerators.csv` (one row per sampled district): `districtid_key`, `district_key`, `enumeratorid_key`, `enumerator_key`
 - `scope_villages.csv`: admin keys and names at all levels (`district*`, `sector*`, `cell*`, `village*`)
 - `household_head.csv`: `householdid_key`, `household_id`, `villageid_key`, `village`, `hh_head_name`, `phone_clean`, `phone2_clean`
-- `stove_type.csv` (`householdid_key`, `stove_type`, `stove_type_code`, `product_name`, `product_name_code`)
+- `stove_type.csv` (`householdid_key`, `stove_type` (Kinyarwanda label), `stove_type_english`, `stove_type_code`, `product_name`, `product_name_code`)
 
 Mode handling:
 - `PRELOAD_MODE=live` uses `usage_survey_sample.csv` (main + replacement)
