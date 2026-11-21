@@ -1,7 +1,7 @@
 # Daily Duplicates update 
 # Total Duplicates 32 (16 hhid)
 
-#2026-10-31 (6 hhid) 
+## 2026-10-31 (6 hhid) 
 
 (1) hh_id == 321206010353,
 If KEY == "uuid:4f343931-4265-424f-90b1-d9a9bf44ce0d", keep as it is 
@@ -22,17 +22,17 @@ uuid:547d2545-518e-4f67-a948-f5abe1d12c94 correct
 uuid:bb00dd51-de83-47cc-8f53-3786e8852776 correct
 uuid:6f425e0f-49f2-4549-a459-2a586b4ce845 mutate hh_id == 411705060161
 
-#2026-11-01 (1 hhid)
+## 2026-11-01 (1 hhid)
 (1) 360301021051
 uuid:733f2009-c455-4a10-b2f7-5019144ab62d correct (manually flagged - FOUND)
 uuid:0f48246d-9264-4e9e-933e-469f833e8c92 mutate hh_id == 360301020151
 
-#2026-11-02 (1 hhid)
+## 2026-11-02 (1 hhid)
 (1) 360204080238
 uuid:8cc3f58b-8c43-4344-92eb-d6f7af9b0adc correct 
 uuid:e95348dc-c0bf-4ecb-b19c-8cd662d05f43 mutate hh_id == 360204080283
 
-#2026-11-03 (4 hhid) 
+## 2026-11-03 (4 hhid) 
 (1) 360204070204
 uuid:a8f8c9e7-3925-4995-897d-5a3decc4b9f0 correct 
 uuid:629621ad-9c6f-4593-9727-a54069137e9d mutate hh_id == 360204070024
@@ -46,23 +46,29 @@ uuid:0405a778-9f99-4ec4-a58b-e9f59b7850a2 mutate hh_id == 360204070743 (manually
 uuid:381cc9d6-f5e0-4010-baf3-569f7cbe6802 correct 
 uuid:e508fd01-fabb-40f7-b0dc-3288d3484978 mutate hh_id == 410602050479
 
-#2026-11-04 (1 hhid)
+## 2026-11-04 (1 hhid)
 (1) 321304020151
 uuid:f176ba33-56b4-41bd-9cf7-38eea395a915 correct 
 uuid:61ff7071-990a-4839-b82a-b164bfb664b2 mutate hh_id == 321304020511
 
-#2026-11-05 (1 hhid)
+## 2026-11-05 (1 hhid)
 (1) 320304100182
 uuid:73c28c5c-f2bc-4df6-9e85-0c971607c3b6 correct 
 uuid:610e957a-8efd-4bdf-ad5d-9281b81ff205 mutate hh_id == 320304100081
 
-#2026-11-09 (2 hhid)
+## 2026-11-09 (2 hhid)
 (1) 411404010544
 uuid:417d291c-21e8-47f9-8ef6-83c2227539de correct 
 uuid:8cd08e0d-3b02-4cd9-82bf-f4ba65fa1f07 mutate hh_id == 411404010623 (manually flagged - FOUND)
 (2) 411404030120
 uuid:accf3ef2-2f2f-4a7f-9aa2-1acfc1aaec33 correct 
 uuid:233802cc-e99a-4dde-9a75-5d34b6be0155 mutate hh_id == 411404031020
+
+# Mop-up 
+## 2026-11-21 (1 hhid)
+(1) 411404011556
+uuid:02448186-b72d-45c5-9724-5b535bff0df8 drop
+uuid:93e4fe67-1fd1-4814-bb71-4410fb337005 correct (agreed to the observation) 
 
 
 
