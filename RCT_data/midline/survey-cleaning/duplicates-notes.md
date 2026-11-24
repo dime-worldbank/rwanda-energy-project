@@ -1,5 +1,7 @@
-# Daily Duplicates Update
-**Total Duplicates:** 32 (16 hhid)
+# Daily Duplicates
+## Definition of Duplicates: hhid as character variable (science notation can hinder exact matching), more than one unique hhid in survey entries before applying any filter (consent, locate, finish)
+## Action: Inspect the aggregated list everyday to ensure there is no missing duplicates
+**Total Duplicates:** 46 (23 hhid)
 
 ---
 
@@ -55,7 +57,7 @@
 
 ---
 
-## 2026-11-02 (1 hhid)
+## 2026-11-02 (2 hhid)
 
 ### (1) `360204080238` — YES
 | KEY | Action |
@@ -73,7 +75,7 @@
 
 ---
 
-## 2026-11-03 (4 hhid)
+## 2026-11-03 (6 hhid)
 
 ### (1) `360204070204` — YES
 | KEY | Action |
@@ -123,7 +125,7 @@
 
 ---
 
-## 2026-11-05 (1 hhid)
+## 2026-11-05 (2 hhid)
 
 ### (1) `320304020262`
 > Both are nolocate and this will be reinterviewed — was included in the mop-up list.
@@ -141,7 +143,7 @@
 
 ---
 
-## 2026-11-07
+## 2026-11-07 (3 hhid)
 
 ### (1) `310407050235`
 | KEY | Action |
